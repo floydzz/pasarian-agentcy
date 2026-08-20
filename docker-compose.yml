@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: agentcy-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: agentcy_root
+      MYSQL_DATABASE: agentcy
+      MYSQL_USER: agentcy
+      MYSQL_PASSWORD: agentcy_pw
+    ports:
+      - "3307:3306"
+    volumes:
+      - agentcy_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pagentcy_root"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  agentcy_mysql_data:
