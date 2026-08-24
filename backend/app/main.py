@@ -2,10 +2,24 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import Response
+from starlette.staticfiles import StaticFiles
 
+from app.api.agents import router as agents_router
 from app.api.campaigns import router as campaigns_router
+from app.api.generation import router as generation_router
+from app.api.history import router as history_router
+from app.api.system import router as system_router
+from app.api.trends import router as trends_router
+from app.config import REPO_ROOT
+
+CONSOLE_DIST = REPO_ROOT / "frontend" / "dist"
 
 app = FastAPI(
     title="Agentcy",
@@ -13,7 +27,9 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# The React/Vite dev server is a separate origin during development.
+# The React/Vite dev server is a separate origin during development. In the
+# container the console is served from this app, so nothing crosses an origin
+# and this middleware never fires.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -23,3 +39,41 @@ app.add_middleware(
 )
 
 app.include_router(campaigns_router)
+app.include_router(generation_router)
+app.include_router(agents_router)
+app.include_router(history_router)
+app.include_router(system_router)
+app.include_router(trends_router)
+
+
+@app.get("/api/health", tags=["ops"])
+def health() -> dict[str, str]:
+    """Liveness for the container. Deliberately touches nothing."""
+    return {"status": "ok"}
+
+
+class ConsoleFiles(StaticFiles):
+    """Serve the built console, and let the client router own unknown paths.
+
+    A deep link like `/campaigns/3` is a route in React, not a file on disk, so
+    a miss returns index.html and the browser resolves it. Only misses under
+    the SPA's own mount reach this — the API is mounted first and answers its
+    own 404s.
+    """
+
+    async def get_response(self, path: str, scope: Any) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as error:
+            if error.status_code != 404:
+                raise
+            return await super().get_response("index.html", scope)
+
+
+def _mount_console(directory: Path) -> None:
+    """Mounted last and only when built — `npm run dev` still owns development."""
+    if directory.is_dir():
+        app.mount("/", ConsoleFiles(directory=directory, html=True), name="console")
+
+
+_mount_console(CONSOLE_DIST)

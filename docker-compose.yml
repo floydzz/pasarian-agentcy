@@ -9,7 +9,9 @@ services:
       MYSQL_USER: agentcy
       MYSQL_PASSWORD: agentcy_pw
     ports:
-      - "3307:3306"
+      # Published so the test suite and any local tooling can reach the same
+      # server the container uses. 3308 because 3307 is taken on this machine.
+      - "3308:3306"
     volumes:
       - agentcy_mysql_data:/var/lib/mysql
     healthcheck:
@@ -18,5 +20,57 @@ services:
       timeout: 5s
       retries: 20
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentcy:latest
+    container_name: agentcy-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Inside the network MySQL is on its own hostname and its real port — the
+      # 3308 mapping above is for the host only.
+      DATABASE_URL: mysql+pymysql://agentcy:agentcy_pw@mysql:3306/agentcy
+
+      # Defaults to the offline provider so `docker compose up` works with no
+      # keys and bills nothing. Override in .env to run against a real model;
+      # switching EMBEDDING_PROVIDER means clearing the volume, because vectors
+      # from two models are not comparable.
+      LLM_PROVIDER: ${LLM_PROVIDER:-demo}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-demo}
+
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      QWEN_MODEL: ${QWEN_MODEL:-}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      QWEN_EMBEDDING_MODEL: ${QWEN_EMBEDDING_MODEL:-text-embedding-v3}
+
+      TRENDS_GEO: ${TRENDS_GEO:-MY}
+      CHROMA_PATH: /data/chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      # The embedded corpora. Persisted so a restart is not a re-embedding.
+      - agentcy_chroma:/data/chroma
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
 volumes:
   agentcy_mysql_data:
+  agentcy_chroma:

@@ -8,7 +8,7 @@ from app.db import Base
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "mysql+pymysql://agentcy:agentcy_pw@127.0.0.1:3307/agentcy_test",
+    "mysql+pymysql://agentcy:agentcy_pw@127.0.0.1:3308/agentcy_test",
 )
 
 

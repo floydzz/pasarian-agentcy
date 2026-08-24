@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import Protocol
 
 from pydantic import BaseModel, Field
 
-from app.domain import Concept, ConceptFormat
+from app.agents.base import Provider, render_context, with_house_note
+from app.agents.events import AgentEvent, EventSink, emit
+from app.domain import Concept, ConceptFormat, ConceptStatus
 from app.rag.store import KnowledgeStore, Retrieved
 
 DEFAULT_CONCEPT_COUNT = 3
@@ -49,12 +50,6 @@ not restatements of the theme.
 - Concepts must be genuinely distinct from one another, not one idea reworded.
 - Respect every guardrail in the company knowledge, especially claim \
 restrictions. A concept that needs a forbidden claim is not a concept."""
-
-
-class Provider(Protocol):
-    """Whatever LLM the campaign is running on — see `app.llm`."""
-
-    def structured(self, *, system: str, prompt: str, schema: type[BaseModel]): ...
 
 
 class PlanningError(RuntimeError):
@@ -94,28 +89,63 @@ class PlanResult:
 
 
 class PlanningAgent:
-    def __init__(self, *, provider: Provider, store: KnowledgeStore) -> None:
+    def __init__(
+        self,
+        *,
+        provider: Provider,
+        store: KnowledgeStore,
+        standing_note: str | None = None,
+        concept_count: int = DEFAULT_CONCEPT_COUNT,
+        company_k: int = COMPANY_K,
+        trend_k: int = TREND_K,
+    ) -> None:
         self.provider = provider
         self.store = store
+        self.system = with_house_note(SYSTEM_PROMPT, standing_note)
+        self.concept_count = concept_count
+        self.company_k = company_k
+        self.trend_k = trend_k
 
     def plan(
         self,
         brief: str,
         *,
         source_event: str | None = None,
-        concept_count: int = DEFAULT_CONCEPT_COUNT,
+        concept_count: int | None = None,
+        sink: EventSink | None = None,
     ) -> PlanResult:
         brief = brief.strip()
         if not brief:
             raise ValueError("a campaign brief is required")
+        if concept_count is None:
+            concept_count = self.concept_count
+
+        emit(sink, AgentEvent("planner", "started", "Reading the brief"))
 
         # Two retrievals, never one: the corpora stay separable all the way
         # through the prompt so a citation's provenance is unambiguous.
-        company_context = self.store.retrieve_company(brief, k=COMPANY_K)
-        trend_context = self.store.retrieve_trends(brief, k=TREND_K)
+        company_context = self.store.retrieve_company(brief, k=self.company_k)
+        trend_context = self.store.retrieve_trends(brief, k=self.trend_k)
+        emit(
+            sink,
+            AgentEvent(
+                "planner",
+                "started",
+                f"Retrieved {len(company_context)} brand chunks and "
+                f"{len(trend_context)} trend chunks, kept separate",
+                {
+                    "brand": [hit.chunk_id for hit in company_context],
+                    "trend": [hit.chunk_id for hit in trend_context],
+                },
+            ),
+        )
 
+        emit(
+            sink,
+            AgentEvent("planner", "started", f"Proposing {concept_count} concepts"),
+        )
         plan = self.provider.structured(
-            system=SYSTEM_PROMPT,
+            system=self.system,
             prompt=self.build_prompt(
                 brief,
                 company_context=company_context,
@@ -126,13 +156,72 @@ class PlanningAgent:
             schema=CampaignPlan,
         )
 
-        return PlanResult(
+        emit(
+            sink,
+            AgentEvent(
+                "planner",
+                "started",
+                f"Verifying citations on {len(plan.concepts)} concepts",
+            ),
+        )
+        result = PlanResult(
             strategy_summary=plan.strategy_summary,
             concepts=self._to_concepts(
                 plan, company_context, trend_context, source_event
             ),
             company_context=company_context,
             trend_context=trend_context,
+        )
+        emit(
+            sink,
+            AgentEvent(
+                "planner",
+                "finished",
+                f"{len(result.concepts)} grounded concepts ready for review",
+                {"themes": [concept.theme for concept in result.concepts]},
+            ),
+        )
+        return result
+
+    def revise(self, brief: str, concept: Concept, note: str) -> Concept:
+        """Rework one concept around a human's note from the approval gate.
+
+        This is the "edit" branch of the gate. The human's note is a directive
+        alongside the brief, but it does not escape the grounding rules — the
+        revision is retrieved and cited exactly like a fresh concept, so a
+        reviewer cannot talk the planner into an ungrounded idea by asking
+        nicely.
+        """
+        note = note.strip()
+        if not note:
+            raise ValueError("a revision note is required")
+
+        query = f"{brief}\n{note}"
+        company_context = self.store.retrieve_company(query, k=self.company_k)
+        trend_context = self.store.retrieve_trends(query, k=self.trend_k)
+
+        plan = self.provider.structured(
+            system=self.system,
+            prompt=self.build_revision_prompt(
+                brief,
+                concept,
+                note,
+                company_context=company_context,
+                trend_context=trend_context,
+            ),
+            schema=CampaignPlan,
+        )
+
+        revised = self._to_concepts(
+            plan, company_context, trend_context, concept.provenance
+        )
+        # The concept keeps its identity: the human edited this idea, they did
+        # not ask for an extra one beside it.
+        return revised[0].model_copy(
+            update={
+                "concept_id": concept.concept_id,
+                "status": ConceptStatus.EDITED,
+            }
         )
 
     # -- prompt ------------------------------------------------------------
@@ -155,22 +244,53 @@ class PlanningAgent:
         sections += [
             "",
             "## COMPANY KNOWLEDGE (ground truth — cite these as brand_citations)",
-            self._render(company_context, empty="No company knowledge retrieved."),
+            render_context(company_context, empty="No company knowledge retrieved."),
             "",
             "## TREND SIGNALS (inspiration only — cite these as trend_citations)",
-            self._render(trend_context, empty="No trend signals retrieved."),
+            render_context(trend_context, empty="No trend signals retrieved."),
             "",
             f"Produce exactly {concept_count} distinct concepts.",
         ]
         return "\n".join(sections)
 
-    @staticmethod
-    def _render(context: list[Retrieved], *, empty: str) -> str:
-        if not context:
-            return empty
-        return "\n\n".join(
-            f"[{hit.chunk_id}] ({hit.source} § {hit.heading})\n{hit.text}"
-            for hit in context
+    def build_revision_prompt(
+        self,
+        brief: str,
+        concept: Concept,
+        note: str,
+        *,
+        company_context: list[Retrieved],
+        trend_context: list[Retrieved],
+    ) -> str:
+        return "\n".join(
+            [
+                "## BRIEF (directive)",
+                brief,
+                "",
+                "## CONCEPT AS IT STANDS",
+                f"Theme: {concept.theme}",
+                f"Format: {concept.format}",
+                f"Trend rationale: {concept.trend_rationale}",
+                f"Brand rationale: {concept.brand_rationale}",
+                f"Variation axes: {', '.join(concept.variation_axes)}",
+                "",
+                "## REVISION REQUEST (directive — a human reviewed the concept "
+                "above and asked for this change)",
+                note,
+                "",
+                "## COMPANY KNOWLEDGE (ground truth — cite these as brand_citations)",
+                render_context(company_context, empty="No company knowledge retrieved."),
+                "",
+                "## TREND SIGNALS (inspiration only — cite these as trend_citations)",
+                render_context(trend_context, empty="No trend signals retrieved."),
+                "",
+                "Produce exactly 1 concept: this one, reworked around the "
+                "revision request. Keep what the human did not ask you to "
+                "change. The revision request does not loosen the grounding "
+                "rules — if it asks for something company knowledge forbids, "
+                "get as close as the guardrails allow and say so in the brand "
+                "rationale.",
+            ]
         )
 
     # -- verification ------------------------------------------------------

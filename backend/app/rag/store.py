@@ -151,3 +151,47 @@ class KnowledgeStore:
 
     def count(self, collection_name: str) -> int:
         return self._collection(collection_name).count()
+
+    # -- inspection --------------------------------------------------------
+
+    def sources(self, collection_name: str) -> list["StoredSource"]:
+        """What documents a corpus is made of, and how much of each.
+
+        Retrieval is invisible by nature — a person tuning a watchlist is
+        otherwise trusting that a scrape landed somewhere. This is the check:
+        it reads the collection itself rather than the directory on disk, so a
+        file that was written but never ingested does not appear here.
+        """
+        collection = self._collection(collection_name)
+        if not collection.count():
+            return []
+
+        # Documents are excluded: this is a manifest, not a corpus dump.
+        result = collection.get(include=["metadatas"])
+        counts: dict[str, int] = {}
+        headings: dict[str, str] = {}
+        for metadata in result["metadatas"] or []:
+            source = str(metadata.get("source", "unknown"))
+            counts[source] = counts.get(source, 0) + 1
+            # The first heading in a document names it better than its filename.
+            if metadata.get("index") == 0:
+                headings[source] = str(metadata.get("heading", ""))
+
+        return sorted(
+            (
+                StoredSource(
+                    source=source, chunks=chunks, heading=headings.get(source, "")
+                )
+                for source, chunks in counts.items()
+            ),
+            key=lambda stored: stored.source,
+        )
+
+
+@dataclass(frozen=True)
+class StoredSource:
+    """One ingested document, as the collection holds it."""
+
+    source: str
+    chunks: int
+    heading: str

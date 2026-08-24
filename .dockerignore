@@ -1,0 +1,26 @@
+# Build context hygiene. Anything here would either bloat the image or, worse,
+# leak host state into it — a host-built .venv or node_modules is compiled for
+# the wrong platform, and .env carries real API keys.
+.git
+.gitignore
+.venv
+.env
+.playwright-mcp
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+**/*.egg-info
+
+# The image builds the console itself; a host build is stale by definition.
+frontend/node_modules
+frontend/dist
+
+# Vectors are data, not source — they live in a volume and are re-embedded on
+# first boot. Baking them in would also freeze one embedding provider's output.
+backend/.chroma
+backend/data/trends/cache
+
+# Docs and scratch. Only root-level markdown — the corpora under
+# backend/data/ are the product's ground truth and must ship.
+/*.md
+.DS_Store

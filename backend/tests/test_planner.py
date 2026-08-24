@@ -6,7 +6,7 @@ from app.agents.planner import (
     PlanningAgent,
     PlanningError,
 )
-from app.domain import ConceptStatus
+from app.domain import Concept, ConceptStatus
 from app.rag.ingest import ingest_directory
 from app.rag.store import COMPANY_KB, TREND_CORPUS, KnowledgeStore
 from tests.test_store import local_embedder
@@ -279,3 +279,90 @@ class TestBundledCorpora:
         plan = PlanningAgent(provider=provider, store=store).plan(brief)
 
         assert plan.concepts[0].brand_rationale
+
+
+class TestRevisingAtTheGate:
+    def test_the_humans_note_is_a_directive_in_the_prompt(self, store, agent):
+        brand, trend = cited(store)
+        planner, provider = agent(
+            CampaignPlan(
+                strategy_summary="s",
+                concepts=[draft(brand_citations=[brand], trend_citations=[trend])],
+            )
+        )
+        original = planner.plan("serum campaign").concepts[0]
+
+        planner.revise("serum campaign", original, "Make it about night routines.")
+
+        prompt = provider.calls[1]["prompt"]
+        assert "Make it about night routines." in prompt
+        assert "REVISION REQUEST" in prompt
+
+    def test_the_concept_being_edited_is_shown_to_the_planner(self, store, agent):
+        brand, trend = cited(store)
+        planner, provider = agent(
+            CampaignPlan(
+                strategy_summary="s",
+                concepts=[draft(brand_citations=[brand], trend_citations=[trend])],
+            )
+        )
+        original = planner.plan("serum campaign").concepts[0]
+
+        planner.revise("serum campaign", original, "Softer tone.")
+
+        assert "Reapplication, humidity edition" in provider.calls[1]["prompt"]
+
+    def test_a_revision_keeps_the_concepts_identity(self, store, agent):
+        brand, trend = cited(store)
+        planner, _ = agent(
+            CampaignPlan(
+                strategy_summary="s",
+                concepts=[draft(brand_citations=[brand], trend_citations=[trend])],
+            )
+        )
+        original = planner.plan("serum campaign").concepts[0]
+
+        revised = planner.revise("serum campaign", original, "Softer tone.")
+
+        assert revised.concept_id == original.concept_id
+        assert revised.status is ConceptStatus.EDITED
+
+    def test_a_revision_is_still_held_to_its_grounding(self, store, agent):
+        _, trend = cited(store)
+        planner, _ = agent(
+            CampaignPlan(
+                strategy_summary="s",
+                concepts=[
+                    draft(
+                        theme="Ungrounded rework",
+                        brand_citations=["brand.md#99-deadbeef"],
+                        trend_citations=[trend],
+                    )
+                ],
+            )
+        )
+        original = Concept(
+            concept_id="c-1",
+            theme="Original",
+            format="image",
+            trend_rationale="t",
+            brand_rationale="b",
+            variant_count=1,
+            variation_axes=["hook"],
+        )
+
+        with pytest.raises(PlanningError, match="Ungrounded rework"):
+            planner.revise("serum campaign", original, "Promise whitening.")
+
+    def test_an_empty_note_is_refused(self, store, agent):
+        brand, trend = cited(store)
+        planner, _ = agent(
+            CampaignPlan(
+                strategy_summary="s",
+                concepts=[draft(brand_citations=[brand], trend_citations=[trend])],
+            )
+        )
+        original = planner.plan("serum campaign").concepts[0]
+
+        with pytest.raises(ValueError, match="revision note"):
+            planner.revise("serum campaign", original, "   ")

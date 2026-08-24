@@ -10,8 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-LLMProviderName = Literal["claude", "openai", "qwen"]
-EmbeddingProviderName = Literal["openai", "qwen"]
+LLMProviderName = Literal["claude", "openai", "qwen", "demo"]
+EmbeddingProviderName = Literal["openai", "qwen", "demo"]
 
 
 class Settings(BaseSettings):
@@ -31,10 +31,15 @@ class Settings(BaseSettings):
     claude_model: str | None = None
     openai_model: str | None = None
     qwen_model: str | None = None
+    demo_model: str | None = None
+
+    #: Never set by a human — keeps the offline provider inside the key lookup.
+    demo_api_key: str = "demo"
 
     embedding_provider: EmbeddingProviderName = "openai"
     openai_embedding_model: str = "text-embedding-3-small"
     qwen_embedding_model: str = "text-embedding-v3"
+    demo_embedding_model: str = "demo-offline"
 
     chroma_path: str = ".chroma"
 
@@ -46,6 +51,8 @@ class Settings(BaseSettings):
         "claude": ("anthropic_api_key", "ANTHROPIC_API_KEY"),
         "openai": ("openai_api_key", "OPENAI_API_KEY"),
         "qwen": ("dashscope_api_key", "DASHSCOPE_API_KEY"),
+        # The offline provider needs no key; it still has to answer the lookup.
+        "demo": ("demo_api_key", ""),
     }
 
     def _require_key(self, provider: str) -> str:

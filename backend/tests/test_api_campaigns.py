@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agents.events import AgentEvent
 from app.agents.planner import PlanningError, PlanResult
 from app.api.deps import get_planner
 from app.db import get_db
@@ -25,16 +26,40 @@ class StubPlanner:
         self.concepts = concepts if concepts is not None else [make_concept()]
         self.error = error
         self.briefs: list[str] = []
+        self.notes: list[str] = []
+        self.revised: Concept | None = None
 
-    def plan(self, brief, *, source_event=None, concept_count=3):
+    def plan(self, brief, *, source_event=None, concept_count=3, sink=None):
         self.briefs.append(brief)
+        # The real agent narrates itself as it works, and the recording of a
+        # run depends on that, so the stub does it too — including before it
+        # fails, which is the case where the events matter most.
+        if sink is not None:
+            sink(AgentEvent("planner", "started", "Reading the brief"))
         if self.error:
             raise self.error
+        if sink is not None:
+            sink(
+                AgentEvent(
+                    "planner",
+                    "finished",
+                    f"{len(self.concepts)} grounded concepts ready for review",
+                )
+            )
         return PlanResult(
             strategy_summary="Lead with the humidity truth.",
             concepts=self.concepts,
             company_context=[],
             trend_context=[],
+        )
+
+    def revise(self, brief, concept, note):
+        self.notes.append(note)
+        if self.error:
+            raise self.error
+        reworked = self.revised or make_concept("Reworked")
+        return reworked.model_copy(
+            update={"concept_id": concept.concept_id, "status": ConceptStatus.EDITED}
         )
 
 
@@ -169,3 +194,80 @@ class TestApprovalGate:
 
     def test_a_draft_campaign_cannot_skip_to_approval(self, client, campaign):
         assert client.post(f"/api/campaigns/{campaign['id']}/approve").status_code == 409
+
+
+class TestTheEditHandoff:
+    def test_an_edit_reworks_the_concept_in_place(self, client, campaign, planner):
+        planned = client.post(f"/api/campaigns/{campaign['id']}/plan").json()
+        concept_id = planned["concepts"][0]["id"]
+        planner.revised = make_concept("Night routine, humidity edition")
+
+        response = client.post(
+            f"/api/concepts/{concept_id}/revise",
+            json={"note": "Make it about night routines."},
+        )
+
+        body = response.json()
+        assert body["id"] == concept_id
+        assert body["theme"] == "Night routine, humidity edition"
+
+    def test_an_edited_concept_waits_to_be_looked_at_again(self, client, campaign, planner):
+        planned = client.post(f"/api/campaigns/{campaign['id']}/plan").json()
+        planner.revised = make_concept("Reworked")
+
+        response = client.post(
+            f"/api/concepts/{planned['concepts'][0]['id']}/revise",
+            json={"note": "Softer tone."},
+        )
+
+        assert response.json()["status"] == ConceptStatus.EDITED
+        assert response.json()["edit_note"] == "Softer tone."
+
+    def test_the_note_is_what_reaches_the_planner(self, client, campaign, planner):
+        planned = client.post(f"/api/campaigns/{campaign['id']}/plan").json()
+        planner.revised = make_concept("Reworked")
+
+        client.post(
+            f"/api/concepts/{planned['concepts'][0]['id']}/revise",
+            json={"note": "Drop the LRT setting."},
+        )
+
+        assert planner.notes == ["Drop the LRT setting."]
+
+    def test_a_blank_note_is_rejected(self, client, campaign):
+        planned = client.post(f"/api/campaigns/{campaign['id']}/plan").json()
+
+        response = client.post(
+            f"/api/concepts/{planned['concepts'][0]['id']}/revise", json={"note": "   "}
+        )
+
+        assert response.status_code == 422
+
+    def test_an_ungrounded_rework_leaves_the_original_standing(self, client, campaign, planner):
+        planned = client.post(f"/api/campaigns/{campaign['id']}/plan").json()
+        concept_id = planned["concepts"][0]["id"]
+        planner.error = PlanningError("the rework cites no company knowledge")
+
+        response = client.post(
+            f"/api/concepts/{concept_id}/revise", json={"note": "Promise whitening."}
+        )
+
+        assert response.status_code == 502
+        fetched = client.get(f"/api/campaigns/{campaign['id']}/concepts").json()[0]
+        assert fetched["theme"] == "Reapplication, humidity edition"
+        assert fetched["status"] == ConceptStatus.PENDING
+
+    def test_an_edit_is_too_late_once_the_plan_is_approved(self, client, campaign):
+        planned = client.post(f"/api/campaigns/{campaign['id']}/plan").json()
+        concept_id = planned["concepts"][0]["id"]
+        client.post(f"/api/concepts/{concept_id}/decision", json={"decision": "approved"})
+        client.post(f"/api/campaigns/{campaign['id']}/approve")
+
+        response = client.post(
+            f"/api/concepts/{concept_id}/revise", json={"note": "Too late."}
+        )
+
+        assert response.status_code == 409
+
+    def test_an_unknown_concept_is_a_404(self, client):
+        assert client.post("/api/concepts/9999/revise", json={"note": "x"}).status_code == 404

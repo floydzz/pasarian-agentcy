@@ -12,7 +12,10 @@ def _settings(**over):
         dashscope_api_key="ds-key",
     )
     base.update(over)
-    return Settings(**base)
+    # `_env_file=None` keeps the developer's own .env out of it — otherwise
+    # these assertions pass or fail depending on which provider happens to be
+    # selected on the machine running them.
+    return Settings(_env_file=None, **base)
 
 
 class TestActiveLLMKey:
@@ -43,7 +46,10 @@ class TestDefaults:
         assert _settings().trends_geo == "MY"
 
     def test_llm_provider_defaults_to_claude(self):
-        assert Settings(database_url="mysql+pymysql://u:p@h/d").llm_provider == "claude"
+        settings = Settings(
+            _env_file=None, database_url="mysql+pymysql://u:p@h/d"
+        )
+        assert settings.llm_provider == "claude"
 
     def test_rejects_an_unsupported_provider(self):
         with pytest.raises(ValueError):

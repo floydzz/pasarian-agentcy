@@ -1,0 +1,284 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Agentcy — a weightless instrument.
+
+   One rule governs colour: the machine is achromatic. Agents, edges, graphs
+   and telemetry are made of white light at varying intensity and nothing
+   else. Amber is the only warm value in the product and it appears in exactly
+   one situation — a human decision is required. So a warm pixel anywhere on
+   screen always means the same thing: you.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@theme inline {
+    --font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    --font-heading: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    --font-copy: 'Newsreader', ui-serif, Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+    --color-void: var(--void);
+    --color-rise: var(--rise);
+    --color-lift: var(--lift);
+    --color-edge: var(--edge);
+    --color-edge-strong: var(--edge-strong);
+    --color-text-2: var(--text-2);
+    --color-text-3: var(--text-3);
+    --color-halt: var(--halt);
+    --color-go: var(--go);
+    --color-flag: var(--flag);
+    --color-paper: var(--paper);
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* The instrument is dark at every level; there is no light mode for the
+   machine. `.on-paper` below is the one exception, and it is not a theme —
+   it is a material. */
+:root {
+    /* Ground. Blue-black rather than neutral black: neutral black on an OLED
+       reads as a hole in the screen, this reads as depth. */
+    --void: #05070b;
+    --rise: #0a0d13;
+    --lift: #10141c;
+
+    /* Hairlines are light at low alpha, never a grey hex. This is the whole
+       difference between a surface that reads as glass and one that reads as
+       a box with a border. */
+    --edge: rgba(233, 238, 247, 0.07);
+    --edge-strong: rgba(233, 238, 247, 0.15);
+
+    --text: #e9eef7;
+    --text-2: rgba(233, 238, 247, 0.56);
+    --text-3: rgba(233, 238, 247, 0.32);
+
+    /* The only hue the machine is allowed. A human is needed. */
+    --halt: #ffbe6a;
+    /* Rare: the director could not get there in two passes. */
+    --flag: #ff8e7b;
+    /* Rare: a decision has been made and the path is open. */
+    --go: #93ddba;
+
+    --background: var(--void);
+    --foreground: var(--text);
+    --paper: #ffffff;
+    --card: var(--rise);
+    --card-foreground: var(--text);
+    --popover: var(--lift);
+    --popover-foreground: var(--text);
+    --primary: var(--text);
+    --primary-foreground: var(--void);
+    --secondary: var(--lift);
+    --secondary-foreground: var(--text);
+    --muted: var(--lift);
+    --muted-foreground: var(--text-2);
+    --accent: var(--lift);
+    --accent-foreground: var(--text);
+    --destructive: var(--flag);
+    --border: var(--edge);
+    --input: var(--edge-strong);
+    --ring: rgba(233, 238, 247, 0.35);
+
+    --chart-1: var(--text);
+    --chart-2: var(--go);
+    --chart-3: var(--halt);
+    --chart-4: var(--text-2);
+    --chart-5: var(--flag);
+
+    --radius: 0.5rem;
+
+    --sidebar: var(--rise);
+    --sidebar-foreground: var(--text);
+    --sidebar-primary: var(--text);
+    --sidebar-primary-foreground: var(--void);
+    --sidebar-accent: var(--lift);
+    --sidebar-accent-foreground: var(--text);
+    --sidebar-border: var(--edge);
+    --sidebar-ring: rgba(233, 238, 247, 0.35);
+}
+
+/* `.dark` is kept as an alias so shadcn's dark: variants stay coherent — the
+   instrument is already dark, so it changes nothing. */
+.dark {
+    color-scheme: dark;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  html {
+    @apply font-sans;
+    background: var(--void);
+    }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    }
+}
+
+@layer base {
+  /* ── Type roles ──────────────────────────────────────────────────────── */
+
+  /* The display voice. Archivo pushed wide on its variable width axis and
+     tracked tight — the proportions of instrument lettering rather than of a
+     web heading. Only campaign names, section titles and large numbers. */
+  .display {
+    font-variation-settings: 'wdth' 118, 'wght' 500;
+    letter-spacing: -0.022em;
+    }
+  .display-tight {
+    font-variation-settings: 'wdth' 112, 'wght' 600;
+    letter-spacing: -0.03em;
+    }
+
+  /* Labels are sentence case and quiet. The previous console shouted every
+     label in uppercase mono, which is the single loudest tell of a generated
+     dashboard, and it made six equal panels compete for the same attention. */
+  .label {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 400;
+    letter-spacing: 0.005em;
+    color: var(--text-3);
+    }
+
+  /* Machine data only: chunk ids, clocks, counters, seq numbers. Never a
+     label, never a heading, never a sentence a person wrote. */
+  .data {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    }
+
+  /* The generated ad copy — the thing actually under review. */
+  .copy {
+    font-family: var(--font-copy);
+    font-optical-sizing: auto;
+    }
+
+  /* ── Materials ───────────────────────────────────────────────────────── */
+
+  /* An island of paper inside the void. The creative work keeps a light
+     surface wherever it appears, so the thing the crew made can never
+     dissolve into the instrument that made it. */
+  .on-paper {
+    --background: #ffffff;
+    --foreground: #0d1015;
+    --paper: #ffffff;
+    --card: #ffffff;
+    --card-foreground: #0d1015;
+    --muted: #f4f5f7;
+    --muted-foreground: #6a7079;
+    --accent: #f4f5f7;
+    --accent-foreground: #0d1015;
+    --primary: #0d1015;
+    --primary-foreground: #ffffff;
+    --secondary: #f4f5f7;
+    --secondary-foreground: #0d1015;
+    --border: rgba(13, 16, 21, 0.1);
+    --input: rgba(13, 16, 21, 0.16);
+    --text: #0d1015;
+    --text-2: rgba(13, 16, 21, 0.6);
+    --text-3: rgba(13, 16, 21, 0.4);
+    --halt: #b4740f;
+    --go: #157a4e;
+    --flag: #b5372a;
+    --ring: rgba(13, 16, 21, 0.3);
+    color: var(--foreground);
+    }
+
+  /* Glass: a raised surface made of light, not of a border. */
+  .glass {
+    background:
+      linear-gradient(180deg, rgba(233, 238, 247, 0.045), rgba(233, 238, 247, 0.012));
+    border: 1px solid var(--edge);
+    backdrop-filter: blur(12px);
+    }
+
+  /* ── Utilities ───────────────────────────────────────────────────────── */
+
+  /* Content that scrolls inside the instrument: the bar itself is part of the
+     dark, not a light OS chrome sitting on top of it. */
+  .quiet-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--edge-strong) transparent;
+    }
+  .quiet-scroll::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+    }
+  .quiet-scroll::-webkit-scrollbar-thumb {
+    background: var(--edge-strong);
+    border-radius: 999px;
+    }
+  .quiet-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    }
+
+  /* A scroll region that admits there is more below, instead of guillotining
+     a line of type at its bottom edge. */
+  .fade-b {
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 1rem), transparent);
+    }
+
+  /* The filmstrip of work. Cards snap so a decision is always centred on the
+     thing being decided. */
+  .snap-track {
+    scroll-snap-type: x mandatory;
+    }
+  .snap-card {
+    scroll-snap-align: center;
+    }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      }
+  }
+}

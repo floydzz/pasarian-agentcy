@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from .base import LLMProvider
 from .claude import ClaudeProvider
+from .demo import DemoProvider
 from .openai_compatible import OpenAIProvider, QwenProvider
 
 PROVIDERS: dict[str, type[LLMProvider]] = {
     "claude": ClaudeProvider,
     "openai": OpenAIProvider,
     "qwen": QwenProvider,
+    # Offline rehearsal — see app/llm/demo.py. Not a model.
+    "demo": DemoProvider,
 }
 
 
@@ -29,6 +32,7 @@ __all__ = [
     "ClaudeProvider",
     "OpenAIProvider",
     "QwenProvider",
+    "DemoProvider",
     "PROVIDERS",
     "get_provider",
 ]

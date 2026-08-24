@@ -134,3 +134,100 @@ class Asset(TimestampMixin, Base):
     )
 
     variant: Mapped[Variant] = relationship(back_populates="assets")
+
+
+class AgentSetting(TimestampMixin, Base):
+    """How one agent is tuned, kept out of the environment on purpose.
+
+    These are creative-direction knobs, not deployment config: how many concepts
+    to propose, how much of the brand to read before writing, how many times the
+    director may send work back. A marketer changes them between campaigns, so
+    they live in the database where a person can reach them, and every column is
+    nullable because no agent uses all of them.
+    """
+
+    __tablename__ = "agent_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agent: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+
+    #: Appended to the agent's system prompt as a standing house rule. Additive
+    #: only — it cannot delete the grounding rules the prompt already states.
+    standing_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    #: Company-knowledge chunks retrieved before this agent works.
+    company_k: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Trend chunks retrieved. Planner only — nobody else is allowed trends.
+    trend_k: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Concepts the planner proposes per brief.
+    concept_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Times the director may send work back before it falls through flagged.
+    max_revisions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class Run(TimestampMixin, Base):
+    """One completed pass of an agent or the crew, kept for the record.
+
+    History outlives its campaign: `campaign_id` releases to NULL on delete and
+    the campaign's name is denormalised here, because "what did the machine do
+    last Tuesday" has to stay answerable after the campaign it did it for is
+    gone.
+    """
+
+    __tablename__ = "runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    campaign_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    #: "plan" (the planning agent) or "generate" (the three-agent crew).
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    #: "succeeded" or "failed".
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    #: One line, written for the history list — the same voice as the log.
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    #: The agent events exactly as the console received them, so opening a past
+    #: run replays what was on screen rather than a summary of it.
+    events: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    concepts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    variants: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    flagged: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    revisions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    #: Which model produced this, recorded at run time — a plan written by the
+    #: offline provider must never be mistaken later for one a model wrote.
+    provider: Mapped[str] = mapped_column(String(40), default="", nullable=False)
+
+
+class TrendSource(TimestampMixin, Base):
+    """A keyword the trend scraper watches, and what it last found.
+
+    The watchlist is the only steering a human has over what the planner treats
+    as "the moment", so it is editable and it records its own last outcome —
+    a source that silently stopped returning anything would otherwise look
+    identical to one that is working.
+    """
+
+    __tablename__ = "trend_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    keyword: Mapped[str] = mapped_column(String(200), nullable=False)
+    geo: Mapped[str] = mapped_column(String(8), default="MY", nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    #: Why this keyword is watched — the human's reason, shown beside it.
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    last_scraped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    #: "never", "live", "offline" or "failed" — how the last pull was answered.
+    last_mode: Mapped[str] = mapped_column(String(20), default="never", nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: The signals themselves, so the watchlist can show what it is feeding the
+    #: planner without a second round trip to Google.
+    last_signals: Mapped[list] = mapped_column(JSON, nullable=False, default=list)

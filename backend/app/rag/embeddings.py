@@ -64,9 +64,45 @@ class QwenEmbedder(BaseEmbedder):
     env_var = "DASHSCOPE_API_KEY"
 
 
+class DemoEmbedder(BaseEmbedder):
+    """A deterministic local embedder for offline rehearsal. Not a model.
+
+    Hashed bag-of-words: good enough that retrieval returns topically related
+    chunks and the pipeline runs end to end with no key and no network, and
+    nowhere near good enough to ship. Pairs with `LLM_PROVIDER=demo`, and its
+    vectors are not comparable with any real provider's — switching back means
+    re-ingesting.
+    """
+
+    default_model = "demo-offline"
+    env_var = ""
+    dimensions = 256
+
+    def __init__(self, *, api_key: str = "demo", model: str | None = None,
+                 client: Any | None = None) -> None:
+        self.api_key = api_key or "demo"
+        self.model = model or self.default_model
+        self._client = client
+
+    def __call__(self, texts: list[str]) -> list[list[float]]:
+        import hashlib
+        import re
+
+        vectors: list[list[float]] = []
+        for text in texts:
+            vector = [0.0] * self.dimensions
+            for token in re.findall(r"[a-z0-9]+", text.lower()):
+                digest = hashlib.md5(token.encode()).hexdigest()
+                vector[int(digest, 16) % self.dimensions] += 1.0
+            norm = sum(value * value for value in vector) ** 0.5 or 1.0
+            vectors.append([value / norm for value in vector])
+        return vectors
+
+
 EMBEDDERS: dict[str, type[BaseEmbedder]] = {
     "openai": OpenAIEmbedder,
     "qwen": QwenEmbedder,
+    "demo": DemoEmbedder,
 }
 
 
