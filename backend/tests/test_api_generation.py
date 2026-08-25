@@ -22,6 +22,7 @@ def make_variant(concept_id: str, hook_type: str, **overrides) -> Variant:
             composition_notes="Face centre, headline in the sky.",
             image_prompt='LRT platform, "Pukul 3 petang" in the sky.',
             text_placement="Headline upper third, CTA bottom-right.",
+            placement_zone="top-left",
         ),
         director_status="pass",
         director_notes=None,

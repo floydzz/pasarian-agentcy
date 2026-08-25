@@ -132,6 +132,7 @@ class DemoProvider(LLMProvider):
         briefs = []
         for index in range(count):
             headline = headlines[index] if index < len(headlines) else "[demo] Headline"
+            zone = ["top-left", "bottom-left", "top-center"][index % 3]
             briefs.append(
                 {
                     "composition_notes": (
@@ -139,13 +140,14 @@ class DemoProvider(LLMProvider):
                         "first and the headline occupies the open space above it."
                     ),
                     "image_prompt": (
-                        f'[demo] Natural-light photograph, Malaysian setting, with the '
-                        f'words "{headline}" rendered clearly across the upper third.'
+                        f"[demo] Natural-light photograph, Malaysian setting, with "
+                        f"clear uncluttered space at {zone} for a headline."
                     ),
                     "text_placement": (
-                        f'[demo] "{headline}" upper third; the call to action sits '
-                        "bottom-right on a solid band."
+                        f'[demo] "{headline}" at {zone}; the call to action sits '
+                        "directly beneath it."
                     ),
+                    "placement_zone": zone,
                 }
             )
         return {"briefs": briefs}

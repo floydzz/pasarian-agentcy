@@ -92,7 +92,8 @@ class TestCascade:
             concept_id=concept.id, hook_type="hook", headline="h",
             body="b", cta="c",
             visual_brief={"composition_notes": "n", "image_prompt": "p",
-                          "text_placement": "t"},
+                          "text_placement": "t",
+                          "placement_zone": "top-left"},
         )
         session.add(variant)
         session.flush()

@@ -86,10 +86,23 @@ class Concept(BaseModel):
         return self
 
 
+#: Where composited text sits. A nine-cell grid rather than free text, because
+#: the compositor lays out against it — prose cannot drive a layout engine.
+PlacementZone = Literal[
+    "top-left", "top-center", "top-right",
+    "mid-left", "mid-center", "mid-right",
+    "bottom-left", "bottom-center", "bottom-right",
+]
+
+
 class VisualBrief(BaseModel):
     composition_notes: str
     image_prompt: str
+    #: Prose, and it stays prose: this is what steers the image prompt toward
+    #: leaving usable negative space, which no enum expresses.
     text_placement: str
+    #: The same intent as `text_placement`, in the one form Pillow can act on.
+    placement_zone: PlacementZone
 
 
 class Variant(BaseModel):

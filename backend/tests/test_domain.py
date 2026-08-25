@@ -6,6 +6,7 @@ from app.domain import (
     Concept,
     ConceptStatus,
     Variant,
+    VisualBrief,
     Asset,
     CalendarEvent,
     can_transition,
@@ -88,6 +89,7 @@ class TestVariant:
                 "composition_notes": "close-up, soft window light",
                 "image_prompt": "a dewy face in soft light, product bottle right third",
                 "text_placement": "headline upper-left, CTA lower-right",
+                "placement_zone": "top-left",
             },
         )
         base.update(over)
@@ -120,3 +122,32 @@ class TestCalendarEvent:
             suggested_tone="warm, family, balik kampung",
         )
         assert ev.date.year == 2027 and ev.date.month == 3
+
+
+def test_visual_brief_requires_a_placement_zone():
+    with pytest.raises(ValidationError):
+        VisualBrief(
+            composition_notes="notes",
+            image_prompt="prompt",
+            text_placement="upper third",
+        )
+
+
+def test_visual_brief_rejects_a_zone_outside_the_grid():
+    with pytest.raises(ValidationError):
+        VisualBrief(
+            composition_notes="notes",
+            image_prompt="prompt",
+            text_placement="upper third",
+            placement_zone="upper-third",
+        )
+
+
+def test_visual_brief_accepts_a_grid_zone():
+    brief = VisualBrief(
+        composition_notes="notes",
+        image_prompt="prompt",
+        text_placement="upper third",
+        placement_zone="top-left",
+    )
+    assert brief.placement_zone == "top-left"

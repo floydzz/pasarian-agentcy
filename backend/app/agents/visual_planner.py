@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from app.agents.base import CrewError, Provider, render_context, with_house_note
 from app.agents.copywriter import CopyDraft
-from app.domain import Concept
+from app.domain import Concept, PlacementZone
 from app.rag.store import Retrieved
 
 SYSTEM_PROMPT = """You are the visual planner for a Malaysian SME's marketing \
@@ -25,10 +25,16 @@ change.
 For every variant, in the order given:
 
 - `image_prompt` is what an image generation model receives. Describe subject, \
-setting, lighting, composition and mood concretely, and quote the on-image text \
-verbatim so the generator renders the real words. One paragraph.
+setting, lighting, composition and mood concretely. Never ask it to render text: \
+the headline and call to action are composited on afterwards. One paragraph.
 - `text_placement` says where the actual headline and call to action sit in the \
 frame, naming the real words being placed.
+- `placement_zone` is that same decision as one of: top-left, top-center, \
+top-right, mid-left, mid-center, mid-right, bottom-left, bottom-center, \
+bottom-right. It must agree with `text_placement`. The headline is composited \
+onto the image afterwards at exactly this zone, so `image_prompt` must ask for \
+clear, uncluttered space there — never put a face or the subject's focal point \
+in the zone you chose.
 - `composition_notes` explain the layout to a human reviewer: where the eye \
 lands first, and what negative space the text sits in.
 
@@ -45,6 +51,7 @@ class VisualDraft(BaseModel):
     composition_notes: str
     image_prompt: str
     text_placement: str
+    placement_zone: PlacementZone
 
 
 class VisualSet(BaseModel):

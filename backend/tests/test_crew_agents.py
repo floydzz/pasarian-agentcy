@@ -64,6 +64,7 @@ def visual_draft(**overrides) -> VisualDraft:
         composition_notes="Eye lands on the face, headline in the sky negative space.",
         image_prompt='A Malaysian woman on an LRT platform, "Pukul 3 petang" in the sky.',
         text_placement="Headline upper third, CTA bottom-right on a solid band.",
+        placement_zone="top-left",
     )
     return VisualDraft(**{**defaults, **overrides})
 
