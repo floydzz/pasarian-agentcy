@@ -12,7 +12,16 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-Agent = Literal["planner", "copywriter", "visual_planner", "director", "system"]
+Agent = Literal[
+    "planner",
+    "copywriter",
+    "visual_planner",
+    "director",
+    # The studio's own two — see `app.agents.studio`.
+    "renderer",
+    "vision_qa",
+    "system",
+]
 Phase = Literal["started", "finished", "failed"]
 
 
