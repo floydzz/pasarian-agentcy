@@ -30,6 +30,7 @@ router = APIRouter(prefix="/api", tags=["history"])
 
 PLAN = "plan"
 GENERATE = "generate"
+RENDER = "render"
 
 
 class RunLog:

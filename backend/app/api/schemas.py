@@ -144,6 +144,31 @@ class GenerationRead(BaseModel):
         return sum(1 for v in self.variants if v.director_status == "flagged")
 
 
+class AssetRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    variant_id: int
+    media_url: str
+    qa_status: str
+    qa_notes: str | None
+    review_status: str
+
+
+class RenderRead(BaseModel):
+    """What one render pass did, for the console's result line."""
+
+    variants_rendered: int
+    variants_skipped: int
+    assets: list[AssetRead]
+
+
+class AssetDecision(BaseModel):
+    """A human's verdict on one creative at the review gate."""
+
+    decision: Literal["approved", "rejected"]
+
+
 # -- agent tuning ----------------------------------------------------------
 
 

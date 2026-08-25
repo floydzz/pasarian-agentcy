@@ -17,10 +17,14 @@ from app.agents.copywriter import Copywriter
 from app.agents.crew import GenerationCrew
 from app.agents.director import Director
 from app.agents.planner import PlanningAgent
+from app.agents.studio import Studio
+from app.agents.vision_qa import VisionQA
 from app.agents.visual_planner import VisualPlanner
 from app.config import get_settings
 from app.db import get_db
 from app.llm import get_provider
+from app.media import get_media_provider
+from app.media.storage import AssetStorage
 from app.models import AgentSetting, Campaign
 from app.rag.embeddings import get_embedder
 from app.rag.store import KnowledgeStore
@@ -117,4 +121,28 @@ def get_crew(tuned: Tuning = Depends(get_tuning)) -> GenerationCrew:
         store=get_store(),
         max_revisions=tuned.value(tuning.DIRECTOR, "max_revisions"),
         company_k=tuned.value(tuning.COPYWRITER, "company_k"),
+    )
+
+
+@lru_cache
+def get_storage() -> AssetStorage:
+    """One storage per process, for the same reason `get_store` is cached."""
+    return AssetStorage(get_settings().assets_dir)
+
+
+def get_studio(tuned: Tuning = Depends(get_tuning)) -> Studio:
+    settings = get_settings()
+    return Studio(
+        provider=get_media_provider(
+            settings.media_provider,
+            api_key=settings.active_media_key,
+            image_model=settings.active_media_model,
+            timeout_seconds=settings.media_timeout_seconds,
+        ),
+        # QA judges with the same model the crew wrote with, for the same
+        # reason the crew shares one provider: a reviewer and the thing it
+        # reviews should not come from different models by accident.
+        qa=VisionQA(provider=_llm(), standing_note=tuned.note(tuning.VISION_QA)),
+        storage=get_storage(),
+        max_redos=tuned.value(tuning.VISION_QA, "max_redos"),
     )

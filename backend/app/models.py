@@ -184,7 +184,8 @@ class Run(TimestampMixin, Base):
     )
     campaign_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    #: "plan" (the planning agent) or "generate" (the three-agent crew).
+    #: "plan" (the planning agent), "generate" (the three-agent crew) or
+    #: "render" (the studio).
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     #: "succeeded" or "failed".
     status: Mapped[str] = mapped_column(String(20), nullable=False)

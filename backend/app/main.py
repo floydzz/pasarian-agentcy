@@ -12,6 +12,7 @@ from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 
 from app.api.agents import router as agents_router
+from app.api.assets import router as assets_router
 from app.api.campaigns import router as campaigns_router
 from app.api.generation import router as generation_router
 from app.api.history import router as history_router
@@ -41,6 +42,7 @@ app.add_middleware(
 
 app.include_router(campaigns_router)
 app.include_router(generation_router)
+app.include_router(assets_router)
 app.include_router(agents_router)
 app.include_router(history_router)
 app.include_router(system_router)
