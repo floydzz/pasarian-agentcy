@@ -163,6 +163,8 @@ class AgentSetting(TimestampMixin, Base):
     concept_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     #: Times the director may send work back before it falls through flagged.
     max_revisions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Times vision QA may send a creative back to be re-rendered.
+    max_redos: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Run(TimestampMixin, Base):

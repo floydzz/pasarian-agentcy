@@ -60,6 +60,8 @@ class DemoProvider(LLMProvider):
             return schema(**self._visuals(prompt))
         if name == "DirectorVerdict":
             return schema(**self._verdict())
+        if name == "QAVerdict":
+            return schema(**self._qa())
         raise ValueError(f"the demo provider has no canned answer for {name}")
 
     # -- canned answers ----------------------------------------------------
@@ -169,6 +171,24 @@ class DemoProvider(LLMProvider):
                 ),
             }
         return {"verdict": "pass", "notes": ""}
+
+    def _qa(self) -> dict:
+        """Every third asset comes back flagged.
+
+        A rehearsal where QA always passes hides the redo loop, which is the
+        part of this stage worth watching — the same reason `_verdict` sends
+        the first crew review back.
+        """
+        self._checks = getattr(self, "_checks", 0) + 1
+        if self._checks % 3 == 0:
+            return {
+                "status": "flagged",
+                "notes": (
+                    "[demo] The headline sits over the busiest part of the frame — "
+                    "ask for cleaner space where it lands."
+                ),
+            }
+        return {"status": "passed", "notes": ""}
 
     # -- helpers -----------------------------------------------------------
 

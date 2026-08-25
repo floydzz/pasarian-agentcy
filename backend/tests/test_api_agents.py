@@ -26,13 +26,14 @@ def knobs(agent: dict) -> dict[str, int]:
 
 
 class TestTheShippedState:
-    def test_all_four_agents_are_listed_in_pipeline_order(self, client):
+    def test_every_agent_is_listed_in_pipeline_order(self, client):
         payload = client.get("/api/agents").json()
         assert [agent["agent"] for agent in payload] == [
             "planner",
             "copywriter",
             "visual_planner",
             "director",
+            "vision_qa",
         ]
 
     def test_an_untouched_agent_reports_its_shipped_values(self, client):

@@ -25,6 +25,8 @@ PLANNER = "planner"
 COPYWRITER = "copywriter"
 VISUAL_PLANNER = "visual_planner"
 DIRECTOR = "director"
+#: Belongs to the studio, not the crew — deliberately outside CREW_AGENTS.
+VISION_QA = "vision_qa"
 
 #: The crew shares one retrieval width — all three read the same brand ground
 #: truth for a concept, so the copy and the review of it can never disagree
@@ -147,6 +149,30 @@ PROFILES: tuple[AgentProfile, ...] = (
                 minimum=0,
                 maximum=4,
                 default=MAX_REVISIONS,
+            ),
+        ),
+    ),
+    AgentProfile(
+        agent=VISION_QA,
+        label="Quality checker",
+        role="Looks at each finished creative before a human does, and flags "
+        "the ones worth a second pair of eyes.",
+        boundary="Cannot fix an asset and cannot approve one on your behalf — "
+        "it decides what deserves your attention, not what ships.",
+        note_placeholder="Be strict about hands and about text over faces. "
+        "Ignore minor background oddities.",
+        knobs=(
+            Knob(
+                field="max_redos",
+                label="Redos allowed",
+                help="Each redo is another render, and another charge. Past "
+                "this the creative is handed over flagged.",
+                minimum=0,
+                maximum=3,
+                # Stated as a literal rather than imported from `app.agents.studio`,
+                # which imports this module's siblings — the same reason the
+                # director's default is declared here.
+                default=2,
             ),
         ),
     ),
