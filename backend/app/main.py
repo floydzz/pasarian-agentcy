@@ -17,7 +17,8 @@ from app.api.generation import router as generation_router
 from app.api.history import router as history_router
 from app.api.system import router as system_router
 from app.api.trends import router as trends_router
-from app.config import REPO_ROOT
+from app.config import REPO_ROOT, get_settings
+from app.media.storage import MEDIA_PREFIX
 
 CONSOLE_DIST = REPO_ROOT / "frontend" / "dist"
 
@@ -70,10 +71,22 @@ class ConsoleFiles(StaticFiles):
             return await super().get_response("index.html", scope)
 
 
+def _mount_media() -> None:
+    """Generated creatives, served from the same origin as the console.
+
+    Registered before the SPA, which mounts at `/` and answers every unmatched
+    path with index.html — a media mount added after it would never be reached.
+    """
+    assets = get_settings().assets_dir
+    assets.mkdir(parents=True, exist_ok=True)
+    app.mount(MEDIA_PREFIX, StaticFiles(directory=assets), name="media")
+
+
 def _mount_console(directory: Path) -> None:
     """Mounted last and only when built — `npm run dev` still owns development."""
     if directory.is_dir():
         app.mount("/", ConsoleFiles(directory=directory, html=True), name="console")
 
 
+_mount_media()
 _mount_console(CONSOLE_DIST)

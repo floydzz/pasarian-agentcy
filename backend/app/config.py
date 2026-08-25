@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 LLMProviderName = Literal["claude", "openai", "qwen", "demo"]
 EmbeddingProviderName = Literal["openai", "qwen", "demo"]
+MediaProviderName = Literal["dashscope", "demo"]
 
 
 class Settings(BaseSettings):
@@ -43,6 +44,18 @@ class Settings(BaseSettings):
 
     chroma_path: str = ".chroma"
 
+    #: Defaults to the offline provider for the same reason `llm_provider`
+    #: does in compose: `docker compose up` with no keys must run the whole
+    #: pipeline and bill nothing.
+    media_provider: MediaProviderName = "demo"
+    dashscope_image_model: str = "wanx2.1-t2i-turbo"
+    demo_image_model: str = "demo-offline"
+
+    assets_path: str = "data/assets"
+    media_timeout_seconds: int = 120
+    #: A runaway guard, not a normal limit — three concepts at six variants is 18.
+    max_renders_per_run: int = 24
+
     serpapi_key: str = ""
     trends_geo: str = "MY"
 
@@ -52,6 +65,12 @@ class Settings(BaseSettings):
         "openai": ("openai_api_key", "OPENAI_API_KEY"),
         "qwen": ("dashscope_api_key", "DASHSCOPE_API_KEY"),
         # The offline provider needs no key; it still has to answer the lookup.
+        "demo": ("demo_api_key", ""),
+    }
+
+    #: Media reuses the DashScope account rather than adding a second key.
+    _MEDIA_KEY_FIELDS = {
+        "dashscope": ("dashscope_api_key", "DASHSCOPE_API_KEY"),
         "demo": ("demo_api_key", ""),
     }
 
@@ -79,6 +98,26 @@ class Settings(BaseSettings):
     @property
     def active_embedding_model(self) -> str:
         return getattr(self, f"{self.embedding_provider}_embedding_model")
+
+    @property
+    def active_media_key(self) -> str:
+        field, env_name = self._MEDIA_KEY_FIELDS[self.media_provider]
+        key = getattr(self, field)
+        if not key:
+            raise ValueError(
+                f"{self.media_provider} is selected for media but {env_name} "
+                "is empty — set it in .env"
+            )
+        return key
+
+    @property
+    def active_media_model(self) -> str:
+        return getattr(self, f"{self.media_provider}_image_model")
+
+    @property
+    def assets_dir(self) -> Path:
+        path = Path(self.assets_path)
+        return path if path.is_absolute() else REPO_ROOT / "backend" / path
 
     @property
     def chroma_dir(self) -> Path:

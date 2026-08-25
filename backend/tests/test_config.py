@@ -54,3 +54,33 @@ class TestDefaults:
     def test_rejects_an_unsupported_provider(self):
         with pytest.raises(ValueError):
             _settings(llm_provider="llama")
+
+
+def test_media_provider_defaults_to_demo():
+    settings = Settings(database_url="mysql+pymysql://x/y")
+    assert settings.media_provider == "demo"
+
+
+def test_media_reuses_the_dashscope_key():
+    settings = Settings(
+        database_url="mysql+pymysql://x/y",
+        media_provider="dashscope",
+        dashscope_api_key="sk-test",
+    )
+    assert settings.active_media_key == "sk-test"
+
+
+def test_missing_media_key_names_its_env_var():
+    settings = Settings(database_url="mysql+pymysql://x/y", media_provider="dashscope")
+    with pytest.raises(ValueError, match="DASHSCOPE_API_KEY"):
+        settings.active_media_key
+
+
+def test_demo_media_provider_needs_no_key():
+    settings = Settings(database_url="mysql+pymysql://x/y", media_provider="demo")
+    assert settings.active_media_key == "demo"
+
+
+def test_assets_dir_is_absolute():
+    settings = Settings(database_url="mysql+pymysql://x/y")
+    assert settings.assets_dir.is_absolute()

@@ -47,6 +47,12 @@ pathlib.Path('requirements.txt').write_text('\n'.join(project['dependencies']))"
 # ---- 3. runtime -------------------------------------------------------------
 FROM python:3.13-slim AS runtime
 
+# DejaVu is what the compositor falls back to for headline and CTA type.
+# fonts-dejavu-core is ~1MB; a creative with no real face on it is worse.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=deps /opt/venv /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH" \
@@ -55,7 +61,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH=/app/backend \
     # Absolute, so it short-circuits the repo-relative default and lands on the
     # volume instead of inside the container's writable layer.
-    CHROMA_PATH=/data/chroma
+    CHROMA_PATH=/data/chroma \
+    ASSETS_PATH=/data/assets
 
 # The container mirrors the repo layout on purpose: the code resolves `data/`
 # and `frontend/dist` relative to its own file, so /app is the repo root.
@@ -65,7 +72,7 @@ COPY --from=web /web/dist /app/frontend/dist
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
-    && mkdir -p /data/chroma \
+    && mkdir -p /data/chroma /data/assets \
     && useradd --create-home --uid 10001 agentcy \
     && chown -R agentcy:agentcy /data /app
 

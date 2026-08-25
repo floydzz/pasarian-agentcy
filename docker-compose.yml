@@ -53,6 +53,10 @@ services:
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       QWEN_EMBEDDING_MODEL: ${QWEN_EMBEDDING_MODEL:-text-embedding-v3}
 
+      MEDIA_PROVIDER: ${MEDIA_PROVIDER:-demo}
+      DASHSCOPE_IMAGE_MODEL: ${DASHSCOPE_IMAGE_MODEL:-wanx2.1-t2i-turbo}
+      ASSETS_PATH: /data/assets
+
       TRENDS_GEO: ${TRENDS_GEO:-MY}
       CHROMA_PATH: /data/chroma
     ports:
@@ -60,6 +64,9 @@ services:
     volumes:
       # The embedded corpora. Persisted so a restart is not a re-embedding.
       - agentcy_chroma:/data/chroma
+      # Generated creatives. Persisted for the same reason the corpora are:
+      # a restart must not throw away work that cost money to make.
+      - agentcy_assets:/data/assets
     healthcheck:
       test:
         - CMD
@@ -74,3 +81,4 @@ services:
 volumes:
   agentcy_mysql_data:
   agentcy_chroma:
+  agentcy_assets:
