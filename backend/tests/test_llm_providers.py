@@ -80,3 +80,39 @@ class TestMissingCredentials:
     def test_provider_refuses_to_build_without_an_api_key(self):
         with pytest.raises(ValueError, match="API key"):
             get_provider("claude", api_key="")
+
+
+import base64
+
+PNG = b"\x89PNG\r\n\x1a\nfake"
+
+
+class Verdict(BaseModel):
+    status: str
+
+
+def test_openai_compatible_attaches_images_as_data_uris():
+    request = OpenAIProvider(api_key="sk-test").build_request(
+        system="s", prompt="p", schema=Verdict, images=[PNG]
+    )
+    content = request["messages"][1]["content"]
+    assert content[0] == {"type": "text", "text": "p"}
+    assert content[1]["type"] == "image_url"
+    assert base64.b64encode(PNG).decode() in content[1]["image_url"]["url"]
+
+
+def test_openai_compatible_keeps_plain_text_when_no_images():
+    request = OpenAIProvider(api_key="sk-test").build_request(
+        system="s", prompt="p", schema=Verdict
+    )
+    assert request["messages"][1]["content"] == "p"
+
+
+def test_demo_provider_accepts_images_and_ignores_them():
+    from app.agents.vision_qa import QAVerdict
+    from app.llm.demo import DemoProvider
+
+    verdict = DemoProvider().structured(
+        system="s", prompt="p", schema=QAVerdict, images=[PNG]
+    )
+    assert verdict.status in {"passed", "flagged"}

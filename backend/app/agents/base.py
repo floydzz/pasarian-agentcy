@@ -17,7 +17,8 @@ from app.rag.store import Retrieved
 class Provider(Protocol):
     """Whatever LLM the campaign is running on — see `app.llm`."""
 
-    def structured(self, *, system: str, prompt: str, schema: type[BaseModel]): ...
+    def structured(self, *, system: str, prompt: str, schema: type[BaseModel],
+                   images: list[bytes] | None = None): ...
 
 
 class CrewError(RuntimeError):

@@ -42,12 +42,13 @@ class DemoProvider(LLMProvider):
     def default_model(self) -> str:
         return "demo-offline"
 
-    def build_request(self, *, system: str, prompt: str,
-                      schema: type[T]) -> dict[str, Any]:
+    def build_request(self, *, system: str, prompt: str, schema: type[T],
+                      images: list[bytes] | None = None) -> dict[str, Any]:
         return {"model": self.model, "system": system, "prompt": prompt,
-                "schema": schema.__name__}
+                "schema": schema.__name__, "images": len(images or [])}
 
-    def structured(self, *, system: str, prompt: str, schema: type[T]) -> T:
+    def structured(self, *, system: str, prompt: str, schema: type[T],
+                   images: list[bytes] | None = None) -> T:
         time.sleep(LATENCY_SECONDS)
 
         name = schema.__name__

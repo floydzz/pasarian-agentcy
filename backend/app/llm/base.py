@@ -39,10 +39,15 @@ class LLMProvider(ABC):
     def default_model(self) -> str: ...
 
     @abstractmethod
-    def build_request(self, *, system: str, prompt: str,
-                      schema: type[T]) -> dict[str, Any]:
+    def build_request(self, *, system: str, prompt: str, schema: type[T],
+                      images: list[bytes] | None = None) -> dict[str, Any]:
         """Translate a schema-constrained call into provider-specific kwargs."""
 
     @abstractmethod
-    def structured(self, *, system: str, prompt: str, schema: type[T]) -> T:
-        """Run the call and return a validated instance of `schema`."""
+    def structured(self, *, system: str, prompt: str, schema: type[T],
+                   images: list[bytes] | None = None) -> T:
+        """Run the call and return a validated instance of `schema`.
+
+        `images` is for agents that judge a picture rather than text. A provider
+        that cannot accept them raises rather than silently reviewing nothing.
+        """
