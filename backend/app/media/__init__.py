@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from .base import ASPECTS, MediaProvider, RenderError
+from .dashscope import DashScopeMediaProvider
 from .demo import DemoMediaProvider
 
 MEDIA_PROVIDERS: dict[str, type[MediaProvider]] = {
+    "dashscope": DashScopeMediaProvider,
     # Offline rehearsal — see app/media/demo.py. Not a model.
     "demo": DemoMediaProvider,
 }
@@ -34,6 +36,7 @@ __all__ = [
     "ASPECTS",
     "MediaProvider",
     "RenderError",
+    "DashScopeMediaProvider",
     "DemoMediaProvider",
     "MEDIA_PROVIDERS",
     "get_media_provider",
