@@ -14,6 +14,8 @@ const TAG: Record<string, string> = {
   copywriter: 'copy',
   visual_planner: 'art',
   director: 'director',
+  renderer: 'render',
+  vision_qa: 'QA',
   system: 'graph',
 }
 

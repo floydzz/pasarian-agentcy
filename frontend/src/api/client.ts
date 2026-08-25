@@ -1,11 +1,13 @@
 import type {
   Agent,
   AgentUpdate,
+  Asset,
   Campaign,
   Concept,
   ConceptStatus,
   Generation,
   Plan,
+  RenderResult,
   Run,
   RunDetail,
   ScrapeResult,
@@ -108,6 +110,20 @@ export const api = {
   generate: (id: number) => post<Generation>(`/campaigns/${id}/generate`),
 
   listVariants: (id: number) => request<Variant[]>(`/campaigns/${id}/variants`),
+
+  // -- creatives -----------------------------------------------------------
+
+  listAssets: (id: number) => request<Asset[]>(`/campaigns/${id}/assets`),
+
+  renderAssets: (id: number) => post<RenderResult>(`/campaigns/${id}/render`),
+
+  approveAsset: (assetId: number) => post<Asset>(`/assets/${assetId}/approve`),
+
+  rejectAsset: (assetId: number) => post<Asset>(`/assets/${assetId}/reject`),
+
+  redoAsset: (assetId: number) => post<Asset>(`/assets/${assetId}/redo`),
+
+  approveAllAssets: (id: number) => post<Campaign>(`/campaigns/${id}/assets/approve`),
 
   // -- the machine ---------------------------------------------------------
 

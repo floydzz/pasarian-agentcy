@@ -3,6 +3,8 @@ export type AgentName =
   | 'copywriter'
   | 'visual_planner'
   | 'director'
+  | 'renderer'
+  | 'vision_qa'
   | 'system'
 
 export type Phase = 'started' | 'finished' | 'failed'

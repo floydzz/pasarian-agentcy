@@ -8,25 +8,27 @@ import type { Campaign } from '@/api/types'
 /** The graph, drawn as a flight path rather than as a flowchart.
  *
  * Waypoints and hairlines, not labelled rectangles: these are moments in a
- * flow, not containers holding anything. The two return edges are the reason
+ * flow, not containers holding anything. The three return edges are the reason
  * the picture earns its space — a progress bar cannot show that the director
  * sends copy back to the copywriter but visuals back to the art director, and
  * that the difference decides how much work is thrown away. They curve, and
  * they curve at different depths, so the more expensive rejection is visibly
- * the longer fall.
+ * the longer fall — and QA's redo, which throws away the least, falls least.
  */
 
 const Y = 40
-const W = 760
+const W = 870
 const H = 124
 
 const NODES = [
   { id: 'planner', label: 'planner', x: 58 },
-  { id: 'plan_gate', label: 'plan gate', x: 182, gate: true },
-  { id: 'copywriter', label: 'copy', x: 320 },
-  { id: 'visual_planner', label: 'art', x: 452 },
-  { id: 'director', label: 'director', x: 588 },
-  { id: 'asset_gate', label: 'asset gate', x: 706, gate: true },
+  { id: 'plan_gate', label: 'plan gate', x: 168, gate: true },
+  { id: 'copywriter', label: 'copy', x: 278 },
+  { id: 'visual_planner', label: 'art', x: 388 },
+  { id: 'director', label: 'director', x: 498 },
+  { id: 'renderer', label: 'render', x: 608 },
+  { id: 'vision_qa', label: 'QA', x: 706 },
+  { id: 'asset_gate', label: 'asset gate', x: 812, gate: true },
 ] as const
 
 /** Which forward edge feeds each agent — the one carrying work while it runs. */
@@ -34,6 +36,8 @@ const FEEDS: Partial<Record<AgentName, number>> = {
   copywriter: 1,
   visual_planner: 2,
   director: 3,
+  renderer: 4,
+  vision_qa: 5,
 }
 
 type NodeState = AgentState | 'blocking' | 'waived' | 'quiet'
@@ -74,7 +78,7 @@ export function FlowGraph({
       viewBox={`0 0 ${W} ${H}`}
       className="h-auto w-full overflow-visible"
       role="img"
-      aria-label="Flow: planner, plan gate, copywriter, art director, creative director, asset gate — with the director's two return edges"
+      aria-label="Flow: planner, plan gate, copywriter, art director, creative director, renderer, vision QA, asset gate — with the director's two return edges and QA's redo edge"
     >
       <defs>
         <filter id="bloom" x="-80%" y="-80%" width="260%" height="260%">
@@ -115,8 +119,8 @@ export function FlowGraph({
       {/* revise_visuals — the copy survives, only the images are replanned. */}
       <ReturnArc
         id="ret-visuals"
-        from={588}
-        to={452}
+        from={498}
+        to={388}
         depth={78}
         label="revise visuals"
         firing={firing === 'revise_visuals'}
@@ -126,11 +130,24 @@ export function FlowGraph({
           it, so this arc re-enters further back and falls further. */}
       <ReturnArc
         id="ret-copy"
-        from={588}
-        to={320}
+        from={498}
+        to={278}
         depth={104}
         label="revise copy"
         firing={firing === 'revise_copy'}
+        still={still}
+      />
+
+      {/* redo — QA sends the creative back to be re-rendered. Shallower than
+          the director's arcs, and it should be: a redo throws away one render,
+          not a whole pass of written work. */}
+      <ReturnArc
+        id="ret-redo"
+        from={706}
+        to={608}
+        depth={72}
+        label="redo"
+        firing={firing === 'flagged'}
         still={still}
       />
 
@@ -155,7 +172,9 @@ function useFiring(lastVerdict: string | null) {
   const [firing, setFiring] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!lastVerdict?.startsWith('revise_')) return
+    // `flagged` is QA's verdict; `revise_*` are the director's. Both are the
+    // same event as far as the picture is concerned: work coming back.
+    if (!lastVerdict?.startsWith('revise_') && lastVerdict !== 'flagged') return
     setFiring(lastVerdict)
     const timer = setTimeout(() => setFiring(null), 1800)
     return () => clearTimeout(timer)

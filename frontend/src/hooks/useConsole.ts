@@ -3,13 +3,17 @@ import { streamRun, type AgentName, type RunEvent, type StreamLine } from '@/api
 
 export type AgentState = 'idle' | 'running' | 'done' | 'failed'
 
-/** The four agents the console watches. `system` is the graph itself — it
- * narrates routing decisions and does not hold work, so it has no lane. */
+/** The agents the console watches, in pipeline order. `system` is the graph
+ * itself — it narrates routing decisions and does not hold work, so it has no
+ * lane. The last two belong to the studio rather than the crew, but they hold
+ * work exactly the same way, so they get the same lane. */
 export const AGENTS: { id: Exclude<AgentName, 'system'>; label: string; role: string }[] = [
   { id: 'planner', label: 'Planner', role: 'Brief → grounded concepts' },
   { id: 'copywriter', label: 'Copywriter', role: 'One variant per axis' },
   { id: 'visual_planner', label: 'Art director', role: 'Images around the copy' },
   { id: 'director', label: 'Creative director', role: 'Reviews and sends back' },
+  { id: 'renderer', label: 'Renderer', role: 'Background, then the type on it' },
+  { id: 'vision_qa', label: 'Quality checker', role: 'Looks before you do' },
 ]
 
 const IDLE: Record<AgentName, AgentState> = {
@@ -17,6 +21,8 @@ const IDLE: Record<AgentName, AgentState> = {
   copywriter: 'idle',
   visual_planner: 'idle',
   director: 'idle',
+  renderer: 'idle',
+  vision_qa: 'idle',
   system: 'idle',
 }
 

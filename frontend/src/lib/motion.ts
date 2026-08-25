@@ -51,6 +51,8 @@ export const CORE_PERIOD = {
   copywriter: 2.4,
   visual_planner: 3.6,
   director: 4.0,
+  renderer: 3.0,
+  vision_qa: 2.8,
 } as const
 
 /** The instrument powering on.

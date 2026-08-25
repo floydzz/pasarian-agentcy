@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { EASE_OUT, STAGGER, STAGGER_CHILD } from '@/lib/motion'
 
+export type TrackTab = 'concepts' | 'variants' | 'creatives'
+
 /** The work, as a filmstrip rather than a list.
  *
  * A decision about a concept deserves the whole width of the screen, not a
@@ -15,9 +17,9 @@ export function WorkTrack({
   empty,
   children,
 }: {
-  tab: 'concepts' | 'variants'
-  onTab: (tab: 'concepts' | 'variants') => void
-  counts: { concepts: number; variants: number }
+  tab: TrackTab
+  onTab: (tab: TrackTab) => void
+  counts: Record<TrackTab, number>
   empty: string | null
   children: ReactNode
 }) {
@@ -29,6 +31,13 @@ export function WorkTrack({
         </Tab>
         <Tab active={tab === 'variants'} onClick={() => onTab('variants')} count={counts.variants}>
           Variants
+        </Tab>
+        <Tab
+          active={tab === 'creatives'}
+          onClick={() => onTab('creatives')}
+          count={counts.creatives}
+        >
+          Creatives
         </Tab>
         <span className="ml-auto hidden text-[0.6875rem] text-text-3 sm:block">
           {empty ? '' : 'Scroll sideways →'}

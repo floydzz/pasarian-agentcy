@@ -5,7 +5,7 @@ import { BOOT, EASE_OUT, SETTLE, rise } from '@/lib/motion'
 import { AGENTS, type AgentState } from '@/hooks/useConsole'
 import type { AgentName } from '@/api/stream'
 
-/** The station: four agents, watched.
+/** The station: every agent, watched.
  *
  * Only one bay can be lit, because the graph is sequential — so the lit bay
  * answers "what is it doing right now?" without reading a single word. An idle
@@ -27,7 +27,7 @@ export function AgentStation({
   lastDetail: Partial<Record<AgentName, string>>
 }) {
   return (
-    <div className="mx-auto grid w-full max-w-[52rem] grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+    <div className="mx-auto grid w-full max-w-[52rem] grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-6">
       {AGENTS.map((agent, index) => (
         <Bay
           key={agent.id}
@@ -54,7 +54,7 @@ function Bay({
   index: number
   label: string
   role: string
-  agent: 'planner' | 'copywriter' | 'visual_planner' | 'director'
+  agent: Exclude<AgentName, 'system'>
   state: AgentState
   detail?: string
 }) {

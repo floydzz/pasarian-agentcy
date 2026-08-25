@@ -3,7 +3,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { EASE_OUT, SETTLE } from '@/lib/motion'
-import type { Campaign, Concept } from '@/api/types'
+import type { Asset, Campaign, Concept } from '@/api/types'
 
 /** The seam between the machine and the person.
  *
@@ -11,53 +11,93 @@ import type { Campaign, Concept } from '@/api/types'
  * services it. This bar is the only warm surface in the product — amber
  * appears nowhere the machine acts alone — so a warm strip on screen always
  * means the same thing, and it means it before you have read a word.
+ *
+ * Both gates run through this one component on purpose. A person who has
+ * learned the plan gate has already learned the asset gate: same amber, same
+ * sweep, same button in the same place.
  */
 export function GateBar({
   campaign,
   concepts,
+  assets,
   running,
   awaitingCrew,
+  awaitingRender,
   onPlan,
   onGenerate,
+  onRender,
   onApprovePlan,
+  onApproveAssets,
   onAutoMode,
 }: {
   campaign: Campaign
   concepts: Concept[]
+  assets: Asset[]
   running: string | null
   awaitingCrew: number
+  awaitingRender: number
   onPlan: () => void
   onGenerate: () => void
+  onRender: () => void
   onApprovePlan: () => void
+  onApproveAssets: () => void
   onAutoMode: (
     payload: Partial<Pick<Campaign, 'auto_approve_plan' | 'auto_approve_assets'>>,
   ) => void
 }) {
   const still = useReducedMotion()
-  const halted = campaign.status === 'pending_plan_approval'
+  const atPlanGate = campaign.status === 'pending_plan_approval'
+  const atAssetGate = campaign.status === 'pending_asset_review'
+  const halted = atPlanGate || atAssetGate
+
   const undecided = concepts.filter((concept) => concept.status === 'pending').length
   const approved = concepts.filter((concept) => concept.status === 'approved').length
+  const undecidedAssets = assets.filter((asset) => asset.review_status === 'pending').length
+  const approvedAssets = assets.filter((asset) => asset.review_status === 'approved').length
   const busy = running !== null
 
-  const action = halted
+  const action = atPlanGate
     ? {
         label: approved === 0 ? 'Approve one to continue' : `Release the plan · ${approved}`,
         onClick: onApprovePlan,
         disabled: busy || approved === 0,
       }
-    : campaign.status === 'draft'
-      ? {
-          label: running === 'planner' ? 'Planning…' : 'Run the planner',
-          onClick: onPlan,
-          disabled: busy,
-        }
-      : campaign.status === 'generating' && awaitingCrew > 0
+    : atAssetGate
+      ? awaitingRender > 0
         ? {
-            label: running === 'crew' ? 'Crew running…' : `Run the crew · ${awaitingCrew}`,
-            onClick: onGenerate,
+            label:
+              running === 'studio' ? 'Rendering…' : `Render the rest · ${awaitingRender}`,
+            onClick: onRender,
             disabled: busy,
           }
-        : null
+        : {
+            label:
+              approvedAssets === 0
+                ? 'Approve one to continue'
+                : `Ship these · ${approvedAssets}`,
+            onClick: onApproveAssets,
+            disabled: busy || approvedAssets === 0,
+          }
+      : campaign.status === 'draft'
+        ? {
+            label: running === 'planner' ? 'Planning…' : 'Run the planner',
+            onClick: onPlan,
+            disabled: busy,
+          }
+        : campaign.status === 'generating' && awaitingCrew > 0
+          ? {
+              label: running === 'crew' ? 'Crew running…' : `Run the crew · ${awaitingCrew}`,
+              onClick: onGenerate,
+              disabled: busy,
+            }
+          : campaign.status === 'generating' && awaitingRender > 0
+            ? {
+                label:
+                  running === 'studio' ? 'Rendering…' : `Render · ${awaitingRender}`,
+                onClick: onRender,
+                disabled: busy,
+              }
+            : null
 
   return (
     <motion.section
@@ -91,7 +131,7 @@ export function GateBar({
           <div className="min-w-0">
             <AnimatePresence mode="wait" initial={false}>
               <motion.p
-                key={halted ? 'halted' : campaign.status}
+                key={halted ? `halted-${campaign.status}` : campaign.status}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
@@ -101,15 +141,25 @@ export function GateBar({
                   halted ? 'text-halt' : 'text-text-2',
                 )}
               >
-                {halted
+                {atPlanGate
                   ? undecided > 0
                     ? `${undecided} of ${concepts.length} ${concepts.length === 1 ? 'concept needs' : 'concepts still need'} your decision`
                     : `All ${concepts.length} decided — ${approved} approved`
-                  : campaign.status === 'draft'
-                    ? 'Nothing has run yet'
-                    : awaitingCrew > 0
-                      ? `${awaitingCrew} approved ${awaitingCrew === 1 ? 'concept' : 'concepts'} waiting on the crew`
-                      : 'The crew holds the work'}
+                  : atAssetGate
+                    ? awaitingRender > 0
+                      ? `${awaitingRender} ${awaitingRender === 1 ? 'variant is' : 'variants are'} still unrendered`
+                      : undecidedAssets > 0
+                        ? `${undecidedAssets} of ${assets.length} ${assets.length === 1 ? 'creative needs' : 'creatives still need'} your decision`
+                        : `All ${assets.length} decided — ${approvedAssets} approved`
+                    : campaign.status === 'draft'
+                      ? 'Nothing has run yet'
+                      : awaitingCrew > 0
+                        ? `${awaitingCrew} approved ${awaitingCrew === 1 ? 'concept' : 'concepts'} waiting on the crew`
+                        : awaitingRender > 0
+                          ? `${awaitingRender} ${awaitingRender === 1 ? 'variant' : 'variants'} waiting on the studio`
+                          : campaign.status === 'ready_to_publish'
+                            ? 'Approved and ready to export'
+                            : 'The crew holds the work'}
               </motion.p>
             </AnimatePresence>
             <p className="mt-0.5 truncate text-[0.6875rem] text-text-3">
@@ -132,6 +182,8 @@ export function GateBar({
             id="auto-assets"
             label="Waive asset gate"
             checked={campaign.auto_approve_assets}
+            // Waivable right up to the moment the creatives exist: after that
+            // the decision has already been asked for and answered.
             disabled={
               busy ||
               ['pending_asset_review', 'ready_to_publish', 'published'].includes(

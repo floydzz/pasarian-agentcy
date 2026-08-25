@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { Shell } from '@/components/os/Shell'
 import { Agents } from '@/pages/Agents'
 import { Console } from '@/pages/Console'
+import { Export } from '@/pages/Export'
 import { History } from '@/pages/History'
 import { Home } from '@/pages/Home'
 import { Trends } from '@/pages/Trends'
@@ -16,6 +17,7 @@ export default function App() {
         <Route element={<Shell />}>
           <Route path="/" element={<Home />} />
           <Route path="/campaigns/:id" element={<Console />} />
+          <Route path="/campaigns/:id/export" element={<Export />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/trends" element={<Trends />} />
           <Route path="/history" element={<History />} />

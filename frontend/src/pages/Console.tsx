@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 import { AgentStation } from '@/components/os/AgentStation'
@@ -7,14 +7,15 @@ import { FlowGraph } from '@/components/os/FlowGraph'
 import { GateBar } from '@/components/os/GateBar'
 import { LogDrawer } from '@/components/os/LogDrawer'
 import { TopBar } from '@/components/os/TopBar'
-import { TrackItem, WorkTrack } from '@/components/os/WorkTrack'
+import { TrackItem, WorkTrack, type TrackTab } from '@/components/os/WorkTrack'
+import { AssetCard } from '@/components/AssetCard'
 import { ConceptCard } from '@/components/ConceptCard'
 import { VariantCard } from '@/components/VariantCard'
 import { useConsole } from '@/hooks/useConsole'
 import { BOOT, DEPTH, EASE_OUT, rise } from '@/lib/motion'
 import { api, ApiError } from '@/api/client'
 import type { AgentName } from '@/api/stream'
-import type { Campaign, Concept, ConceptStatus, Variant } from '@/api/types'
+import type { Asset, Campaign, Concept, ConceptStatus, Variant } from '@/api/types'
 
 /** The console.
  *
@@ -26,22 +27,26 @@ import type { Campaign, Concept, ConceptStatus, Variant } from '@/api/types'
  * than captioning it. */
 export function Console() {
   const id = Number(useParams().id)
+  const navigate = useNavigate()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [concepts, setConcepts] = useState<Concept[]>([])
   const [variants, setVariants] = useState<Variant[]>([])
-  const [tab, setTab] = useState<'concepts' | 'variants'>('concepts')
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [tab, setTab] = useState<TrackTab>('concepts')
   const { log, agents, running, error, run, clearError } = useConsole()
   const still = useReducedMotion()
 
   const refresh = useCallback(async () => {
-    const [fetched, itsConcepts, itsVariants] = await Promise.all([
+    const [fetched, itsConcepts, itsVariants, itsAssets] = await Promise.all([
       api.getCampaign(id),
       api.listConcepts(id),
       api.listVariants(id),
+      api.listAssets(id),
     ])
     setCampaign(fetched)
     setConcepts(itsConcepts)
     setVariants(itsVariants)
+    setAssets(itsAssets)
   }, [id])
 
   useEffect(() => {
@@ -86,10 +91,16 @@ export function Console() {
     return null
   }, [log])
 
+  /** The last time work came back: the director's verdict, or QA's.
+   *
+   * Both are read here rather than only the director's, because the graph draws
+   * a return edge for each and a picture that only ever fires two of its three
+   * arcs would be quietly lying about the third. */
   const lastVerdict = useMemo(() => {
     for (let index = log.length - 1; index >= 0; index -= 1) {
-      const verdict = log[index].data?.verdict
-      if (typeof verdict === 'string') return verdict
+      const { data } = log[index]
+      if (typeof data?.verdict === 'string') return data.verdict
+      if (typeof data?.status === 'string') return data.status
     }
     return null
   }, [log])
@@ -97,20 +108,30 @@ export function Console() {
   if (!campaign) return <Booting />
 
   const atPlanGate = campaign.status === 'pending_plan_approval'
+  const atAssetGate = campaign.status === 'pending_asset_review'
+  const halted = atPlanGate || atAssetGate
   const awaitingCrew = concepts.filter(
     (concept) =>
       concept.status === 'approved' &&
       !variants.some((variant) => variant.concept_id === concept.id),
   ).length
+  const awaitingRender = variants.filter(
+    (variant) => !assets.some((asset) => asset.variant_id === variant.id),
+  ).length
+  const variantOf = (asset: Asset) => variants.find((v) => v.id === asset.variant_id)
 
   const empty =
     tab === 'concepts'
       ? concepts.length === 0
         ? 'No concepts yet. Run the planner and they will land here for review.'
         : null
-      : variants.length === 0
-        ? 'No variants yet. Approve at least one concept and run the crew.'
-        : null
+      : tab === 'variants'
+        ? variants.length === 0
+          ? 'No variants yet. Approve at least one concept and run the crew.'
+          : null
+        : assets.length === 0
+          ? 'No creatives yet. Render the variants and they will land here.'
+          : null
 
   return (
     <motion.div
@@ -118,7 +139,7 @@ export function Console() {
       animate="shown"
       className="relative flex h-full flex-col overflow-hidden bg-void text-foreground"
     >
-      <Ambience active={running !== null} halted={atPlanGate} still={Boolean(still)} />
+      <Ambience active={running !== null} halted={halted} still={Boolean(still)} />
 
       <TopBar campaign={campaign} running={running} />
 
@@ -127,16 +148,16 @@ export function Console() {
         className="relative z-10 shrink-0 px-5 sm:px-8"
         initial={false}
         animate={{
-          scale: atPlanGate ? 0.955 : 1,
-          opacity: atPlanGate ? 0.5 : 1,
-          filter: atPlanGate && !still ? 'blur(1.5px)' : 'blur(0px)',
-          marginBottom: atPlanGate ? '-3rem' : '0rem',
+          scale: halted ? 0.955 : 1,
+          opacity: halted ? 0.5 : 1,
+          filter: halted && !still ? 'blur(1.5px)' : 'blur(0px)',
+          marginBottom: halted ? '-3rem' : '0rem',
         }}
         transition={DEPTH}
         style={{ transformOrigin: 'top center' }}
         // A receded machine is out of reach as well as out of focus, so tabbing
         // cannot land on a control the interface has visibly put away.
-        inert={atPlanGate}
+        inert={halted}
       >
         <motion.div variants={rise(BOOT.station)}>
           <AgentStation agents={agents} lastDetail={lastDetail} />
@@ -156,8 +177,10 @@ export function Console() {
       <GateBar
         campaign={campaign}
         concepts={concepts}
+        assets={assets}
         running={running}
         awaitingCrew={awaitingCrew}
+        awaitingRender={awaitingRender}
         onPlan={() =>
           run('planner', `/campaigns/${campaign.id}/plan/stream`, () => {
             setTab('concepts')
@@ -170,10 +193,23 @@ export function Console() {
             refresh().catch(() => undefined)
           })
         }
+        onRender={() =>
+          run('studio', `/campaigns/${campaign.id}/render/stream`, () => {
+            setTab('creatives')
+            refresh().catch(() => undefined)
+          })
+        }
         onApprovePlan={() =>
           act(async () => {
             await api.approvePlan(campaign.id)
             toast.success('Plan released — the crew can start')
+          })
+        }
+        onApproveAssets={() =>
+          act(async () => {
+            await api.approveAllAssets(campaign.id)
+            toast.success('Creatives approved — ready to export')
+            navigate(`/campaigns/${campaign.id}/export`)
           })
         }
         onAutoMode={(payload) => act(() => api.setAutoMode(campaign.id, payload))}
@@ -182,7 +218,11 @@ export function Console() {
       <WorkTrack
         tab={tab}
         onTab={setTab}
-        counts={{ concepts: concepts.length, variants: variants.length }}
+        counts={{
+          concepts: concepts.length,
+          variants: variants.length,
+          creatives: assets.length,
+        }}
         empty={empty}
       >
         {tab === 'concepts'
@@ -205,11 +245,29 @@ export function Console() {
                 />
               </TrackItem>
             ))
-          : variants.map((variant) => (
-              <TrackItem key={variant.id}>
-                <VariantCard variant={variant} />
-              </TrackItem>
-            ))}
+          : tab === 'variants'
+            ? variants.map((variant) => (
+                <TrackItem key={variant.id}>
+                  <VariantCard variant={variant} />
+                </TrackItem>
+              ))
+            : assets.map((asset) => (
+                <TrackItem key={asset.id}>
+                  <AssetCard
+                    asset={asset}
+                    variant={variantOf(asset)}
+                    busy={running !== null}
+                    onApprove={() => act(() => api.approveAsset(asset.id))}
+                    onReject={() => act(() => api.rejectAsset(asset.id))}
+                    onRedo={() =>
+                      act(async () => {
+                        await api.redoAsset(asset.id)
+                        toast.success('Re-rendered — take another look')
+                      })
+                    }
+                  />
+                </TrackItem>
+              ))}
       </WorkTrack>
 
       <LogDrawer log={log} running={running} />

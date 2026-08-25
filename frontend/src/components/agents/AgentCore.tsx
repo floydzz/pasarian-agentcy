@@ -8,11 +8,13 @@ import type { AgentState } from '@/hooks/useConsole'
  * mascot: the planner is a radar sweep finding chunks in the corpora, the
  * copywriter is lines being written under a caret, the art director is a
  * reticle hunting the thirds of a frame, the creative director is an aperture
- * that opens, judges, and snaps shut on a rejection.
+ * that opens, judges, and snaps shut on a rejection, the renderer is a picture
+ * being painted in and then typeset over, the quality checker is a raking
+ * light hunting for the flaw.
  *
- * They animate only while their agent holds the work. Four idle cores are four
- * still wireframes, so a glance at the station tells you where the work is
- * without reading a word.
+ * They animate only while their agent holds the work. Idle cores are still
+ * wireframes, so a glance at the station tells you where the work is without
+ * reading a word.
  */
 
 const C = 36 // centre of the 72×72 field
@@ -64,6 +66,8 @@ export function AgentCore({
       {agent === 'copywriter' && <Compositor live={live} period={period} />}
       {agent === 'visual_planner' && <Frame live={live} period={period} />}
       {agent === 'director' && <Aperture live={live} period={period} state={state} />}
+      {agent === 'renderer' && <Plate live={live} period={period} />}
+      {agent === 'vision_qa' && <Rake live={live} period={period} state={state} />}
     </svg>
   )
 }
@@ -427,6 +431,167 @@ function Aperture({
           transition={{ duration: period / 2, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
+    </g>
+  )
+}
+
+
+/* ── Renderer — a plate being exposed, then typeset ───────────────────────
+   Rendering here is two acts, not one: the vendor paints a background, then
+   the compositor lays real type into the zone the art director reserved. The
+   core shows both, in that order — bands filling the plate, then a headline
+   rule and a shorter CTA rule striking into the empty corner. */
+
+const PLATE = { x: 13, y: 15, w: 46, h: 42 }
+const BANDS = 6
+
+function Plate({ live, period }: { live: boolean; period: number }) {
+  const bandHeight = PLATE.h / BANDS
+
+  return (
+    <g>
+      <rect
+        x={PLATE.x}
+        y={PLATE.y}
+        width={PLATE.w}
+        height={PLATE.h}
+        fill="none"
+        stroke="currentColor"
+        strokeOpacity={0.4}
+        strokeWidth={1}
+        rx={2}
+      />
+
+      {/* The image arriving. Bands rather than a wipe: a render returns in
+          passes, and a smooth wipe would read as a loading bar. */}
+      {Array.from({ length: BANDS }, (_, index) => (
+        <motion.rect
+          key={index}
+          x={PLATE.x + 1}
+          y={PLATE.y + 1 + index * bandHeight}
+          width={PLATE.w - 2}
+          height={bandHeight - 0.5}
+          fill="currentColor"
+          initial={false}
+          animate={
+            live
+              ? { opacity: [0, 0.16, 0.16, 0] }
+              : { opacity: index % 2 === 0 ? 0.05 : 0.02 }
+          }
+          transition={
+            live
+              ? {
+                  duration: period,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  times: [0, 0.12 + index * 0.05, 0.72, 1],
+                }
+              : { duration: 0.4 }
+          }
+        />
+      ))}
+
+      {/* The type, struck into the reserved corner once the plate is full. */}
+      <motion.rect
+        x={PLATE.x + 5}
+        y={PLATE.y + 7}
+        height={2.5}
+        fill="currentColor"
+        rx={1}
+        initial={false}
+        animate={live ? { width: [0, 26, 26, 0], opacity: [0, 1, 1, 0] } : { width: 26, opacity: 0.35 }}
+        transition={
+          live
+            ? { duration: period, repeat: Infinity, ease: 'easeOut', times: [0, 0.62, 0.86, 1] }
+            : { duration: 0.4 }
+        }
+      />
+      <motion.rect
+        x={PLATE.x + 5}
+        y={PLATE.y + 13}
+        height={1.75}
+        fill="currentColor"
+        rx={0.875}
+        initial={false}
+        animate={live ? { width: [0, 14, 14, 0], opacity: [0, 0.75, 0.75, 0] } : { width: 14, opacity: 0.25 }}
+        transition={
+          live
+            ? { duration: period, repeat: Infinity, ease: 'easeOut', times: [0, 0.7, 0.86, 1] }
+            : { duration: 0.4 }
+        }
+      />
+    </g>
+  )
+}
+
+/* ── Quality checker — a raking light over the finished plate ─────────────
+   A flaw in a surface is found by lighting it from the side, not from the
+   front. The light rakes across the same plate the renderer just filled, and
+   the one mark it stops on is what a flag actually is: something found. */
+
+function Rake({
+  live,
+  period,
+  state,
+}: {
+  live: boolean
+  period: number
+  state: AgentState
+}) {
+  const found = state === 'failed'
+
+  return (
+    <g>
+      <rect
+        x={PLATE.x}
+        y={PLATE.y}
+        width={PLATE.w}
+        height={PLATE.h}
+        fill="none"
+        stroke="currentColor"
+        strokeOpacity={0.28}
+        strokeWidth={1}
+        rx={2}
+      />
+
+      {live && (
+        <motion.line
+          y1={PLATE.y + 1}
+          y2={PLATE.y + PLATE.h - 1}
+          stroke="currentColor"
+          strokeWidth={1.25}
+          initial={{ x1: PLATE.x + 1, x2: PLATE.x + 1, opacity: 0 }}
+          animate={{
+            x1: [PLATE.x + 1, PLATE.x + PLATE.w - 1],
+            x2: [PLATE.x + 1, PLATE.x + PLATE.w - 1],
+            opacity: [0, 0.85, 0],
+          }}
+          transition={{ duration: period, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+
+      {/* The defect. Held open while the verdict is a flag, so a failed core
+          is a core still pointing at what it found. */}
+      <motion.circle
+        cx={PLATE.x + PLATE.w * 0.64}
+        cy={PLATE.y + PLATE.h * 0.38}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.25}
+        initial={false}
+        animate={
+          found
+            ? { r: 6, opacity: 1 }
+            : live
+              ? { r: [3, 6.5, 3], opacity: [0, 0.7, 0] }
+              : { r: 4, opacity: 0.18 }
+        }
+        transition={
+          live && !found
+            ? { duration: period, repeat: Infinity, ease: 'easeInOut', times: [0.5, 0.66, 0.82] }
+            : { type: 'spring', stiffness: 300, damping: 22 }
+        }
+      />
     </g>
   )
 }
