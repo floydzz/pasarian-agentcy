@@ -16,7 +16,14 @@ PROVIDERS: dict[str, type[LLMProvider]] = {
 }
 
 
-def get_provider(name: str, *, api_key: str, model: str | None = None) -> LLMProvider:
+def get_provider(
+    name: str,
+    *,
+    api_key: str,
+    model: str | None = None,
+    reasoning: bool = False,
+    fallback_models: list[str] | None = None,
+) -> LLMProvider:
     try:
         provider_cls = PROVIDERS[name.strip().lower()]
     except KeyError:
@@ -24,7 +31,12 @@ def get_provider(name: str, *, api_key: str, model: str | None = None) -> LLMPro
             f"unknown LLM provider {name!r} — supported: "
             f"{', '.join(sorted(PROVIDERS))}"
         ) from None
-    return provider_cls(api_key=api_key, model=model)
+    return provider_cls(
+        api_key=api_key,
+        model=model,
+        reasoning=reasoning,
+        fallback_models=fallback_models,
+    )
 
 
 __all__ = [

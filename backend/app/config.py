@@ -29,10 +29,31 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     dashscope_api_key: str = ""
 
+    #: Whether the model deliberates before answering. Off, because DashScope
+    #: ships Qwen3 with hidden thinking on and it cost 82% of every completion
+    #: for a 5.6x latency penalty when measured — see `TestQwenDeliberation`.
+    #: Turn it on to trade the pipeline's speed back for deeper reasoning.
+    llm_reasoning: bool = False
+
+    #: Models to fall back to, in order, when the one in use reports its free
+    #: quota spent. Comma-separated. DashScope meters per model, so a sibling
+    #: usually still answers: `qwen3.6-plus` was live on the same key the day
+    #: `wan2.7-image` ran dry. Empty means "fail on the first refusal".
+    llm_fallback_models: str = ""
+
     claude_model: str | None = None
     openai_model: str | None = None
     qwen_model: str | None = None
     demo_model: str | None = None
+
+    #: The vision QA pass reads a rendered image; the text agents never do.
+    #: Not every model that produces schema-constrained text also accepts an
+    #: image, so the role gets its own setting per provider. Unset means "use
+    #: the text model", which keeps a one-model setup a one-line setup.
+    claude_vision_model: str | None = None
+    openai_vision_model: str | None = None
+    qwen_vision_model: str | None = None
+    demo_vision_model: str | None = None
 
     #: Never set by a human — keeps the offline provider inside the key lookup.
     demo_api_key: str = "demo"
@@ -88,8 +109,25 @@ class Settings(BaseSettings):
         return self._require_key(self.llm_provider)
 
     @property
+    def llm_fallback_chain(self) -> list[str]:
+        """The fallback list, split and cleaned. Blanks are dropped so a
+        trailing comma in `.env` cannot become a request for model ""."""
+        return [
+            name.strip()
+            for name in self.llm_fallback_models.split(",")
+            if name.strip()
+        ]
+
+    @property
     def active_llm_model(self) -> str | None:
         return getattr(self, f"{self.llm_provider}_model")
+
+    @property
+    def active_vision_model(self) -> str | None:
+        return (
+            getattr(self, f"{self.llm_provider}_vision_model")
+            or self.active_llm_model
+        )
 
     @property
     def active_embedding_key(self) -> str:

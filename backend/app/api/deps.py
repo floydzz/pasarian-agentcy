@@ -56,12 +56,20 @@ def get_store() -> KnowledgeStore:
     )
 
 
-def _llm():
+def _llm(*, vision: bool = False):
+    """The provider the agents talk to.
+
+    `vision=True` is for the QA pass, which sends an image. It resolves to the
+    same model unless a vision model is pinned separately — see
+    `Settings.active_vision_model`.
+    """
     settings = get_settings()
     return get_provider(
         settings.llm_provider,
         api_key=settings.active_llm_key,
-        model=settings.active_llm_model,
+        model=settings.active_vision_model if vision else settings.active_llm_model,
+        reasoning=settings.llm_reasoning,
+        fallback_models=settings.llm_fallback_chain,
     )
 
 
@@ -142,7 +150,7 @@ def get_studio(tuned: Tuning = Depends(get_tuning)) -> Studio:
         # QA judges with the same model the crew wrote with, for the same
         # reason the crew shares one provider: a reviewer and the thing it
         # reviews should not come from different models by accident.
-        qa=VisionQA(provider=_llm(), standing_note=tuned.note(tuning.VISION_QA)),
+        qa=VisionQA(provider=_llm(vision=True), standing_note=tuned.note(tuning.VISION_QA)),
         storage=get_storage(),
         max_redos=tuned.value(tuning.VISION_QA, "max_redos"),
     )

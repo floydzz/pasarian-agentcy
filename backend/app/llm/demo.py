@@ -31,11 +31,19 @@ class DemoProvider(LLMProvider):
     """Canned structured output, shaped by the prompt it was given."""
 
     def __init__(self, *, api_key: str = "demo", model: str | None = None,
-                 max_tokens: int = 4096) -> None:
+                 max_tokens: int = 4096, reasoning: bool = False,
+                 fallback_models: list[str] | None = None) -> None:
         # Deliberately not calling super(): this provider has no key to demand.
         self.api_key = api_key
         self.model = model or self.default_model
         self.max_tokens = max_tokens
+        # Accepted and ignored. There is no model here to deliberate, but a
+        # rehearsal that refused a keyword the live providers take would fail
+        # only when someone switched to it — which is the worst time to find out.
+        self.reasoning = reasoning
+        # Accepted and ignored for the same reason as `reasoning`: there is no
+        # quota here to run out of.
+        self.fallback_models = list(fallback_models or [])
         self._reviews = 0
 
     @property
@@ -136,6 +144,7 @@ class DemoProvider(LLMProvider):
         for index in range(count):
             headline = headlines[index] if index < len(headlines) else "[demo] Headline"
             zone = ["top-left", "bottom-left", "top-center"][index % 3]
+            treatment = ["bare", "soft-gradient", "glass-panel", "ribbon"][index % 4]
             briefs.append(
                 {
                     "composition_notes": (
@@ -151,6 +160,7 @@ class DemoProvider(LLMProvider):
                         "directly beneath it."
                     ),
                     "placement_zone": zone,
+                    "text_treatment": treatment,
                 }
             )
         return {"briefs": briefs}
