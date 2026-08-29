@@ -234,3 +234,20 @@ class TrendSource(TimestampMixin, Base):
     #: The signals themselves, so the watchlist can show what it is feeding the
     #: planner without a second round trip to Google.
     last_signals: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+
+
+class ProductReference(TimestampMixin, Base):
+    """A real product image a campaign may keep intact in its creative."""
+
+    __tablename__ = "product_references"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    media_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    #: One primary photo is selected for product-lock composition.
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    campaign: Mapped[Campaign] = relationship(back_populates="product_references")

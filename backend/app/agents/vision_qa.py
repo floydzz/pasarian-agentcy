@@ -37,6 +37,9 @@ Flag the asset if any of these are true:
 nonsense objects, warped faces.
 - Anything in the frame contradicts the brand or would embarrass the advertiser.
 - There is garbled text *in the picture itself*, separate from the composited words.
+- A source product photo is attached and the product in the creative is not \
+the same product — different shape, colour, packaging, labels or logo, a \
+second copy of it, or a redesigned version of it.
 
 Pass it otherwise. Passing is the normal outcome; do not invent problems.
 
@@ -63,13 +66,22 @@ class VisionQA:
         headline: str,
         cta: str,
         brief: VisualBrief,
+        product_image: bytes | None = None,
     ) -> QAVerdict:
+        """`product_image` is the marketer's locked source photo, when there is
+        one. It is attached second so the model can compare what was rendered
+        against what the product actually looks like."""
         try:
             return self.provider.structured(
                 system=self.system,
-                prompt=self.build_prompt(headline=headline, cta=cta, brief=brief),
+                prompt=self.build_prompt(
+                    headline=headline,
+                    cta=cta,
+                    brief=brief,
+                    product_locked=product_image is not None,
+                ),
                 schema=QAVerdict,
-                images=[image],
+                images=[image] if product_image is None else [image, product_image],
             )
         except Exception as error:
             # Degrade, never block. The human still gets the asset — they just
@@ -91,7 +103,20 @@ class VisionQA:
         headline: str,
         cta: str,
         brief: VisualBrief,
+        product_locked: bool = False,
     ) -> str:
+        lock = (
+            [
+                "",
+                "## THE PRODUCT IS LOCKED",
+                "The second attached image is the advertiser's real product "
+                "photo. The creative was generated from it. Flag the asset if "
+                "the product in the creative is not faithfully the same "
+                "product.",
+            ]
+            if product_locked
+            else []
+        )
         return "\n".join(
             [
                 "## WHAT WAS COMPOSITED ONTO THIS IMAGE",
@@ -105,6 +130,7 @@ class VisionQA:
                 "",
                 "## HOW IT WAS SUPPOSED TO BE LAID OUT",
                 brief.composition_notes,
+                *lock,
                 "",
                 "Judge the attached image against the above.",
             ]

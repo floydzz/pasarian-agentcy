@@ -33,7 +33,16 @@ class DemoMediaProvider(MediaProvider):
     def default_image_model(self) -> str:
         return "demo-offline"
 
-    def render_image(self, prompt: str, *, aspect: str = "1:1") -> bytes:
+    def render_image(
+        self,
+        prompt: str,
+        *,
+        aspect: str = "1:1",
+        reference_images: tuple[bytes, ...] = (),
+    ) -> bytes:
+        # References are accepted and ignored: there is no model here to hand
+        # them to, and a rehearsal must not fail on a campaign that uses
+        # product lock.
         width, height = self.size_for(aspect)
         digest = hashlib.sha256(prompt.encode("utf-8")).digest()
 

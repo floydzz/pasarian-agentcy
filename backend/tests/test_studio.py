@@ -25,9 +25,11 @@ class StubQA:
     def __init__(self, flags=0):
         self.flags = flags
         self.calls = 0
+        self.product_images = []
 
-    def review(self, image, *, headline, cta, brief):
+    def review(self, image, *, headline, cta, brief, product_image=None):
         self.calls += 1
+        self.product_images.append(product_image)
         if self.calls <= self.flags:
             return QAVerdict(status="flagged", notes="headline is illegible")
         return QAVerdict(status="passed", notes="")
@@ -109,3 +111,67 @@ def test_events_narrate_the_run(tmp_path):
     agents = [event.agent for event in seen]
     assert "renderer" in agents
     assert "vision_qa" in agents
+
+
+PRODUCT = b"\x89PNG\r\n\x1a\nnot-a-real-photo"
+
+
+class RecordingProvider(DemoMediaProvider):
+    """Captures what the studio actually asked the image model for."""
+
+    def __init__(self):
+        super().__init__()
+        self.calls = []
+
+    def render_image(self, prompt, *, aspect="1:1", reference_images=()):
+        self.calls.append({"prompt": prompt, "reference_images": reference_images})
+        return super().render_image(prompt, aspect=aspect)
+
+
+LOCKED = VariantSpec(
+    variant_id=7,
+    headline="Raya Deals",
+    cta="Shop now",
+    brief=BRIEF,
+    product_image=PRODUCT,
+)
+
+
+def test_the_product_photo_is_sent_to_the_image_model(tmp_path):
+    """The whole point of product lock: the model composes *with* the real
+    photo. Pasting it on afterwards is what made creatives look like a
+    screenshot dropped into an ad."""
+    provider = RecordingProvider()
+    _studio(tmp_path, StubQA(), provider=provider).run(LOCKED)
+
+    assert provider.calls[0]["reference_images"] == (PRODUCT,)
+
+
+def test_a_render_without_product_lock_sends_no_reference(tmp_path):
+    provider = RecordingProvider()
+    _studio(tmp_path, StubQA(), provider=provider).run(SPEC)
+
+    assert provider.calls[0]["reference_images"] == ()
+
+
+def test_the_prompt_asks_for_the_product_rather_than_forbidding_it(tmp_path):
+    provider = RecordingProvider()
+    _studio(tmp_path, StubQA(), provider=provider).run(LOCKED)
+
+    prompt = provider.calls[0]["prompt"]
+    assert "never draw packaging" not in prompt.lower()
+    assert "attached product photo" in prompt.lower()
+
+
+def test_a_redo_still_carries_the_product_photo(tmp_path):
+    provider = RecordingProvider()
+    _studio(tmp_path, StubQA(flags=1), provider=provider).run(LOCKED)
+
+    assert [call["reference_images"] for call in provider.calls] == [(PRODUCT,), (PRODUCT,)]
+
+
+def test_qa_is_given_the_source_photo_to_check_the_product_against(tmp_path):
+    qa = StubQA()
+    _studio(tmp_path, qa, provider=RecordingProvider()).run(LOCKED)
+
+    assert qa.product_images == [PRODUCT]

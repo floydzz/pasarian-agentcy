@@ -53,8 +53,20 @@ class MediaProvider(ABC):
     def default_image_model(self) -> str: ...
 
     @abstractmethod
-    def render_image(self, prompt: str, *, aspect: str = "1:1") -> bytes:
-        """PNG or JPEG bytes for `prompt`. Raises `RenderError` on failure."""
+    def render_image(
+        self,
+        prompt: str,
+        *,
+        aspect: str = "1:1",
+        reference_images: tuple[bytes, ...] = (),
+    ) -> bytes:
+        """PNG or JPEG bytes for `prompt`. Raises `RenderError` on failure.
+
+        `reference_images` are photographs the render must build around rather
+        than reinvent — a marketer's product lock. A provider given them makes
+        an edit-style call, so the real product is lit and placed by the model
+        instead of being pasted over the finished frame.
+        """
 
     @staticmethod
     def size_for(aspect: str) -> tuple[int, int]:

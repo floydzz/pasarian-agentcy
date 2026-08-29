@@ -16,6 +16,7 @@ from app.api.assets import router as assets_router
 from app.api.campaigns import router as campaigns_router
 from app.api.generation import router as generation_router
 from app.api.history import router as history_router
+from app.api.product_references import router as product_references_router
 from app.api.system import router as system_router
 from app.api.trends import router as trends_router
 from app.config import REPO_ROOT, get_settings
@@ -45,6 +46,7 @@ app.include_router(generation_router)
 app.include_router(assets_router)
 app.include_router(agents_router)
 app.include_router(history_router)
+app.include_router(product_references_router)
 app.include_router(system_router)
 app.include_router(trends_router)
 

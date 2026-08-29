@@ -77,3 +77,26 @@ def test_standing_note_is_appended_to_the_system_prompt():
         PNG, headline="h", cta="c", brief=BRIEF
     )
     assert "be strict about hands" in provider.calls[0]["system"]
+
+
+PRODUCT = b"\x89PNG\r\n\x1a\nproduct"
+
+
+def test_the_source_photo_is_attached_alongside_the_creative():
+    """QA cannot judge product fidelity without seeing what the product was."""
+    provider = StubProvider({"status": "passed", "notes": ""})
+    VisionQA(provider=provider).review(
+        PNG, headline="h", cta="c", brief=BRIEF, product_image=PRODUCT
+    )
+    assert provider.calls[0]["images"] == [PNG, PRODUCT]
+
+
+def test_the_prompt_asks_about_product_fidelity_only_when_locked():
+    provider = StubProvider({"status": "passed", "notes": ""})
+    qa = VisionQA(provider=provider)
+
+    qa.review(PNG, headline="h", cta="c", brief=BRIEF, product_image=PRODUCT)
+    qa.review(PNG, headline="h", cta="c", brief=BRIEF)
+
+    assert "second attached image" in provider.calls[0]["prompt"].lower()
+    assert "second attached image" not in provider.calls[1]["prompt"].lower()

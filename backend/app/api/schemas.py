@@ -319,3 +319,51 @@ class TrendStatusRead(BaseModel):
     trend_chunks: int
     company_chunks: int
     documents: list[CorpusSourceRead]
+
+
+class ProductReferenceCreate(BaseModel):
+    """A campaign product photo uploaded as a browser data URL."""
+
+    label: str = Field(default="Product image", min_length=1, max_length=200)
+    data_url: str = Field(min_length=32, max_length=30_000_000)
+    is_primary: bool = False
+
+    @field_validator("label")
+    @classmethod
+    def _label_not_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+
+class ProductReferencePatch(BaseModel):
+    label: str | None = Field(default=None, min_length=1, max_length=200)
+    is_primary: bool | None = None
+
+    @field_validator("label")
+    @classmethod
+    def _optional_label_not_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+
+class ProductReferenceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    campaign_id: int
+    label: str
+    media_url: str
+    is_primary: bool
+    created_at: datetime
+    updated_at: datetime
+
+    _stamp = field_serializer("created_at", "updated_at")(staticmethod(_utc))
+
+
+# -- marketing chat -------------------------------------------------------

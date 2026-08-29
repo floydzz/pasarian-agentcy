@@ -38,6 +38,10 @@ class VariantSpec:
     headline: str
     cta: str
     brief: VisualBrief
+    #: The marketer's selected source photo. It is handed to the image model
+    #: as a reference so the product is lit and placed inside the scene, and
+    #: to vision QA so the render can be checked against it.
+    product_image: bytes | None = None
 
 
 @dataclass
@@ -142,7 +146,9 @@ class Studio:
         )
 
         background = self.provider.render_image(
-            self._prompt(spec, state["qa_notes"]), aspect=self.aspect
+            self._prompt(spec, state["qa_notes"]),
+            aspect=self.aspect,
+            reference_images=(spec.product_image,) if spec.product_image else (),
         )
         creative = compose_creative(
             background,
@@ -173,6 +179,7 @@ class Studio:
             headline=spec.headline,
             cta=spec.cta,
             brief=spec.brief,
+            product_image=spec.product_image,
         )
 
         emit(
@@ -223,4 +230,12 @@ class Studio:
         ]
         if qa_notes:
             parts.append(f"A previous attempt was rejected: {qa_notes} Fix this.")
+        if spec.product_image:
+            parts.append(
+                "Build the scene around the attached product photo. The product "
+                "in it is real: reproduce it exactly as shown — same shape, "
+                "colours, packaging, labels and logos — and place it naturally "
+                "in the scene, lit to match. Do not redesign it, substitute a "
+                "different product, or add a second one."
+            )
         return " ".join(parts)

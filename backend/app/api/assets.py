@@ -20,14 +20,16 @@ from sqlalchemy.orm import Session
 from app.agents.events import AgentEvent
 from app.agents.parallel import in_parallel
 from app.agents.studio import RenderedAsset, Studio, VariantSpec
-from app.api.deps import get_campaign_or_404, get_studio
+from app.api.deps import get_campaign_or_404, get_storage, get_studio
 from app.api.history import RENDER, RunLog
+from app.api.product_references import primary_product_image
 from app.api.schemas import AssetRead, CampaignRead, RenderRead
 from app.api.streaming import event_stream
 from app.config import get_settings
 from app.db import get_db
 from app.domain import CampaignStatus, VisualBrief
 from app.media.base import RenderError
+from app.media.storage import AssetStorage
 from app.models import Asset, Campaign, Concept, Variant
 
 router = APIRouter(prefix="/api", tags=["assets"])
@@ -41,9 +43,10 @@ def render(
     campaign_id: int,
     db: Session = Depends(get_db),
     studio: Studio = Depends(get_studio),
+    storage: AssetStorage = Depends(get_storage),
 ) -> RenderRead:
     campaign = _renderable(db, campaign_id)
-    todo, skipped = _pending(db, campaign)
+    todo, skipped = _pending(db, campaign, storage)
     if not todo and skipped == 0:
         raise HTTPException(status.HTTP_409_CONFLICT, "no variants to render")
 
@@ -71,13 +74,14 @@ def render_streaming(
     campaign_id: int,
     db: Session = Depends(get_db),
     studio: Studio = Depends(get_studio),
+    storage: AssetStorage = Depends(get_storage),
 ) -> StreamingResponse:
     """The same run as `/render`, narrated to the console as it happens."""
     campaign = _renderable(db, campaign_id)
 
     # Snapshot the work before the worker starts: the thread runs the studio
     # only and never touches this session.
-    todo, skipped = _pending(db, campaign)
+    todo, skipped = _pending(db, campaign, storage)
     if not todo and skipped == 0:
         raise HTTPException(status.HTTP_409_CONFLICT, "no variants to render")
 
@@ -141,6 +145,7 @@ def redo_asset(
     asset_id: int,
     db: Session = Depends(get_db),
     studio: Studio = Depends(get_studio),
+    storage: AssetStorage = Depends(get_storage),
 ) -> Asset:
     """Re-render one creative in place, at the reviewer's request.
 
@@ -152,7 +157,13 @@ def redo_asset(
     variant = db.get(Variant, asset.variant_id)
 
     try:
-        rendered = studio.run(_spec(variant))
+        campaign_id = db.scalar(
+            select(Concept.campaign_id).where(Concept.id == variant.concept_id)
+        )
+        if campaign_id is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "campaign for asset is missing")
+        _, product_image = primary_product_image(db, campaign_id, storage)
+        rendered = studio.run(_spec(variant, product_image=product_image))
     except RenderError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
 
@@ -233,13 +244,16 @@ def _renderable(db: Session, campaign_id: int) -> Campaign:
     return campaign
 
 
-def _pending(db: Session, campaign: Campaign) -> tuple[list[VariantSpec], int]:
+def _pending(
+    db: Session, campaign: Campaign, storage: AssetStorage
+) -> tuple[list[VariantSpec], int]:
     """Variants still needing a creative, plus how many are being left alone.
 
     A variant that already has an asset is skipped, so a retry after a partial
     failure resumes instead of writing a second creative beside the first.
     """
     cap = get_settings().max_renders_per_run
+    _, product_image = primary_product_image(db, campaign.id, storage)
     todo: list[VariantSpec] = []
     skipped = 0
     for variant in _variants_of(db, campaign.id):
@@ -249,7 +263,7 @@ def _pending(db: Session, campaign: Campaign) -> tuple[list[VariantSpec], int]:
         if len(todo) >= cap:
             skipped += 1
             continue
-        todo.append(_spec(variant))
+        todo.append(_spec(variant, product_image=product_image))
     return todo, skipped
 
 
@@ -264,12 +278,13 @@ def _variants_of(db: Session, campaign_id: int) -> list[Variant]:
     )
 
 
-def _spec(variant: Variant) -> VariantSpec:
+def _spec(variant: Variant, *, product_image: bytes | None = None) -> VariantSpec:
     return VariantSpec(
         variant_id=variant.id,
         headline=variant.headline,
         cta=variant.cta,
         brief=VisualBrief(**variant.visual_brief),
+        product_image=product_image,
     )
 
 

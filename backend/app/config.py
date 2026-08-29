@@ -78,11 +78,11 @@ class Settings(BaseSettings):
     #: does in compose: `docker compose up` with no keys must run the whole
     #: pipeline and bill nothing.
     media_provider: MediaProviderName = "demo"
-    dashscope_image_model: str = "wanx2.1-t2i-turbo"
+    dashscope_image_model: str = "wan2.6-image"
     demo_image_model: str = "demo-offline"
 
     assets_path: str = "data/assets"
-    media_timeout_seconds: int = 120
+    media_timeout_seconds: int = 300
     #: A runaway guard, not a normal limit — three concepts at six variants is 18.
     max_renders_per_run: int = 24
 

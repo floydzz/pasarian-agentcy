@@ -18,7 +18,7 @@ from tests.test_api_generation import StubCrew, StubPlanner
 class PassingQA:
     """Stands in for the vision agent — the redo loop is covered in test_studio."""
 
-    def review(self, image, *, headline, cta, brief) -> QAVerdict:
+    def review(self, image, *, headline, cta, brief, product_image=None) -> QAVerdict:
         return QAVerdict(status="passed", notes="")
 
 
@@ -244,7 +244,7 @@ class TestTheGateHoldsUntilTheWorkIsActuallyDone:
         def __init__(self) -> None:
             self.seen = 0
 
-        def review(self, image, *, headline, cta, brief) -> QAVerdict:
+        def review(self, image, *, headline, cta, brief, product_image=None) -> QAVerdict:
             self.seen += 1
             if self.seen == 1:
                 return QAVerdict(status="passed", notes="")
