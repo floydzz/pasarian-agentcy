@@ -5,7 +5,7 @@ import type { AgentState } from '@/hooks/useConsole'
 /** A robot core for each agent — the mechanism, drawn.
  *
  * Each core is built out of the thing its agent actually does, not out of a
- * mascot: the planner is a radar sweep finding chunks in the corpora, the
+ * mascot: the strategist is two thoughts joining into a brief, the planner is a radar sweep finding chunks in the corpora, the
  * copywriter is lines being written under a caret, the art director is a
  * reticle hunting the thirds of a frame, the creative director is an aperture
  * that opens, judges, and snaps shut on a rejection, the renderer is a picture
@@ -62,6 +62,7 @@ export function AgentCore({
         />
       )}
 
+      {agent === 'chat' && <Dialogue live={live} period={period} />}
       {agent === 'planner' && <Radar live={live} period={period} />}
       {agent === 'copywriter' && <Compositor live={live} period={period} />}
       {agent === 'visual_planner' && <Frame live={live} period={period} />}
@@ -69,6 +70,36 @@ export function AgentCore({
       {agent === 'renderer' && <Plate live={live} period={period} />}
       {agent === 'vision_qa' && <Rake live={live} period={period} state={state} />}
     </svg>
+  )
+}
+
+/* ── Marketing strategist — two thoughts becoming one clear brief. ───── */
+
+function Dialogue({ live, period }: { live: boolean; period: number }) {
+  return (
+    <g>
+      <path
+        d="M12 17h31a7 7 0 0 1 7 7v13a7 7 0 0 1-7 7H27l-8 7v-7h-7a7 7 0 0 1-7-7V24a7 7 0 0 1 7-7Z"
+        fill="none"
+        stroke="currentColor"
+        strokeOpacity="0.35"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      {[22, 31, 40].map((x, index) => (
+        <motion.circle
+          key={x}
+          cx={x}
+          cy={30.5}
+          r={2.1}
+          fill="currentColor"
+          initial={false}
+          animate={live ? { opacity: [0.22, 0.95, 0.22], scale: [0.8, 1.15, 0.8] } : { opacity: 0.35, scale: 1 }}
+          transition={live ? { duration: period, repeat: Infinity, delay: index * 0.22, ease: 'easeInOut' } : { duration: 0.25 }}
+        />
+      ))}
+      <path d="M22 38h18" stroke="currentColor" strokeOpacity="0.22" strokeWidth="1.4" strokeLinecap="round" />
+    </g>
   )
 }
 

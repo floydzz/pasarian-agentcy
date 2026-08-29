@@ -47,6 +47,7 @@ export const FLOW_SECONDS = 1.5
 /** Each robot core runs on its own clock, so four working agents do not
  * lock into step and read as one animation. */
 export const CORE_PERIOD = {
+  chat: 3.4,
   planner: 3.2,
   copywriter: 2.4,
   visual_planner: 3.6,

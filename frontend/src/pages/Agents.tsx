@@ -12,10 +12,10 @@ import type { AgentName } from '@/api/stream'
 
 /** Where the crew is tuned.
  *
- * The four are laid out in the order work moves through them and numbered by
- * position, because that order is real: the copywriter cannot run before the
- * planner and the director judges what the other two made. Numbering here is
- * information, not decoration.
+ * The strategist sits first as the front door; the crew follows in the order
+ * work moves through it. The copywriter cannot run before the planner and the
+ * director judges what the other two made. Numbering here is information, not
+ * decoration.
  *
  * Every card states what its agent may *not* do next to what it does. That is
  * the division of labour the whole design rests on — a director that could fix
@@ -49,8 +49,9 @@ export function Agents() {
           </p>
         }
       >
-        Four agents, in the order work moves through them. What you set here
-        applies to the next run — including one you start a second later.
+        The strategist opens the work, then the crew carries it through the
+        pipeline. What you set here applies to the next run — including one
+        you start a second later.
       </PageHead>
 
       {agents === null ? (
