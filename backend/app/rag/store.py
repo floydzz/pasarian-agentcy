@@ -21,6 +21,20 @@ from app.rag.chunking import DEFAULT_MAX_CHARS, Chunk, chunk_markdown
 COMPANY_KB = "company_kb"
 TREND_CORPUS = "trend_corpus"
 
+#: The one short string embedded to learn how wide the current model's vectors
+#: are. Never stored — it exists only to be measured.
+PROBE = "dimension probe"
+
+
+class StaleCorpusError(RuntimeError):
+    """A corpus was embedded by a different model than the one now configured.
+
+    Vectors from two models are not comparable, so Chroma refuses the query on
+    width alone and says nothing about why. Nothing is corrupt and nothing is
+    lost — the corpus simply has to be re-embedded.
+    """
+
+
 #: Takes a batch of texts, returns one vector per text.
 Embedder = Callable[[list[str]], list[list[float]]]
 
@@ -117,6 +131,48 @@ class KnowledgeStore:
     def _metadata(chunk: Chunk) -> dict[str, str | int]:
         return {"heading": chunk.heading, "source": chunk.source, "index": chunk.index}
 
+    # -- embedding compatibility -------------------------------------------
+
+    def dimension(self, collection_name: str) -> int | None:
+        """How wide the vectors already in `collection_name` are.
+
+        `None` for an empty corpus, which has no width yet and so can never be
+        stale — the next ingestion decides it.
+        """
+        collection = self._collection(collection_name)
+        if not collection.count():
+            return None
+        stored = collection.get(limit=1, include=["embeddings"])["embeddings"]
+        return len(stored[0]) if len(stored) else None
+
+    def ensure_compatible(self) -> list[str]:
+        """Drop every corpus the configured embedder cannot query, and name them.
+
+        Called before ingestion rather than before retrieval: this is repair,
+        and repair costs an embedding round trip plus a re-ingest, which is not
+        something a page load should decide to do on its own. An empty store
+        short-circuits before the probe, so a cold container still embeds
+        nothing it did not have to.
+        """
+        stored = {
+            name: self.dimension(name) for name in (COMPANY_KB, TREND_CORPUS)
+        }
+        if all(width is None for width in stored.values()):
+            return []
+
+        current = len(self._embedding_function([PROBE])[0])
+        cleared = [
+            name
+            for name, width in stored.items()
+            if width is not None and width != current
+        ]
+        for name in cleared:
+            self._client.delete_collection(name)
+            # Recreated immediately so `count()` and `sources()` answer for an
+            # empty corpus rather than raising at the next caller.
+            self._collection(name)
+        return cleared
+
     # -- retrieval ---------------------------------------------------------
 
     def retrieve_company(self, query: str, *, k: int = 4) -> list[Retrieved]:
@@ -131,7 +187,10 @@ class KnowledgeStore:
         if not available:
             return []
 
-        result = collection.query(query_texts=[query], n_results=min(k, available))
+        try:
+            result = collection.query(query_texts=[query], n_results=min(k, available))
+        except Exception as error:
+            raise self._stale(collection_name, error) from error
         return [
             Retrieved(
                 chunk_id=chunk_id,
@@ -148,6 +207,24 @@ class KnowledgeStore:
                 strict=True,
             )
         ]
+
+    def _stale(self, collection_name: str, error: Exception) -> Exception:
+        """Chroma's width complaint, restated as something a person can act on.
+
+        Chroma reports only "expecting embedding with dimension of N, got M" —
+        true, and useless to whoever hit it. Any other failure is passed
+        through untouched rather than blamed on the embedding model.
+        """
+        if "dimension" not in str(error):
+            return error
+        stored = self.dimension(collection_name)
+        current = len(self._embedding_function([PROBE])[0])
+        return StaleCorpusError(
+            f"{collection_name} was embedded at {stored} dimensions and the "
+            f"configured model produces {current} — the corpus predates a "
+            "change of embedding model and has to be re-embedded: run "
+            "`python scripts/ingest_kb.py`"
+        )
 
     def count(self, collection_name: str) -> int:
         return self._collection(collection_name).count()

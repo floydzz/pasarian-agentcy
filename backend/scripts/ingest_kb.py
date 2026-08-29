@@ -9,6 +9,11 @@ replaces its chunks rather than stacking duplicates beside them.
 `--if-empty` exists for container start-up. Upserting is safe but not free —
 with a real embedding provider every boot would re-embed the whole corpus and
 be billed for it — so an already-populated store is left alone.
+
+A corpus left by a *different* embedding model is the exception `--if-empty`
+cannot see: it is fully populated and entirely unqueryable, because vectors of
+two widths cannot be compared. That corpus is cleared and rebuilt on every run,
+which is what turns changing EMBEDDING_PROVIDER into a restart.
 """
 
 from __future__ import annotations
@@ -25,6 +30,16 @@ from app.rag.store import COMPANY_KB, TREND_CORPUS  # noqa: E402
 
 def main(argv: list[str]) -> int:
     store = get_store()
+
+    # Before anything else, and before `--if-empty` gets to decide: a corpus
+    # embedded by a previous EMBEDDING_PROVIDER is not empty, but every query
+    # against it fails on vector width. Clearing it here is what makes the
+    # switch a restart rather than a manual volume wipe.
+    for corpus in store.ensure_compatible():
+        print(
+            f"{corpus} was embedded by a different model — cleared, "
+            "and re-embedded below"
+        )
 
     if "--if-empty" in argv and store.count(COMPANY_KB):
         print(

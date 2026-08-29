@@ -3,7 +3,13 @@ import re
 
 import pytest
 
-from app.rag.store import COMPANY_KB, TREND_CORPUS, KnowledgeStore, Retrieved
+from app.rag.store import (
+    COMPANY_KB,
+    TREND_CORPUS,
+    KnowledgeStore,
+    Retrieved,
+    StaleCorpusError,
+)
 
 DIM = 64
 
@@ -107,3 +113,79 @@ class TestIngestion:
         )
         reopened = KnowledgeStore(path=path, embedder=local_embedder)
         assert reopened.retrieve_company("serum", k=1)
+
+
+def wider_embedder(texts: list[str]) -> list[list[float]]:
+    """`local_embedder` at twice the width — a stand-in for switching
+    EMBEDDING_PROVIDER, which is exactly what changes the vector width."""
+    return [vector + vector for vector in local_embedder(texts)]
+
+
+class TestASwitchedEmbeddingModel:
+    """Vectors from two models are not comparable, and Chroma enforces that by
+    width. A corpus embedded by the previous model is stale, not corrupt — the
+    repair is to re-embed it, and the store's job is to say so.
+    """
+
+    def test_it_reports_the_width_of_what_is_stored(self, store):
+        store.ingest_company_kb(BRAND_DOC, source="brand.md")
+        assert store.dimension(COMPANY_KB) == DIM
+
+    def test_an_empty_corpus_has_no_width_to_report(self, store):
+        assert store.dimension(TREND_CORPUS) is None
+
+    def test_querying_a_stale_corpus_says_what_to_do_about_it(self, tmp_path):
+        path = tmp_path / "chroma"
+        KnowledgeStore(path=path, embedder=local_embedder).ingest_company_kb(
+            BRAND_DOC, source="brand.md"
+        )
+        switched = KnowledgeStore(path=path, embedder=wider_embedder)
+
+        with pytest.raises(StaleCorpusError, match="ingest_kb.py"):
+            switched.retrieve_company("serum", k=1)
+
+    def test_the_message_names_the_corpus_and_both_widths(self, tmp_path):
+        path = tmp_path / "chroma"
+        KnowledgeStore(path=path, embedder=local_embedder).ingest_company_kb(
+            BRAND_DOC, source="brand.md"
+        )
+        switched = KnowledgeStore(path=path, embedder=wider_embedder)
+
+        with pytest.raises(StaleCorpusError) as raised:
+            switched.retrieve_company("serum", k=1)
+
+        assert COMPANY_KB in str(raised.value)
+        assert str(DIM) in str(raised.value) and str(DIM * 2) in str(raised.value)
+
+    def test_ensure_compatible_clears_only_the_stale_corpora(self, tmp_path):
+        path = tmp_path / "chroma"
+        seeded = KnowledgeStore(path=path, embedder=local_embedder)
+        seeded.ingest_company_kb(BRAND_DOC, source="brand.md")
+
+        switched = KnowledgeStore(path=path, embedder=wider_embedder)
+        cleared = switched.ensure_compatible()
+
+        assert cleared == [COMPANY_KB]
+        assert switched.count(COMPANY_KB) == 0
+        # And the store is usable again rather than merely diagnosed.
+        switched.ingest_company_kb(BRAND_DOC, source="brand.md")
+        assert switched.retrieve_company("serum", k=1)
+
+    def test_a_matching_corpus_is_left_alone(self, store):
+        store.ingest_company_kb(BRAND_DOC, source="brand.md")
+        before = store.count(COMPANY_KB)
+
+        assert store.ensure_compatible() == []
+        assert store.count(COMPANY_KB) == before
+
+    def test_it_costs_nothing_when_there_is_nothing_stored(self, tmp_path):
+        calls = []
+
+        def counting(texts: list[str]) -> list[list[float]]:
+            calls.append(texts)
+            return local_embedder(texts)
+
+        store = KnowledgeStore(path=tmp_path / "chroma", embedder=counting)
+
+        assert store.ensure_compatible() == []
+        assert calls == []
