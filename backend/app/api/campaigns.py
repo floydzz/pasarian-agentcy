@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.planner import PlanningAgent, PlanningError, PlanResult
+from app.agents.events import AgentEvent
 from app.api.deps import get_campaign_or_404, get_planner
 from app.api.conversions import to_domain_concept
 from app.api.history import PLAN, RunLog
@@ -143,7 +144,15 @@ def plan_campaign_streaming(
     record = RunLog(campaign, PLAN)
 
     def work(sink) -> PlanResult:
-        return planner.plan(brief, source_event=source_event, sink=record.tee(sink))
+        report = record.tee(sink)
+        try:
+            return planner.plan(brief, source_event=source_event, sink=report)
+        except PlanningError as error:
+            # The worker's exception used to bypass the event log entirely,
+            # reducing a provider refusal to the useless "Planning failed."
+            # Preserve it in both the live console and durable run history.
+            report(AgentEvent("planner", "failed", str(error)))
+            raise
 
     def finish(result: PlanResult) -> dict:
         stored = _store_plan(db, campaign, result)

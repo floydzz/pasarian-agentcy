@@ -128,6 +128,16 @@ class TestNarratedPlanning:
             CampaignStatus.DRAFT
         )
 
+    def test_a_failed_plan_keeps_the_actual_error_in_run_history(
+        self, client, campaign, planner
+    ):
+        planner.error = PlanningError("planner model request failed: fallback refused")
+
+        client.post(f"/api/campaigns/{campaign['id']}/plan/stream")
+
+        [run] = client.get(f"/api/runs?campaign_id={campaign['id']}").json()
+        assert run["error"] == "planner model request failed: fallback refused"
+
     def test_planning_twice_is_still_refused_up_front(self, client, campaign):
         client.post(f"/api/campaigns/{campaign['id']}/plan/stream")
 
