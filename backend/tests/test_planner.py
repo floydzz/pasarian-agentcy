@@ -7,7 +7,7 @@ from app.agents.planner import (
     PlanningError,
 )
 from app.domain import Concept, ConceptStatus
-from app.rag.ingest import ingest_directory
+from app.rag.ingest import COMPANY_KB_DIR, TRENDS_DIR, ingest_directory
 from app.rag.store import COMPANY_KB, TREND_CORPUS, KnowledgeStore
 from tests.test_store import local_embedder
 
@@ -50,6 +50,12 @@ def draft(**overrides) -> ConceptDraft:
         trend_citations=[],
     )
     return ConceptDraft(**{**defaults, **overrides})
+
+
+def test_draft_uses_the_explicit_variation_axes_as_its_variant_count():
+    planned = draft(variant_count=5, variation_axes=["hook", "setting"])
+
+    assert planned.variant_count == 2
 
 
 class FakeProvider:
@@ -122,6 +128,24 @@ class TestContextAssembly:
 
         assert "ground truth" in system
         assert "inspiration" in system
+
+    def test_the_prompt_repeats_the_exact_output_contract_for_model_fallbacks(
+        self, store, agent
+    ):
+        brand, trend = cited(store)
+        planner, provider = agent(
+            CampaignPlan(
+                strategy_summary="s",
+                concepts=[draft(brand_citations=[brand], trend_citations=[trend])],
+            )
+        )
+
+        planner.plan("serum campaign")
+        prompt = provider.calls[0]["prompt"]
+
+        assert '"strategy_summary"' in prompt
+        assert '"brand_citations"' in prompt
+        assert "concept_id" in prompt
 
     def test_the_provider_is_asked_for_the_plan_schema(self, store, agent):
         brand, trend = cited(store)
@@ -239,6 +263,31 @@ class TestCitationsAreVerified:
         with pytest.raises(PlanningError, match="Ungrounded idea"):
             planner.plan("serum campaign")
 
+    def test_a_citation_echoed_with_the_brackets_it_was_shown_in_still_counts(
+        self, store, agent
+    ):
+        """`render_context` presents each id as `[id]`, and a model reading
+        "use ids exactly as given" copies the brackets too. Verified against
+        qwen3.7-plus on 2026-08-26, where it cost every concept its grounding
+        and failed the whole plan."""
+        brand, trend = cited(store)
+        planner, _ = agent(
+            CampaignPlan(
+                strategy_summary="s",
+                concepts=[
+                    draft(
+                        brand_citations=[f"[{brand}]"],
+                        trend_citations=[f"[{trend}]"],
+                    )
+                ],
+            )
+        )
+
+        concept = planner.plan("serum campaign").concepts[0]
+
+        assert brand in concept.brand_rationale
+        assert trend in concept.trend_rationale
+
     def test_a_plan_with_no_concepts_fails(self, store, agent):
         planner, _ = agent(CampaignPlan(strategy_summary="s", concepts=[]))
         with pytest.raises(PlanningError, match="no concepts"):
@@ -263,8 +312,10 @@ class TestRetrievalStaysSeparate:
 class TestBundledCorpora:
     def test_planning_runs_against_the_shipped_knowledge_base(self, tmp_path, agent):
         store = KnowledgeStore(path=tmp_path / "kb", embedder=local_embedder)
-        ingest_directory(store, "data/company_kb", corpus=COMPANY_KB)
-        ingest_directory(store, "data/trends", corpus=TREND_CORPUS)
+        # The packaged directories, not "data/…" relative to the shell — this
+        # test otherwise only passes when pytest is run from `backend/`.
+        ingest_directory(store, COMPANY_KB_DIR, corpus=COMPANY_KB)
+        ingest_directory(store, TRENDS_DIR, corpus=TREND_CORPUS)
 
         brief = "Merdeka serum push"
         brand = store.retrieve_company(brief, k=1)[0].chunk_id

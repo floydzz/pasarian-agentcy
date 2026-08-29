@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.agents.base import Provider, render_context, with_house_note
 from app.agents.events import AgentEvent, EventSink, emit
@@ -51,6 +51,36 @@ not restatements of the theme.
 - Respect every guardrail in the company knowledge, especially claim \
 restrictions. A concept that needs a forbidden claim is not a concept."""
 
+# `qwen3.6-plus` occasionally follows the response schema only loosely and
+# produces a useful marketing outline with fields such as `concept_id` and
+# `description`.  Repeating the contract in the instruction makes the shape
+# visible to the model as well as to the API gateway.  It is intentionally
+# concrete rather than a full JSON Schema: the gateway remains the authority
+# on types and required fields, while this gives a model that falls back to
+# text instructions a compact, unambiguous target.
+OUTPUT_CONTRACT = """
+Your entire response must be one JSON object with exactly this shape:
+{
+  "strategy_summary": "one concise campaign strategy",
+  "concepts": [
+    {
+      "theme": "short concept name",
+      "format": "image, video, or carousel",
+      "trend_rationale": "why the supplied trend context inspires it",
+      "brand_rationale": "why it follows supplied company knowledge",
+      "variant_count": 2,
+      "variation_axes": ["first concrete variation", "second concrete variation"],
+      "brand_citations": ["a COMPANY KNOWLEDGE chunk id exactly as shown"],
+      "trend_citations": ["a TREND SIGNALS chunk id exactly as shown"]
+    }
+  ]
+}
+Use only `image`, `video`, or `carousel` for `format`. Every listed key is
+required. `variant_count` must equal the number of `variation_axes`. Do not
+use alternative keys such as `concept_id`, `concept`, `title`, or
+`description`; put the concept name in `theme` instead.
+""".strip()
+
 
 class PlanningError(RuntimeError):
     """The model returned a plan that cannot be trusted or used."""
@@ -65,12 +95,27 @@ class ConceptDraft(BaseModel):
     brand_rationale: str
     variant_count: int = Field(ge=1, le=6)
     variation_axes: list[str] = Field(min_length=1, max_length=6)
+    # Required in the JSON schema, not merely validated after the call. Qwen
+    # otherwise treats a defaulted list as optional and can omit it entirely,
+    # leaving an otherwise useful plan unable to prove its brand grounding.
     brand_citations: list[str] = Field(
-        default_factory=list, description="chunk ids from COMPANY KNOWLEDGE"
+        description="chunk ids from COMPANY KNOWLEDGE"
     )
     trend_citations: list[str] = Field(
         default_factory=list, description="chunk ids from TREND SIGNALS"
     )
+
+    @model_validator(mode="after")
+    def _axes_set_the_actual_variant_count(self) -> "ConceptDraft":
+        """Keep the durable concept invariant when a model states one axis.
+
+        The axes are the actionable creative instruction; a count with no
+        corresponding axis has no safe meaning downstream. Treat the explicit
+        axes as authoritative and generate one variant per supplied axis rather
+        than failing an otherwise grounded plan or inventing missing variation.
+        """
+        self.variant_count = len(self.variation_axes)
+        return self
 
 
 class CampaignPlan(BaseModel):
@@ -144,17 +189,24 @@ class PlanningAgent:
             sink,
             AgentEvent("planner", "started", f"Proposing {concept_count} concepts"),
         )
-        plan = self.provider.structured(
-            system=self.system,
-            prompt=self.build_prompt(
-                brief,
-                company_context=company_context,
-                trend_context=trend_context,
-                source_event=source_event,
-                concept_count=concept_count,
-            ),
-            schema=CampaignPlan,
-        )
+        try:
+            plan = self.provider.structured(
+                system=self.system,
+                prompt=self.build_prompt(
+                    brief,
+                    company_context=company_context,
+                    trend_context=trend_context,
+                    source_event=source_event,
+                    concept_count=concept_count,
+                ),
+                schema=CampaignPlan,
+            )
+        except Exception as error:
+            # Providers may reject a request, run out of allocation, or return
+            # a response that cannot satisfy the structured contract. Turn it
+            # into the pipeline's domain error so the gate reopens cleanly and
+            # the console tells the person what actually happened.
+            raise PlanningError(f"planner model request failed: {error}") from error
 
         emit(
             sink,
@@ -200,17 +252,20 @@ class PlanningAgent:
         company_context = self.store.retrieve_company(query, k=self.company_k)
         trend_context = self.store.retrieve_trends(query, k=self.trend_k)
 
-        plan = self.provider.structured(
-            system=self.system,
-            prompt=self.build_revision_prompt(
-                brief,
-                concept,
-                note,
-                company_context=company_context,
-                trend_context=trend_context,
-            ),
-            schema=CampaignPlan,
-        )
+        try:
+            plan = self.provider.structured(
+                system=self.system,
+                prompt=self.build_revision_prompt(
+                    brief,
+                    concept,
+                    note,
+                    company_context=company_context,
+                    trend_context=trend_context,
+                ),
+                schema=CampaignPlan,
+            )
+        except Exception as error:
+            raise PlanningError(f"planner model request failed: {error}") from error
 
         revised = self._to_concepts(
             plan, company_context, trend_context, concept.provenance
@@ -250,6 +305,8 @@ class PlanningAgent:
             render_context(trend_context, empty="No trend signals retrieved."),
             "",
             f"Produce exactly {concept_count} distinct concepts.",
+            "",
+            OUTPUT_CONTRACT,
         ]
         return "\n".join(sections)
 
@@ -290,10 +347,31 @@ class PlanningAgent:
                 "rules — if it asks for something company knowledge forbids, "
                 "get as close as the guardrails allow and say so in the brand "
                 "rationale.",
+                "",
+                OUTPUT_CONTRACT,
             ]
         )
 
     # -- verification ------------------------------------------------------
+
+    @staticmethod
+    def _verified(cited: list[str], known: set[str]) -> list[str]:
+        """The cited ids that were really shown, in the order they were cited.
+
+        Ids are stripped of the brackets `render_context` wraps them in before
+        matching. The prompt says to use ids exactly as given, and a model that
+        reads `[brand.md#2-0304…]` as the id is obeying that literally — a
+        chunk id itself never contains a bracket, so unwrapping one can only
+        recover a real citation, never invent one. Measured against
+        qwen3.7-plus, which brackets every id and would otherwise have every
+        concept rejected as ungrounded.
+        """
+        seen: list[str] = []
+        for citation in cited:
+            chunk_id = citation.strip().strip("[]").strip()
+            if chunk_id in known and chunk_id not in seen:
+                seen.append(chunk_id)
+        return seen
 
     def _to_concepts(
         self,
@@ -312,8 +390,8 @@ class PlanningAgent:
         for drafted in plan.concepts:
             # Citations are checked against what the model was actually shown —
             # an id it invented, or borrowed from the other corpus, is dropped.
-            brand_citations = [c for c in drafted.brand_citations if c in brand_ids]
-            trend_citations = [c for c in drafted.trend_citations if c in trend_ids]
+            brand_citations = self._verified(drafted.brand_citations, brand_ids)
+            trend_citations = self._verified(drafted.trend_citations, trend_ids)
 
             if not brand_citations:
                 raise PlanningError(
