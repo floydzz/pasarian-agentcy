@@ -3,44 +3,53 @@ import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { EASE_OUT, STAGGER, STAGGER_CHILD } from '@/lib/motion'
 
-export type TrackTab = 'concepts' | 'variants' | 'creatives'
+/** One section of the strip: what it is called and how much of it there is. */
+export interface Track {
+  id: string
+  label: string
+  count: number
+}
 
 /** The work, as a filmstrip rather than a list.
  *
  * A decision about a concept deserves the whole width of the screen, not a
  * column beside four other panels. Cards snap, so whatever you are deciding on
- * is always the thing centred in front of you. */
+ * is always the thing centred in front of you.
+ *
+ * The sections are given rather than fixed, because an image studio holds
+ * concepts, variants and creatives while a video studio holds a storyboard and
+ * cuts — and both deserve the same filmstrip. */
 export function WorkTrack({
+  tracks,
   tab,
   onTab,
-  counts,
   empty,
+  review = false,
   children,
 }: {
-  tab: TrackTab
-  onTab: (tab: TrackTab) => void
-  counts: Record<TrackTab, number>
+  tracks: readonly Track[]
+  tab: string
+  onTab: (tab: string) => void
   empty: string | null
+  /** Decisions are read vertically; production work stays a filmstrip. */
+  review?: boolean
   children: ReactNode
 }) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
+    <section className={cn('flex flex-col', review ? 'shrink-0' : 'min-h-0 flex-1')}>
       <header className="flex shrink-0 items-center gap-1 px-5 pt-4 pb-3 sm:px-8">
-        <Tab active={tab === 'concepts'} onClick={() => onTab('concepts')} count={counts.concepts}>
-          Concepts
-        </Tab>
-        <Tab active={tab === 'variants'} onClick={() => onTab('variants')} count={counts.variants}>
-          Variants
-        </Tab>
-        <Tab
-          active={tab === 'creatives'}
-          onClick={() => onTab('creatives')}
-          count={counts.creatives}
-        >
-          Creatives
-        </Tab>
+        {tracks.map((track) => (
+          <Tab
+            key={track.id}
+            active={tab === track.id}
+            onClick={() => onTab(track.id)}
+            count={track.count}
+          >
+            {track.label}
+          </Tab>
+        ))}
         <span className="ml-auto hidden text-[0.6875rem] text-text-3 sm:block">
-          {empty ? '' : 'Scroll sideways →'}
+          {empty ? '' : review ? 'Review below ↓' : 'Scroll sideways →'}
         </span>
       </header>
 
@@ -64,7 +73,11 @@ export function WorkTrack({
               initial="hidden"
               animate="shown"
               exit={{ opacity: 0, transition: { duration: 0.14 } }}
-              className="quiet-scroll snap-track flex h-full items-stretch gap-4 overflow-x-auto overflow-y-hidden px-5 pb-5 sm:px-8"
+              className={cn(
+                review
+                  ? 'grid grid-cols-1 items-stretch gap-4 px-5 pb-6 sm:px-8 lg:grid-cols-2 2xl:grid-cols-3'
+                  : 'quiet-scroll snap-track flex h-full items-stretch gap-4 overflow-x-auto overflow-y-hidden px-5 pb-5 sm:px-8',
+              )}
             >
               {children}
             </motion.div>
@@ -76,12 +89,17 @@ export function WorkTrack({
 }
 
 /** One card in the strip. Fixed width so the strip has a rhythm. */
-export function TrackItem({ children }: { children: ReactNode }) {
+export function TrackItem({ children, review = false }: { children: ReactNode; review?: boolean }) {
   return (
     <motion.div
       variants={STAGGER_CHILD}
       layout
-      className="snap-card flex h-full min-h-[12rem] w-[21rem] shrink-0 sm:w-[25rem]"
+      className={cn(
+        'flex',
+        review
+          ? 'min-h-[33rem] w-full'
+          : 'snap-card h-full min-h-[12rem] w-[21rem] shrink-0 sm:w-[25rem]',
+      )}
     >
       {children}
     </motion.div>

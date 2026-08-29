@@ -73,7 +73,7 @@ export function LogDrawer({ log, running }: { log: LogLine[]; running: string | 
       <button
         type="button"
         onClick={() => setOpen((was) => !was)}
-        className="flex w-full items-center gap-3.5 px-5 py-2.5 text-left transition-colors hover:bg-[rgba(233,238,247,0.025)] sm:px-8"
+        className="flex w-full items-center gap-3.5 px-5 py-2.5 text-left transition-colors hover:bg-[rgba(233,238,247,0.035)] sm:px-8"
       >
         <span className="data shrink-0 text-text-3">
           {running ? `${running} running` : `${log.length} events`}

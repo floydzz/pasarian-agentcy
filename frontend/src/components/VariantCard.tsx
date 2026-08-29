@@ -54,12 +54,17 @@ export function VariantCard({ variant }: { variant: Variant }) {
           <dl className="mt-3 space-y-3">
             <Field label="Image prompt" value={variant.visual_brief.image_prompt} />
             <Field label="Text placement" value={variant.visual_brief.text_placement} />
+            <Field label="Copy treatment" value={formatTreatment(variant.visual_brief.text_treatment)} />
             <Field label="Composition" value={variant.visual_brief.composition_notes} />
           </dl>
         </details>
       </div>
     </article>
   )
+}
+
+function formatTreatment(treatment: Variant['visual_brief']['text_treatment']) {
+  return treatment ? treatment.replace('-', ' ') : 'glass panel (legacy plan)'
 }
 
 function Field({ label, value }: { label: string; value: string }) {

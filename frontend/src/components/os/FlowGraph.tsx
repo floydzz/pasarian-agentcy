@@ -3,7 +3,6 @@ import { motion, useReducedMotion } from 'motion/react'
 import { BOOT, EASE_OUT, FLOW_SECONDS } from '@/lib/motion'
 import type { AgentName } from '@/api/stream'
 import type { AgentState } from '@/hooks/useConsole'
-import type { Campaign } from '@/api/types'
 
 /** The graph, drawn as a flight path rather than as a flowchart.
  *
@@ -14,71 +13,134 @@ import type { Campaign } from '@/api/types'
  * that the difference decides how much work is thrown away. They curve, and
  * they curve at different depths, so the more expensive rejection is visibly
  * the longer fall — and QA's redo, which throws away the least, falls least.
+ *
+ * The picture is a description now rather than a hardcoded drawing, because
+ * there are two pipelines to draw and one of them must not be a second,
+ * slightly different graph component that drifts away from this one.
  */
 
 const Y = 40
-const W = 870
 const H = 124
 
-const NODES = [
-  { id: 'planner', label: 'planner', x: 58 },
-  { id: 'plan_gate', label: 'plan gate', x: 168, gate: true },
-  { id: 'copywriter', label: 'copy', x: 278 },
-  { id: 'visual_planner', label: 'art', x: 388 },
-  { id: 'director', label: 'director', x: 498 },
-  { id: 'renderer', label: 'render', x: 608 },
-  { id: 'vision_qa', label: 'QA', x: 706 },
-  { id: 'asset_gate', label: 'asset gate', x: 812, gate: true },
-] as const
-
-/** Which forward edge feeds each agent — the one carrying work while it runs. */
-const FEEDS: Partial<Record<AgentName, number>> = {
-  copywriter: 1,
-  visual_planner: 2,
-  director: 3,
-  renderer: 4,
-  vision_qa: 5,
+export interface FlowNode {
+  id: string
+  label: string
+  x: number
+  /** A gate is a diamond: it is where the run can stop and wait for a person. */
+  gate?: boolean
 }
 
-type NodeState = AgentState | 'blocking' | 'waived' | 'quiet'
+export interface FlowArc {
+  id: string
+  from: number
+  to: number
+  depth: number
+  label: string
+  /** The verdict that lights this arc up when it comes back from the machine. */
+  fires: string
+}
+
+export interface FlowSpec {
+  width: number
+  description: string
+  nodes: readonly FlowNode[]
+  arcs: readonly FlowArc[]
+  /** Which forward edge feeds each agent — the one carrying work while it runs. */
+  feeds: Partial<Record<AgentName, number>>
+}
+
+export type NodeState = AgentState | 'blocking' | 'waived' | 'quiet'
+
+/** The image pipeline: two gates, and three ways for work to come back. */
+export const IMAGE_FLOW: FlowSpec = {
+  width: 870,
+  description:
+    "Flow: planner, plan gate, copywriter, art director, creative director, renderer, vision QA, asset gate — with the director's two return edges and QA's redo edge",
+  nodes: [
+    { id: 'planner', label: 'planner', x: 58 },
+    { id: 'plan_gate', label: 'plan gate', x: 168, gate: true },
+    { id: 'copywriter', label: 'copy', x: 278 },
+    { id: 'visual_planner', label: 'art', x: 388 },
+    { id: 'director', label: 'director', x: 498 },
+    { id: 'renderer', label: 'render', x: 608 },
+    { id: 'vision_qa', label: 'QA', x: 706 },
+    { id: 'asset_gate', label: 'asset gate', x: 812, gate: true },
+  ],
+  arcs: [
+    // revise_visuals — the copy survives, only the images are replanned.
+    { id: 'ret-visuals', from: 498, to: 388, depth: 78, label: 'revise visuals', fires: 'revise_visuals' },
+    // revise_copy — rewritten copy invalidates the visuals planned around it,
+    // so this arc re-enters further back and falls further.
+    { id: 'ret-copy', from: 498, to: 278, depth: 104, label: 'revise copy', fires: 'revise_copy' },
+    // redo — QA sends the creative back to be re-rendered. Shallower, and it
+    // should be: a redo throws away one render, not a pass of written work.
+    { id: 'ret-redo', from: 706, to: 608, depth: 72, label: 'redo', fires: 'flagged' },
+  ],
+  feeds: {
+    copywriter: 1,
+    visual_planner: 2,
+    director: 3,
+    renderer: 4,
+    vision_qa: 5,
+  },
+}
+
+/** The video pipeline: one gate, and one way back — QA asking for another cut.
+ *
+ * It is a shorter flight than the image one and the picture says so. There is
+ * no director loop here because a storyboard is written by the person, not
+ * argued over by two agents. */
+export const VIDEO_FLOW: FlowSpec = {
+  width: 870,
+  description:
+    'Flow: brief, storyboard, render, vision QA, review gate — with QA’s recut edge',
+  nodes: [
+    { id: 'planner', label: 'brief', x: 90 },
+    { id: 'visual_planner', label: 'storyboard', x: 280 },
+    { id: 'renderer', label: 'render', x: 470 },
+    { id: 'vision_qa', label: 'QA', x: 640 },
+    { id: 'review_gate', label: 'review gate', x: 800, gate: true },
+  ],
+  arcs: [
+    { id: 'ret-recut', from: 640, to: 470, depth: 80, label: 'recut', fires: 'flagged' },
+  ],
+  feeds: {
+    visual_planner: 1,
+    renderer: 2,
+    vision_qa: 3,
+  },
+}
 
 export function FlowGraph({
+  flow = IMAGE_FLOW,
   agents,
-  campaign,
+  gates,
   lastVerdict,
 }: {
+  flow?: FlowSpec
   agents: Record<AgentName, AgentState>
-  campaign: Campaign
+  /** Gate node id → its state. Only the studio knows what opens its gates. */
+  gates: Record<string, NodeState>
   lastVerdict: string | null
 }) {
   const still = Boolean(useReducedMotion())
   const firing = useFiring(lastVerdict)
+  const { width: W, nodes: NODES } = flow
 
-  const gateState = (which: 'plan' | 'asset'): NodeState => {
-    const waived =
-      which === 'plan' ? campaign.auto_approve_plan : campaign.auto_approve_assets
-    if (waived) return 'waived'
-    const status = which === 'plan' ? 'pending_plan_approval' : 'pending_asset_review'
-    return campaign.status === status ? 'blocking' : 'quiet'
-  }
-
-  const stateOf = (id: string): NodeState => {
-    if (id === 'plan_gate') return gateState('plan')
-    if (id === 'asset_gate') return gateState('asset')
-    return agents[id as AgentName] ?? 'idle'
-  }
+  const stateOf = (id: string): NodeState =>
+    gates[id] ?? agents[id as AgentName] ?? 'idle'
 
   const busy = (Object.entries(agents) as [AgentName, AgentState][]).find(
     ([, state]) => state === 'running',
   )?.[0]
-  const liveEdge = busy ? FEEDS[busy] : undefined
+  const liveEdge = busy ? flow.feeds[busy] : undefined
 
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className="h-auto w-full overflow-visible"
       role="img"
-      aria-label="Flow: planner, plan gate, copywriter, art director, creative director, renderer, vision QA, asset gate — with the director's two return edges and QA's redo edge"
+      aria-label={flow.description}
     >
       <defs>
         <filter id="bloom" x="-80%" y="-80%" width="260%" height="260%">
@@ -116,40 +178,18 @@ export function FlowGraph({
         )
       })}
 
-      {/* revise_visuals — the copy survives, only the images are replanned. */}
-      <ReturnArc
-        id="ret-visuals"
-        from={498}
-        to={388}
-        depth={78}
-        label="revise visuals"
-        firing={firing === 'revise_visuals'}
-        still={still}
-      />
-      {/* revise_copy — rewritten copy invalidates the visuals planned around
-          it, so this arc re-enters further back and falls further. */}
-      <ReturnArc
-        id="ret-copy"
-        from={498}
-        to={278}
-        depth={104}
-        label="revise copy"
-        firing={firing === 'revise_copy'}
-        still={still}
-      />
-
-      {/* redo — QA sends the creative back to be re-rendered. Shallower than
-          the director's arcs, and it should be: a redo throws away one render,
-          not a whole pass of written work. */}
-      <ReturnArc
-        id="ret-redo"
-        from={706}
-        to={608}
-        depth={72}
-        label="redo"
-        firing={firing === 'flagged'}
-        still={still}
-      />
+      {flow.arcs.map((arc) => (
+        <ReturnArc
+          key={arc.id}
+          id={arc.id}
+          from={arc.from}
+          to={arc.to}
+          depth={arc.depth}
+          label={arc.label}
+          firing={firing === arc.fires}
+          still={still}
+        />
+      ))}
 
       {NODES.map((node, index) => (
         <Waypoint
@@ -213,12 +253,12 @@ function Waypoint({
   still,
   index,
 }: {
-  node: (typeof NODES)[number]
+  node: FlowNode
   state: NodeState
   still: boolean
   index: number
 }) {
-  const gate = 'gate' in node && node.gate
+  const gate = Boolean(node.gate)
   const hot = state === 'running' || state === 'blocking'
   // Amber is reserved for a human decision; the machine's own states are light.
   const colour = state === 'blocking'

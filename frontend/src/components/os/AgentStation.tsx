@@ -10,7 +10,17 @@ import type { AgentName } from '@/api/stream'
  * Only one bay can be lit, because the graph is sequential — so the lit bay
  * answers "what is it doing right now?" without reading a single word. An idle
  * bay is a still wireframe; the core only runs while its agent holds the work.
+ *
+ * The crew is a prop. Both studios use this station, and a video is made by
+ * four agents rather than six — showing two dark bays that can never light up
+ * would be the interface lying about who is working.
  */
+
+export interface Bay {
+  id: Exclude<AgentName, 'system'>
+  label: string
+  role: string
+}
 
 const STATE_LABEL: Record<AgentState, string> = {
   idle: 'standby',
@@ -20,16 +30,24 @@ const STATE_LABEL: Record<AgentState, string> = {
 }
 
 export function AgentStation({
+  crew = AGENTS,
   agents,
   lastDetail,
 }: {
+  crew?: readonly Bay[]
   agents: Record<AgentName, AgentState>
   lastDetail: Partial<Record<AgentName, string>>
 }) {
   return (
-    <div className="mx-auto grid w-full max-w-[52rem] grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-6">
-      {AGENTS.map((agent, index) => (
-        <Bay
+    <div
+      className={cn(
+        'mx-auto grid w-full max-w-[52rem] grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3',
+        // The whole crew fits on one row at desktop width, whichever crew it is.
+        crew.length <= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-6',
+      )}
+    >
+      {crew.map((agent, index) => (
+        <Station
           key={agent.id}
           index={index}
           label={agent.label}
@@ -43,7 +61,7 @@ export function AgentStation({
   )
 }
 
-function Bay({
+function Station({
   index,
   label,
   role,
@@ -67,8 +85,8 @@ function Bay({
       className={cn(
         'group relative overflow-hidden rounded-xl border transition-colors duration-500',
         live
-          ? 'border-edge-strong bg-[rgba(233,238,247,0.045)]'
-          : 'border-edge bg-[rgba(233,238,247,0.014)]',
+          ? 'border-edge-strong bg-[rgba(233,238,247,0.07)]'
+          : 'border-edge bg-[rgba(233,238,247,0.03)]',
       )}
       animate={{ y: live ? -4 : 0 }}
       transition={SETTLE}

@@ -12,6 +12,12 @@
    else. Amber is the only warm value in the product and it appears in exactly
    one situation — a human decision is required. So a warm pixel anywhere on
    screen always means the same thing: you.
+
+   Two cool hues were added when the product grew a second medium: `--image`
+   and `--video`. They are the exception that proves the rule rather than a
+   breach of it. They never report a state — only which studio you are in, or
+   which studio a card would take you to — and being cool, they cannot be
+   mistaken at a glance for the one warm thing that means you.
    ───────────────────────────────────────────────────────────────────────── */
 
 @theme inline {
@@ -30,6 +36,8 @@
     --color-halt: var(--halt);
     --color-go: var(--go);
     --color-flag: var(--flag);
+    --color-image: var(--image);
+    --color-video: var(--video);
     --color-paper: var(--paper);
 
     --color-sidebar-ring: var(--sidebar-ring);
@@ -80,18 +88,18 @@
     /* Ground. Blue-black rather than neutral black: neutral black on an OLED
        reads as a hole in the screen, this reads as depth. */
     --void: #05070b;
-    --rise: #0a0d13;
-    --lift: #10141c;
+    --rise: #0d1119;
+    --lift: #171d28;
 
     /* Hairlines are light at low alpha, never a grey hex. This is the whole
        difference between a surface that reads as glass and one that reads as
        a box with a border. */
-    --edge: rgba(233, 238, 247, 0.07);
-    --edge-strong: rgba(233, 238, 247, 0.15);
+    --edge: rgba(233, 238, 247, 0.12);
+    --edge-strong: rgba(233, 238, 247, 0.26);
 
     --text: #e9eef7;
-    --text-2: rgba(233, 238, 247, 0.56);
-    --text-3: rgba(233, 238, 247, 0.32);
+    --text-2: rgba(233, 238, 247, 0.72);
+    --text-3: rgba(233, 238, 247, 0.5);
 
     /* The only hue the machine is allowed. A human is needed. */
     --halt: #ffbe6a;
@@ -99,6 +107,12 @@
     --flag: #ff8e7b;
     /* Rare: a decision has been made and the path is open. */
     --go: #93ddba;
+
+    /* The two mediums. These name a *medium*, never a state — a card, a rail
+       entry, an accent rule. Both are cool and both sit far from amber, so
+       nothing here can be mistaken for "a person is needed". */
+    --image: #6e9bff;
+    --video: #b08cff;
 
     --background: var(--void);
     --foreground: var(--text);
@@ -227,6 +241,8 @@
     --halt: #b4740f;
     --go: #157a4e;
     --flag: #b5372a;
+    --image: #2d5bd0;
+    --video: #6f45c8;
     --ring: rgba(13, 16, 21, 0.3);
     color: var(--foreground);
     }
@@ -234,7 +250,7 @@
   /* Glass: a raised surface made of light, not of a border. */
   .glass {
     background:
-      linear-gradient(180deg, rgba(233, 238, 247, 0.045), rgba(233, 238, 247, 0.012));
+      linear-gradient(180deg, rgba(233, 238, 247, 0.07), rgba(233, 238, 247, 0.025));
     border: 1px solid var(--edge);
     backdrop-filter: blur(12px);
     }
