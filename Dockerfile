@@ -48,9 +48,9 @@ pathlib.Path('requirements.txt').write_text('\n'.join(project['dependencies']))"
 FROM python:3.13-slim AS runtime
 
 # DejaVu is what the compositor falls back to for headline and CTA type.
-# fonts-dejavu-core is ~1MB; a creative with no real face on it is worse.
+# FFmpeg turns Agentcy's product storyboard into a reviewable H.264 MP4.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=deps /opt/venv /opt/venv
@@ -69,6 +69,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
 WORKDIR /app/backend
 COPY backend/ /app/backend/
 COPY --from=web /web/dist /app/frontend/dist
+# The cinematic trailer uses these real application screens as protected
+# inserts. They are copied into durable `/media` storage when a trailer is
+# created, rather than being sent to a video model to be distorted.
+COPY image-studio.png /app/image-studio.png
+COPY hub.png /app/hub.png
+COPY history-work.png /app/history-work.png
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
