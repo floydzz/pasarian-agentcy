@@ -367,3 +367,73 @@ class ProductReferenceRead(BaseModel):
 
 
 # -- marketing chat -------------------------------------------------------
+
+
+class BrandProduct(BaseModel):
+    """One offer the agents may describe, but never embellish."""
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=2000)
+    price: str | None = Field(default=None, max_length=120)
+    benefits: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("name", "description")
+    @classmethod
+    def _required_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
+
+    @field_validator("price", "benefits")
+    @classmethod
+    def _optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class BrandProfileWrite(BaseModel):
+    company_name: str = Field(min_length=1, max_length=200)
+    industry: str = Field(min_length=1, max_length=120)
+    website: str | None = Field(default=None, max_length=500)
+    description: str = Field(min_length=1, max_length=4000)
+    brand_voice: str = Field(min_length=1, max_length=2000)
+    target_audience: str = Field(min_length=1, max_length=2000)
+    products: list[BrandProduct] = Field(min_length=1, max_length=20)
+    approved_claims: str | None = Field(default=None, max_length=2000)
+    restrictions: str | None = Field(default=None, max_length=2000)
+
+    @field_validator(
+        "company_name", "industry", "description", "brand_voice", "target_audience"
+    )
+    @classmethod
+    def _required_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("must not be blank")
+        return stripped
+
+    @field_validator("website", "approved_claims", "restrictions")
+    @classmethod
+    def _optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class BrandProfileRead(BaseModel):
+    configured: bool
+    knowledge_chunks: int
+    company_name: str
+    industry: str
+    website: str | None
+    description: str
+    brand_voice: str
+    target_audience: str
+    products: list[BrandProduct]
+    approved_claims: str | None
+    restrictions: str | None
+    updated_at: datetime | None = None
+
+    _stamp = field_serializer("updated_at")(staticmethod(_utc))

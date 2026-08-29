@@ -111,6 +111,21 @@ class KnowledgeStore:
     ) -> int:
         return self._ingest(TREND_CORPUS, markdown, source=source, max_chars=max_chars)
 
+    def replace_company_kb(
+        self, markdown: str, *, source: str, max_chars: int = DEFAULT_MAX_CHARS
+    ) -> int:
+        """Replace all company knowledge with one current workspace profile.
+
+        Unlike trend snapshots, a brand profile is the authority for the whole
+        workspace. Retaining a bundled demo document after a person has saved
+        their own company would let the planner cite an invented product fact.
+        """
+        # Ensure the collection exists first so deleting it is portable across
+        # Chroma versions, including an entirely new workspace.
+        self._collection(COMPANY_KB)
+        self._client.delete_collection(COMPANY_KB)
+        return self.ingest_company_kb(markdown, source=source, max_chars=max_chars)
+
     def _ingest(
         self, collection_name: str, markdown: str, *, source: str, max_chars: int
     ) -> int:

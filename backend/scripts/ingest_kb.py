@@ -23,8 +23,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sqlalchemy import select  # noqa: E402
+
 from app.api.deps import get_store  # noqa: E402
-from app.rag.ingest import ingest_all  # noqa: E402
+from app.brand_profile import PROFILE_SOURCE, as_markdown  # noqa: E402
+from app.db import SessionLocal  # noqa: E402
+from app.models import BrandProfile  # noqa: E402
+from app.rag.ingest import TRENDS_DIR, ingest_all, ingest_directory  # noqa: E402
 from app.rag.store import COMPANY_KB, TREND_CORPUS  # noqa: E402
 
 
@@ -40,6 +45,30 @@ def main(argv: list[str]) -> int:
             f"{corpus} was embedded by a different model — cleared, "
             "and re-embedded below"
         )
+
+    with SessionLocal() as db:
+        profile = db.scalar(select(BrandProfile).order_by(BrandProfile.id).limit(1))
+
+    # A saved profile is authoritative even if a prior image left the bundled
+    # demo corpus on the volume. This also restores the profile after Chroma is
+    # cleared without requiring a person to open and re-save the form.
+    if profile is not None:
+        chunks = store.replace_company_kb(as_markdown(profile), source=PROFILE_SOURCE)
+        print(
+            f"\nbrand profile: {chunks} chunks embedded — "
+            f"{store.count(COMPANY_KB)} in {COMPANY_KB}"
+        )
+        # The profile is authoritative over the company KB and says nothing
+        # about trends, which live in their own corpus. A cold volume — or one
+        # just cleared above — would otherwise leave the planner with no trend
+        # signals at all, and it would never say so.
+        if not store.count(TREND_CORPUS):
+            counts = ingest_directory(store, TRENDS_DIR, corpus=TREND_CORPUS)
+            print(
+                f"trends: {sum(counts.values())} chunks embedded across "
+                f"{len(counts)} documents"
+            )
+        return 0
 
     if "--if-empty" in argv and store.count(COMPANY_KB):
         print(

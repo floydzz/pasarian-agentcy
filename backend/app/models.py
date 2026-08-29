@@ -251,3 +251,25 @@ class ProductReference(TimestampMixin, Base):
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     campaign: Mapped[Campaign] = relationship(back_populates="product_references")
+
+
+class BrandProfile(TimestampMixin, Base):
+    """The single workspace's source of truth about its company.
+
+    Authentication and organisations are deliberately not in this MVP, so one
+    profile belongs to the one workspace.  The API turns this row into the only
+    document in the company corpus whenever a person saves it.
+    """
+
+    __tablename__ = "brand_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    industry: Mapped[str] = mapped_column(String(120), nullable=False)
+    website: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    brand_voice: Mapped[str] = mapped_column(Text, nullable=False)
+    target_audience: Mapped[str] = mapped_column(Text, nullable=False)
+    products: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    approved_claims: Mapped[str | None] = mapped_column(Text, nullable=True)
+    restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
