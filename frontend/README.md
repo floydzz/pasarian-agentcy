@@ -11,7 +11,7 @@ npm run dev        # :5173, proxies /api to the backend on :8000
 The backend must be running. See `../backend/README.md` — and set both
 providers to `demo` there to drive the whole thing with no API keys. To run it
 the way it ships, `docker compose up --build` from the repo root and open
-:8000, where FastAPI serves this build directly.
+:8002, where FastAPI serves this build directly.
 
 ## The rooms
 
@@ -23,7 +23,9 @@ campaign, so they are not the same kind of entry.
 | | | |
 |---|---|---|
 | **Campaigns** | `/` | The work. A console per campaign. |
+| **Video studio** | `/video-studio` | Configurable marketing videos; opens on the Agentcy demo preset. |
 | **History** | `/history` | Every pass the machine has made, replayable. |
+| **Brand profile** | `/brand` | The company facts and product truth the crew may use. |
 | **Agents** | `/agents` | The four, in pipeline order, and their few knobs. |
 | **Trends** | `/trends` | The watchlist that decides what "the moment" means. |
 
