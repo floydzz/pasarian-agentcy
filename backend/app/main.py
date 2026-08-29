@@ -14,12 +14,16 @@ from starlette.staticfiles import StaticFiles
 from app.api.agents import router as agents_router
 from app.api.assets import router as assets_router
 from app.api.campaigns import router as campaigns_router
+from app.api.chat import router as chat_router
+from app.api.cinematic_trailers import router as cinematic_trailers_router
+from app.api.demo_videos import router as demo_videos_router
 from app.api.generation import router as generation_router
 from app.api.history import router as history_router
 from app.api.profile import router as profile_router
 from app.api.product_references import router as product_references_router
 from app.api.system import router as system_router
 from app.api.trends import router as trends_router
+from app.api.videos import router as videos_router
 from app.config import REPO_ROOT, get_settings
 from app.media.storage import MEDIA_PREFIX
 
@@ -43,12 +47,16 @@ app.add_middleware(
 )
 
 app.include_router(campaigns_router)
+app.include_router(chat_router)
 app.include_router(generation_router)
 app.include_router(assets_router)
 app.include_router(agents_router)
 app.include_router(history_router)
 app.include_router(profile_router)
 app.include_router(product_references_router)
+app.include_router(demo_videos_router)
+app.include_router(videos_router)
+app.include_router(cinematic_trailers_router)
 app.include_router(system_router)
 app.include_router(trends_router)
 

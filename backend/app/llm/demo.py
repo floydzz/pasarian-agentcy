@@ -70,6 +70,8 @@ class DemoProvider(LLMProvider):
             return schema(**self._verdict())
         if name == "QAVerdict":
             return schema(**self._qa())
+        if name == "ChatTurn":
+            return schema(**self._chat(prompt))
         raise ValueError(f"the demo provider has no canned answer for {name}")
 
     # -- canned answers ----------------------------------------------------
@@ -112,6 +114,60 @@ class DemoProvider(LLMProvider):
                 }
                 for index in range(wanted)
             ],
+        }
+
+    def _chat(self, prompt: str) -> dict:
+        """A usable rehearsal of the strategist's small action vocabulary.
+
+        This is intentionally simple, not an attempt to imitate reasoning. It
+        recognises the pipeline state the real prompt supplies so an offline
+        walkthrough can still create a thread, run a plan, wait at the gate,
+        and start generation after a person approves concepts.
+        """
+        message = prompt.split("## NEW MESSAGE", 1)[-1].strip()
+        lower = message.lower()
+        affirmative = any(
+            phrase in lower
+            for phrase in ("plan", "go ahead", "start", "let's do", "lets do", "proceed", "generate")
+        )
+
+        if "No campaign is attached" in prompt:
+            if len(message) < 28:
+                return {
+                    "reply": "[demo] Tell me what you are promoting, who it is for, and the outcome you want. I will turn that into a campaign brief.",
+                    "action": "none",
+                }
+            title_words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'’/-]*", message)[:6]
+            title = "[demo] " + (" ".join(title_words) or "Marketing campaign")
+            return {
+                "reply": "[demo] I have enough to frame a first campaign. I kept the stated goal in the brief and left the concept gate for you.",
+                "action": "create_campaign",
+                "draft": {"name": title[:200], "brief": f"[demo] {message}"},
+            }
+
+        if "Status: draft" in prompt and affirmative:
+            return {
+                "reply": "[demo] Good brief. I am handing it to the planner now; the resulting concepts will still wait for your decision.",
+                "action": "run_plan",
+            }
+        if "Status: generating" in prompt and affirmative:
+            return {
+                "reply": "[demo] The approved concepts are ready for the creative crew. I am starting generation now.",
+                "action": "run_generate",
+            }
+        if "Status: pending_plan_approval" in prompt:
+            return {
+                "reply": "[demo] The concepts are at your approval gate. Choose what is worth making in the campaign workspace; I will not bypass that decision.",
+                "action": "none",
+            }
+        if "Status: pending_asset_review" in prompt:
+            return {
+                "reply": "[demo] The finished assets are waiting for your review. I will not publish or render past that human gate.",
+                "action": "none",
+            }
+        return {
+            "reply": "[demo] I have the campaign context. Tell me whether to refine the brief or move to the next available stage.",
+            "action": "none",
         }
 
     def _copy(self, prompt: str) -> dict:

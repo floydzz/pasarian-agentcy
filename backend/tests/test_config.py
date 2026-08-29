@@ -45,7 +45,10 @@ class TestDefaults:
     def test_trends_default_to_malaysia(self):
         assert _settings().trends_geo == "MY"
 
-    def test_llm_provider_defaults_to_claude(self):
+    def test_llm_provider_defaults_to_claude(self, monkeypatch):
+        # conftest forces demo mode for integration tests; this unit test is
+        # intentionally checking the model's own default instead.
+        monkeypatch.delenv("LLM_PROVIDER")
         settings = Settings(
             _env_file=None, database_url="mysql+pymysql://u:p@h/d"
         )
@@ -57,7 +60,7 @@ class TestDefaults:
 
 
 def test_media_provider_defaults_to_demo():
-    settings = Settings(database_url="mysql+pymysql://x/y")
+    settings = Settings(_env_file=None, database_url="mysql+pymysql://x/y")
     assert settings.media_provider == "demo"
 
 
@@ -71,18 +74,20 @@ def test_media_reuses_the_dashscope_key():
 
 
 def test_missing_media_key_names_its_env_var():
-    settings = Settings(database_url="mysql+pymysql://x/y", media_provider="dashscope")
+    settings = Settings(_env_file=None, database_url="mysql+pymysql://x/y",
+                        media_provider="dashscope")
     with pytest.raises(ValueError, match="DASHSCOPE_API_KEY"):
         settings.active_media_key
 
 
 def test_demo_media_provider_needs_no_key():
-    settings = Settings(database_url="mysql+pymysql://x/y", media_provider="demo")
+    settings = Settings(_env_file=None, database_url="mysql+pymysql://x/y",
+                        media_provider="demo")
     assert settings.active_media_key == "demo"
 
 
 def test_assets_dir_is_absolute():
-    settings = Settings(database_url="mysql+pymysql://x/y")
+    settings = Settings(_env_file=None, database_url="mysql+pymysql://x/y")
     assert settings.assets_dir.is_absolute()
 
 
@@ -117,6 +122,31 @@ class TestVisionModel:
         settings = _settings(llm_provider="qwen")
         assert settings.active_llm_model is None
         assert settings.active_vision_model is None
+
+
+class TestBrollSettings:
+    def test_b_roll_is_off_until_a_provider_is_chosen(self):
+        assert _settings().video_provider == "demo"
+        assert _settings().broll_is_available is False
+
+    def test_it_reuses_the_dashscope_key(self):
+        assert _settings(video_provider="dashscope").active_video_key == "ds-key"
+
+    def test_it_is_unavailable_without_a_key_rather_than_raising(self):
+        """The studio asks this to decide whether to offer the option at all,
+        so an unkeyed workspace must get a plain False, not an exception."""
+        settings = _settings(video_provider="dashscope", dashscope_api_key="")
+        assert settings.broll_is_available is False
+
+    def test_a_keyed_dashscope_workspace_has_it_available(self):
+        assert _settings(video_provider="dashscope").broll_is_available is True
+
+    def test_it_defaults_to_happyhorse(self):
+        settings = _settings(video_provider="dashscope")
+        assert settings.active_video_model == "happyhorse-1.1-t2v"
+
+    def test_the_timeout_is_not_the_image_timeout(self):
+        assert _settings().video_timeout_seconds >= 300
 
 
 class TestTheFallbackChain:

@@ -31,8 +31,13 @@ export type StreamLine =
 export async function streamRun(
   path: string,
   onLine: (line: StreamLine) => void,
+  body?: unknown,
 ): Promise<void> {
-  const response = await fetch(`/api${path}`, { method: 'POST' })
+  const response = await fetch(`/api${path}`, {
+    method: 'POST',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
 
   if (!response.ok) {
     // Refusals happen before the stream opens — a 409 gate check, say — so

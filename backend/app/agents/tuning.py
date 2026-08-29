@@ -27,6 +27,9 @@ VISUAL_PLANNER = "visual_planner"
 DIRECTOR = "director"
 #: Belongs to the studio, not the crew — deliberately outside CREW_AGENTS.
 VISION_QA = "vision_qa"
+#: The front door to the pipeline. Unlike the planner it can discuss work,
+#: but it cannot cross either approval gate or run the renderer.
+CHAT = "chat"
 
 #: The crew shares one retrieval width — all three read the same brand ground
 #: truth for a concept, so the copy and the review of it can never disagree
@@ -61,6 +64,42 @@ class AgentProfile:
 
 
 PROFILES: tuple[AgentProfile, ...] = (
+    AgentProfile(
+        agent=CHAT,
+        label="Marketing strategist",
+        role="Turns a conversation into a grounded campaign brief, then routes "
+        "only the safe next stage of the pipeline.",
+        boundary="Cannot approve concepts or assets, render work, or bypass a "
+        "human gate. It proposes actions; the API checks every one.",
+        note_placeholder="Prioritise practical launches for first-time founders. "
+        "Ask about restrictions before proposing urgency.",
+        knobs=(
+            Knob(
+                field="company_k",
+                label="Brand chunks read",
+                help="Ground truth for product facts, voice and restrictions.",
+                minimum=2,
+                maximum=12,
+                default=6,
+            ),
+            Knob(
+                field="trend_k",
+                label="Trend chunks read",
+                help="Inspiration only — trend signals never become product facts.",
+                minimum=0,
+                maximum=12,
+                default=4,
+            ),
+            Knob(
+                field="context_turns",
+                label="Recent turns read",
+                help="More context helps continuity but costs more on every reply.",
+                minimum=4,
+                maximum=40,
+                default=20,
+            ),
+        ),
+    ),
     AgentProfile(
         agent=PLANNER,
         label="Planner",

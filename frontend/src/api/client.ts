@@ -2,11 +2,23 @@ import type {
   Agent,
   AgentUpdate,
   Asset,
+  BrandProfile,
+  BrandProfileWrite,
   Campaign,
+  ChatSendResult,
+  CinematicTrailer,
+  CinematicTrailerCreate,
   Concept,
   ConceptStatus,
+  Conversation,
+  Creative,
   Generation,
+  DemoVideo,
+  DemoVideoCreate,
+  MarketingVideo,
+  MarketingVideoCreate,
   Plan,
+  ProductReference,
   RenderResult,
   Run,
   RunDetail,
@@ -76,12 +88,63 @@ const patch = <T>(path: string, body: unknown) =>
   request<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
 
 export const api = {
+  // -- company ground truth ------------------------------------------------
+
+  getBrandProfile: () => request<BrandProfile>('/brand-profile'),
+
+  saveBrandProfile: (payload: BrandProfileWrite) =>
+    request<BrandProfile>('/brand-profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
   listCampaigns: () => request<Campaign[]>('/campaigns'),
 
   getCampaign: (id: number) => request<Campaign>(`/campaigns/${id}`),
 
   createCampaign: (payload: { name: string; brief: string; source_event?: string }) =>
     post<Campaign>('/campaigns', payload),
+
+  listProductReferences: (campaignId: number) =>
+    request<ProductReference[]>(`/campaigns/${campaignId}/product-references`),
+
+  uploadProductReference: (
+    campaignId: number,
+    payload: { label: string; data_url: string; is_primary?: boolean },
+  ) => post<ProductReference>(`/campaigns/${campaignId}/product-references`, payload),
+
+  updateProductReference: (
+    campaignId: number,
+    referenceId: number,
+    payload: { label?: string; is_primary?: boolean },
+  ) => patch<ProductReference>(`/campaigns/${campaignId}/product-references/${referenceId}`, payload),
+
+  deleteProductReference: (campaignId: number, referenceId: number) =>
+    request<void>(`/campaigns/${campaignId}/product-references/${referenceId}`, {
+      method: 'DELETE',
+    }),
+
+  // -- marketing chat -----------------------------------------------------
+
+  listConversations: () => request<Conversation[]>('/conversations'),
+
+  // Send `{}` for the default title as well. The API can then distinguish a
+  // deliberate default thread from a missing request body.
+  createConversation: (payload: { title?: string } = {}) =>
+    post<Conversation>('/conversations', payload),
+
+  getConversation: (id: number) => request<Conversation>(`/conversations/${id}`),
+
+  updateConversation: (
+    id: number,
+    payload: { title?: string; campaign_id?: number | null },
+  ) => patch<Conversation>(`/conversations/${id}`, payload),
+
+  deleteConversation: (id: number) =>
+    request<void>(`/conversations/${id}`, { method: 'DELETE' }),
+
+  sendConversationMessage: (id: number, content: string) =>
+    post<ChatSendResult>(`/conversations/${id}/messages`, { content }),
 
   listConcepts: (id: number) => request<Concept[]>(`/campaigns/${id}/concepts`),
 
@@ -125,6 +188,88 @@ export const api = {
 
   approveAllAssets: (id: number) => post<Campaign>(`/campaigns/${id}/assets/approve`),
 
+  // -- legacy fixed product-explainer video --------------------------------
+
+  listDemoVideos: () => request<DemoVideo[]>('/demo-videos'),
+
+  renderDemoVideo: (payload: DemoVideoCreate) => post<DemoVideo>('/demo-videos/render', payload),
+
+  approveDemoVideo: (videoId: number) => post<DemoVideo>(`/demo-videos/${videoId}/approve`),
+
+  rejectDemoVideo: (videoId: number) => post<DemoVideo>(`/demo-videos/${videoId}/reject`),
+
+  redoDemoVideo: (videoId: number) => post<DemoVideo>(`/demo-videos/${videoId}/redo`),
+
+  // -- reusable marketing-video studio ------------------------------------
+
+  listVideos: () => request<MarketingVideo[]>('/videos'),
+
+  listCampaignVideos: (id: number) =>
+    request<MarketingVideo[]>(`/campaigns/${id}/videos`),
+
+  /** A first draft of the campaign's video, seeded from its approved work. */
+  campaignVideoBrief: (id: number) =>
+    request<MarketingVideoCreate>(`/campaigns/${id}/video-brief`),
+
+  renderCampaignVideo: (id: number, payload: MarketingVideoCreate) =>
+    post<MarketingVideo>(`/campaigns/${id}/videos/render`, payload),
+
+  renderVideo: (payload: MarketingVideoCreate) => post<MarketingVideo>('/videos/render', payload),
+
+  approveVideo: (videoId: number) => post<MarketingVideo>(`/videos/${videoId}/approve`),
+
+  rejectVideo: (videoId: number) => post<MarketingVideo>(`/videos/${videoId}/reject`),
+
+  redoVideo: (videoId: number) => post<MarketingVideo>(`/videos/${videoId}/redo`),
+
+  // -- cinematic AI trailers ----------------------------------------------
+
+  listCinematicTrailers: (campaignId?: number) =>
+    request<CinematicTrailer[]>(
+      campaignId === undefined
+        ? '/cinematic-trailers'
+        : `/cinematic-trailers?campaign_id=${campaignId}`,
+    ),
+
+  createCinematicTrailer: (payload: Partial<CinematicTrailerCreate> = {}) =>
+    post<CinematicTrailer>('/cinematic-trailers', payload),
+
+  submitCinematicTrailer: (trailerId: number) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/submit`),
+
+  refreshCinematicTrailer: (trailerId: number) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/refresh`),
+
+  composeCinematicTrailer: (trailerId: number) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/compose`),
+
+  uploadCinematicTrailerCapture: (trailerId: number, dataUrl: string) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/application-capture`, {
+      data_url: dataUrl,
+    }),
+
+  uploadCinematicTrailerSoundtrack: (trailerId: number, dataUrl: string) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/soundtrack`, {
+      data_url: dataUrl,
+    }),
+
+  uploadCinematicTrailerProductReference: (trailerId: number, dataUrl: string) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/product-reference`, {
+      data_url: dataUrl,
+    }),
+
+  regenerateCinematicTrailerShot: (trailerId: number, shotId: number) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/shots/${shotId}/regenerate`),
+
+  regenerateAllCinematicTrailerShots: (trailerId: number) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/shots/regenerate`),
+
+  approveCinematicTrailer: (trailerId: number) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/approve`),
+
+  rejectCinematicTrailer: (trailerId: number) =>
+    post<CinematicTrailer>(`/cinematic-trailers/${trailerId}/reject`),
+
   // -- the machine ---------------------------------------------------------
 
   system: () => request<System>('/system'),
@@ -144,6 +289,11 @@ export const api = {
     ),
 
   getRun: (id: number) => request<RunDetail>(`/runs/${id}`),
+
+  listCreatives: (campaignId?: number) =>
+    request<Creative[]>(
+      campaignId === undefined ? '/creatives' : `/creatives?campaign_id=${campaignId}`,
+    ),
 
   // -- trends --------------------------------------------------------------
 

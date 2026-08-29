@@ -24,6 +24,10 @@ class SystemRead(BaseModel):
     #: generated samples, which is stated wherever those samples are shown.
     trends_live: bool
     geo: str
+    #: False when no b-roll provider is configured or keyed. The video studio
+    #: reads this to decide whether to offer the option at all, rather than
+    #: showing a switch that quietly does nothing.
+    broll_available: bool
 
 
 @router.get("/system", response_model=SystemRead)
@@ -34,4 +38,5 @@ def read_system() -> SystemRead:
         embedding_provider=settings.embedding_provider,
         trends_live=bool(settings.serpapi_key),
         geo=settings.trends_geo,
+        broll_available=settings.broll_is_available,
     )

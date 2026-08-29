@@ -14,6 +14,9 @@ services:
       - "3308:3306"
     volumes:
       - agentcy_mysql_data:/var/lib/mysql
+      # The backend suite uses a separate database so it can freely reset its
+      # schema without touching the application data.
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/01-test-database.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pagentcy_root"]
       interval: 5s
@@ -36,10 +39,13 @@ services:
       DATABASE_URL: mysql+pymysql://agentcy:agentcy_pw@mysql:3306/agentcy
 
       # Defaults to the offline provider so `docker compose up` works with no
-      # keys and bills nothing. Override in .env to run against a real model;
-      # switching EMBEDDING_PROVIDER means clearing the volume, because vectors
-      # from two models are not comparable.
+      # keys and bills nothing. Override in .env to run against a real model.
+      # Switching EMBEDDING_PROVIDER is a restart, not a volume wipe: vectors
+      # from two models are not comparable, so the entrypoint clears a corpus
+      # left by the previous model and re-embeds it.
       LLM_PROVIDER: ${LLM_PROVIDER:-demo}
+      LLM_REASONING: ${LLM_REASONING:-false}
+      LLM_FALLBACK_MODELS: ${LLM_FALLBACK_MODELS:-qwen3.6-plus}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-demo}
 
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -50,17 +56,28 @@ services:
       CLAUDE_MODEL: ${CLAUDE_MODEL:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       QWEN_MODEL: ${QWEN_MODEL:-}
+      CLAUDE_VISION_MODEL: ${CLAUDE_VISION_MODEL:-}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-}
+      QWEN_VISION_MODEL: ${QWEN_VISION_MODEL:-}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       QWEN_EMBEDDING_MODEL: ${QWEN_EMBEDDING_MODEL:-text-embedding-v3}
 
       MEDIA_PROVIDER: ${MEDIA_PROVIDER:-demo}
-      DASHSCOPE_IMAGE_MODEL: ${DASHSCOPE_IMAGE_MODEL:-wanx2.1-t2i-turbo}
+      DASHSCOPE_IMAGE_MODEL: ${DASHSCOPE_IMAGE_MODEL:-wan2.6-image}
+      MEDIA_TIMEOUT_SECONDS: ${MEDIA_TIMEOUT_SECONDS:-300}
+      # Generative b-roll for the video studio. `demo` declines, which makes
+      # the studio render its own scenes — the free, instant path.
+      VIDEO_PROVIDER: ${VIDEO_PROVIDER:-demo}
+      DASHSCOPE_VIDEO_MODEL: ${DASHSCOPE_VIDEO_MODEL:-happyhorse-1.1-t2v}
+      VIDEO_TIMEOUT_SECONDS: ${VIDEO_TIMEOUT_SECONDS:-600}
       ASSETS_PATH: /data/assets
 
       TRENDS_GEO: ${TRENDS_GEO:-MY}
       CHROMA_PATH: /data/chroma
     ports:
-      - "8000:8000"
+      # Uvicorn listens on 8000 inside the container.  Only the host-facing
+      # side changes, so the console is reached at http://localhost:8002.
+      - "8002:8000"
     volumes:
       # The embedded corpora. Persisted so a restart is not a re-embedding.
       - agentcy_chroma:/data/chroma

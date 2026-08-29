@@ -1,4 +1,23 @@
+import atexit
 import os
+import shutil
+import tempfile
+
+# The suite exercises the complete API, including the dependency factories.
+# Make those factories deterministic and offline even when a developer's .env
+# points at a paid provider for a local run.
+os.environ["LLM_PROVIDER"] = "demo"
+os.environ["EMBEDDING_PROVIDER"] = "demo"
+os.environ["MEDIA_PROVIDER"] = "demo"
+os.environ["VIDEO_PROVIDER"] = "demo"
+
+# And give the store somewhere of its own. Without this the suite embeds its
+# fixtures straight into the developer's real `.chroma`, which pollutes that
+# corpus and then fails outright once it holds vectors from a real provider:
+# the demo embedder is 256-dimensional and nothing else is.
+_CHROMA = tempfile.mkdtemp(prefix="agentcy-test-chroma-")
+os.environ["CHROMA_PATH"] = _CHROMA
+atexit.register(shutil.rmtree, _CHROMA, True)
 
 import pytest
 from sqlalchemy import create_engine

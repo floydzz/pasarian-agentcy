@@ -26,6 +26,48 @@ export interface Campaign {
   updated_at: string
 }
 
+/** A marketer-supplied product photo, distinct from model-generated assets. */
+export interface ProductReference {
+  id: number
+  campaign_id: number
+  label: string
+  media_url: string
+  is_primary: boolean
+  created_at: string
+  updated_at: string
+}
+
+// -- marketing chat -------------------------------------------------------
+
+export type ChatRole = 'user' | 'assistant' | 'system'
+export type ChatAction = 'create_campaign' | 'run_plan' | 'run_generate' | 'none'
+
+export interface ChatMessage {
+  id: number
+  conversation_id: number
+  role: ChatRole
+  content: string
+  action: ChatAction | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Conversation {
+  id: number
+  title: string
+  campaign_id: number | null
+  campaign: Campaign | null
+  messages: ChatMessage[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatSendResult {
+  message: ChatMessage
+  campaign: Campaign | null
+  authorized: 'plan' | 'generate' | null
+}
+
 export interface Concept {
   id: number
   campaign_id: number
@@ -49,12 +91,16 @@ export type PlacementZone =
   | 'mid-left' | 'mid-center' | 'mid-right'
   | 'bottom-left' | 'bottom-center' | 'bottom-right'
 
+export type TextTreatment = 'bare' | 'soft-gradient' | 'glass-panel' | 'ribbon'
+
 export interface VisualBrief {
   composition_notes: string
   image_prompt: string
   text_placement: string
   /** The same intent as `text_placement`, in the form the compositor acts on. */
   placement_zone: PlacementZone
+  /** The copy surface selected by the visual planner for this composition. */
+  text_treatment?: TextTreatment
 }
 
 export interface Variant {
@@ -90,10 +136,188 @@ export interface Asset {
   review_status: ReviewStatus
 }
 
+/** One finished creative with the campaign it belongs to.
+ *
+ * The gallery is browsed away from any one campaign, so a creative that
+ * arrives there carrying only a variant id is a picture of nothing. */
+export interface Creative extends Asset {
+  created_at: string
+  campaign_id: number
+  campaign_name: string
+  concept_theme: string
+  headline: string
+}
+
 export interface RenderResult {
   variants_rendered: number
   variants_skipped: number
   assets: Asset[]
+}
+
+// -- Agentcy product-explainer video -------------------------------------
+
+export interface DemoVideoCreate {
+  title: string
+  strapline: string
+  cta: string
+}
+
+export interface DemoVideo {
+  id: number
+  title: string
+  strapline: string
+  cta: string
+  media_url: string
+  poster_url: string
+  duration_seconds: number
+  scene_count: number
+  qa_status: QAStatus
+  qa_notes: string | null
+  review_status: ReviewStatus
+  created_at: string
+  updated_at: string
+}
+
+// -- reusable marketing-video studio -------------------------------------
+
+export type VideoProfile = 'software_demo' | 'product_marketing'
+export type VideoSceneLayout = 'hero' | 'feature' | 'workflow' | 'proof' | 'cta'
+
+export interface MarketingVideoScene {
+  eyebrow: string
+  headline: string
+  body: string
+  layout: VideoSceneLayout
+}
+
+export interface MarketingVideoCreate {
+  name: string
+  profile: VideoProfile
+  brand_name: string
+  product_name: string
+  target_audience: string
+  cta: string
+  storyboard: MarketingVideoScene[]
+  /** Opt-in generative backdrops. The captions are still drawn by the
+   * renderer either way; this only changes what is behind them. */
+  use_broll: boolean
+  product_reference_id?: number | null
+}
+
+export interface MarketingVideo extends MarketingVideoCreate {
+  id: number
+  /** Null for the product explainer and any video made outside a campaign. */
+  campaign_id: number | null
+  product_reference_url: string | null
+  media_url: string
+  poster_url: string
+  duration_seconds: number
+  scene_count: number
+  qa_status: QAStatus
+  qa_notes: string | null
+  review_status: ReviewStatus
+  created_at: string
+  updated_at: string
+}
+
+// -- cinematic AI trailer -------------------------------------------------
+
+export type CinematicShotMode = 'text_to_video' | 'image_to_video' | 'reference_to_video'
+export type CinematicShotStatus = 'draft' | 'pending' | 'running' | 'succeeded' | 'failed'
+export type CinematicTrailerStatus = 'draft' | 'generating' | 'ready_to_compose' | 'rendered' | 'failed'
+export type CinematicProductSurface = 'none' | 'studio' | 'hub' | 'history'
+
+export interface CinematicTrailerShot {
+  id: number
+  position: number
+  label: string
+  title_card: string
+  prompt: string
+  mode: CinematicShotMode
+  duration_seconds: number
+  voiceover: string
+  audio_cue: string
+  reference_asset_urls: string[]
+  protect_reference: boolean
+  product_surface: CinematicProductSurface
+  remote_task_id: string | null
+  provider_status: CinematicShotStatus
+  provider_error: string | null
+  media_url: string | null
+}
+
+export interface CinematicTrailer {
+  id: number
+  campaign_id: number | null
+  title: string
+  aspect_ratio: '16:9' | '9:16'
+  cta: string
+  status: CinematicTrailerStatus
+  media_url: string | null
+  poster_url: string | null
+  application_capture_url: string | null
+  soundtrack_url: string | null
+  product_reference_url: string | null
+  duration_seconds: number
+  review_status: ReviewStatus
+  shots: CinematicTrailerShot[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CinematicTrailerCreate {
+  campaign_id?: number | null
+  title: string
+  aspect_ratio: '16:9' | '9:16'
+  cta: string
+  shots: Array<{
+    label: string
+    title_card: string
+    prompt: string
+    mode: CinematicShotMode
+    duration_seconds: number
+    voiceover: string
+    audio_cue: string
+    reference_asset_urls?: string[]
+    protect_reference?: boolean
+    product_surface?: CinematicProductSurface
+  }>
+}
+
+// -- company ground truth --------------------------------------------------
+
+export interface BrandProduct {
+  name: string
+  description: string
+  price: string | null
+  benefits: string | null
+}
+
+export interface BrandProfile {
+  configured: boolean
+  knowledge_chunks: number
+  company_name: string
+  industry: string
+  website: string | null
+  description: string
+  brand_voice: string
+  target_audience: string
+  products: BrandProduct[]
+  approved_claims: string | null
+  restrictions: string | null
+  updated_at: string | null
+}
+
+export interface BrandProfileWrite {
+  company_name: string
+  industry: string
+  website: string | null
+  description: string
+  brand_voice: string
+  target_audience: string
+  products: BrandProduct[]
+  approved_claims: string | null
+  restrictions: string | null
 }
 
 // -- the machine itself ----------------------------------------------------
@@ -103,6 +327,9 @@ export interface System {
   embedding_provider: string
   trends_live: boolean
   geo: string
+  /** False when no b-roll provider is configured, so the video studio can
+   * hide the option rather than offer a switch that does nothing. */
+  broll_available: boolean
 }
 
 /** One integer a person may move, carrying the range it may move inside.
@@ -138,6 +365,7 @@ export interface AgentUpdate {
   trend_k?: number
   max_revisions?: number
   max_redos?: number
+  context_turns?: number
 }
 
 // -- history ---------------------------------------------------------------

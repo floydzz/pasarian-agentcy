@@ -7,17 +7,22 @@ test can swap in a stub without the app reaching for a network or an API key.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents import tuning
+from app.agents.chat import MarketingChat
 from app.agents.copywriter import Copywriter
+from app.agents.cinematic_trailer import CinematicTrailerStudio
 from app.agents.crew import GenerationCrew
+from app.agents.demo_video import DemoVideoStudio
 from app.agents.director import Director
 from app.agents.planner import PlanningAgent
 from app.agents.studio import Studio
+from app.agents.video_studio import VideoStudio
 from app.agents.vision_qa import VisionQA
 from app.agents.visual_planner import VisualPlanner
 from app.config import get_settings
@@ -28,6 +33,12 @@ from app.media.storage import AssetStorage
 from app.models import AgentSetting, Campaign
 from app.rag.embeddings import get_embedder
 from app.rag.store import KnowledgeStore
+from app.video import ExplainerRenderer, TrailerComposer
+from app.video.broll import (
+    BrollProvider,
+    CachingBrollProvider,
+    get_video_provider,
+)
 
 
 def get_campaign_or_404(db: Session, campaign_id: int) -> Campaign:
@@ -111,6 +122,21 @@ def get_planner(tuned: Tuning = Depends(get_tuning)) -> PlanningAgent:
     )
 
 
+def get_marketing_chat(tuned: Tuning = Depends(get_tuning)) -> MarketingChat:
+    """The conversational front door, on the same structured LLM contract.
+
+    It intentionally retrieves both corpora. The agent prompt ranks them so
+    trend material may inspire an angle but can never become a product fact.
+    """
+    return MarketingChat(
+        provider=_llm(),
+        store=get_store(),
+        standing_note=tuned.note(tuning.CHAT),
+        company_k=tuned.value(tuning.CHAT, "company_k"),
+        trend_k=tuned.value(tuning.CHAT, "trend_k"),
+    )
+
+
 def get_crew(tuned: Tuning = Depends(get_tuning)) -> GenerationCrew:
     # All three agents share one provider: swapping the model in .env swaps the
     # whole crew, so the copy and the review it faces never come from different
@@ -153,4 +179,71 @@ def get_studio(tuned: Tuning = Depends(get_tuning)) -> Studio:
         qa=VisionQA(provider=_llm(vision=True), standing_note=tuned.note(tuning.VISION_QA)),
         storage=get_storage(),
         max_redos=tuned.value(tuning.VISION_QA, "max_redos"),
+    )
+
+
+@lru_cache
+def get_explainer_renderer() -> ExplainerRenderer:
+    """The local deterministic renderer is shared; every run is stateless."""
+    return ExplainerRenderer()
+
+
+@lru_cache
+def get_trailer_composer() -> TrailerComposer:
+    """The long-form composer is stateless just like the short-form renderer."""
+    return TrailerComposer()
+
+
+def get_demo_video_studio(tuned: Tuning = Depends(get_tuning)) -> DemoVideoStudio:
+    return DemoVideoStudio(
+        renderer=get_explainer_renderer(),
+        qa=VisionQA(provider=_llm(vision=True), standing_note=tuned.note(tuning.VISION_QA)),
+        storage=get_storage(),
+        broll=get_broll_provider(),
+    )
+
+
+@lru_cache
+def get_broll_provider() -> BrollProvider | None:
+    """The generative b-roll provider, or None when none is configured.
+
+    None rather than the offline provider: `DemoVideoProvider` exists to
+    refuse, and the studio reads a missing provider as "render without
+    b-roll", which is the same outcome with one less round trip.
+    """
+    settings = get_settings()
+    if not settings.broll_is_available:
+        return None
+    provider = get_video_provider(
+        settings.video_provider,
+        api_key=settings.active_video_key,
+        video_model=settings.active_video_model,
+        timeout_seconds=settings.video_timeout_seconds,
+    )
+    # Wrapped so footage already paid for is reused rather than re-bought.
+    # It lives beside the assets because it is the same kind of thing: output
+    # that cost money, on the volume that survives a restart.
+    return CachingBrollProvider(
+        provider, cache_dir=Path(settings.assets_path) / "broll-cache"
+    )
+
+
+def get_video_studio(tuned: Tuning = Depends(get_tuning)) -> VideoStudio:
+    """The deterministic renderer, optionally over generated b-roll."""
+    settings = get_settings()
+    return VideoStudio(
+        renderer=get_explainer_renderer(),
+        qa=VisionQA(provider=_llm(vision=True), standing_note=tuned.note(tuning.VISION_QA)),
+        storage=get_storage(),
+        broll=get_broll_provider(),
+        max_broll_clips=settings.max_broll_clips_per_run,
+    )
+
+
+def get_cinematic_trailer_studio() -> CinematicTrailerStudio:
+    """The real video provider is optional until a trailer is submitted."""
+    return CinematicTrailerStudio(
+        storage=get_storage(),
+        composer=get_trailer_composer(),
+        provider=get_broll_provider(),
     )

@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 LLMProviderName = Literal["claude", "openai", "qwen", "demo"]
 EmbeddingProviderName = Literal["openai", "qwen", "demo"]
 MediaProviderName = Literal["dashscope", "demo"]
+VideoProviderName = Literal["dashscope", "demo"]
 
 
 class Settings(BaseSettings):
@@ -81,6 +82,19 @@ class Settings(BaseSettings):
     dashscope_image_model: str = "wan2.6-image"
     demo_image_model: str = "demo-offline"
 
+    #: Generative b-roll for the video studio. Separate from `media_provider`
+    #: because it is a separate decision: image rendering is fast and cheap
+    #: enough to be the default path, a video clip is neither.
+    video_provider: VideoProviderName = "demo"
+    dashscope_video_model: str = "happyhorse-1.1-t2v"
+    demo_video_model: str = "demo-offline"
+    #: A 3-second clip took about 100 seconds to generate when measured, so
+    #: the media timeout is far too short to reuse here.
+    video_timeout_seconds: int = 600
+    #: A runaway guard on the most expensive call in the pipeline. A
+    #: storyboard is capped at eight scenes, so this only bites on a bug.
+    max_broll_clips_per_run: int = 8
+
     assets_path: str = "data/assets"
     media_timeout_seconds: int = 300
     #: A runaway guard, not a normal limit — three concepts at six variants is 18.
@@ -95,6 +109,12 @@ class Settings(BaseSettings):
         "openai": ("openai_api_key", "OPENAI_API_KEY"),
         "qwen": ("dashscope_api_key", "DASHSCOPE_API_KEY"),
         # The offline provider needs no key; it still has to answer the lookup.
+        "demo": ("demo_api_key", ""),
+    }
+
+    #: B-roll reuses the same DashScope account as media.
+    _VIDEO_KEY_FIELDS = {
+        "dashscope": ("dashscope_api_key", "DASHSCOPE_API_KEY"),
         "demo": ("demo_api_key", ""),
     }
 
@@ -160,6 +180,35 @@ class Settings(BaseSettings):
     @property
     def active_media_model(self) -> str:
         return getattr(self, f"{self.media_provider}_image_model")
+
+    @property
+    def active_video_key(self) -> str:
+        field, env_name = self._VIDEO_KEY_FIELDS[self.video_provider]
+        key = getattr(self, field)
+        if not key:
+            raise ValueError(
+                f"{self.video_provider} is selected for b-roll but {env_name} "
+                "is empty — set it in .env"
+            )
+        return key
+
+    @property
+    def active_video_model(self) -> str:
+        return getattr(self, f"{self.video_provider}_video_model")
+
+    @property
+    def broll_is_available(self) -> bool:
+        """Whether a real b-roll provider is configured and keyed.
+
+        The studio asks before offering the option, so a workspace with no
+        key sees the deterministic render rather than a button that fails.
+        """
+        if self.video_provider == "demo":
+            return False
+        try:
+            return bool(self.active_video_key)
+        except ValueError:
+            return False
 
     @property
     def assets_dir(self) -> Path:

@@ -341,6 +341,57 @@ def _capped_at(cap: int):
     return get_settings().model_copy(update={"max_renders_per_run": cap})
 
 
+class TestTheCreativeGallery:
+    """Every creative the machine has made, newest first.
+
+    `/runs` answers "what happened"; this answers "what do I have". They are
+    different questions and a run log is a poor way to ask the second one — the
+    work itself is an image, and an audit trail of agent events never shows it.
+    Each creative carries the campaign and headline it belongs to so the
+    gallery can be read without opening anything.
+    """
+
+    def test_it_returns_the_creatives_with_what_they_are_for(
+        self, client, campaign_with_variants
+    ):
+        client.post(f"/api/campaigns/{campaign_with_variants.id}/render")
+
+        gallery = client.get("/api/creatives").json()
+
+        assert len(gallery) == 3
+        first = gallery[0]
+        assert first["campaign_id"] == campaign_with_variants.id
+        assert first["campaign_name"] == "Raya 2027"
+        assert first["headline"]
+        assert first["concept_theme"] == "Raya, priced for the moment"
+        assert first["media_url"].startswith("/media/")
+
+    def test_it_is_newest_first(self, client, campaign_with_variants):
+        client.post(f"/api/campaigns/{campaign_with_variants.id}/render")
+
+        gallery = client.get("/api/creatives").json()
+
+        assert [item["id"] for item in gallery] == sorted(
+            (item["id"] for item in gallery), reverse=True
+        )
+
+    def test_it_is_empty_before_anything_is_rendered(self, client):
+        assert client.get("/api/creatives").json() == []
+
+    def test_one_campaign_can_be_asked_for_on_its_own(
+        self, client, campaign_with_variants
+    ):
+        client.post(f"/api/campaigns/{campaign_with_variants.id}/render")
+
+        mine = client.get(
+            f"/api/creatives?campaign_id={campaign_with_variants.id}"
+        ).json()
+        other = client.get("/api/creatives?campaign_id=99999").json()
+
+        assert len(mine) == 3
+        assert other == []
+
+
 class TestVariantsAreRenderedAtTheSameTime:
     """A render is a vendor image call and then a vision call, per variant.
 

@@ -110,6 +110,7 @@ class TestTheHappyPath:
 
         assert variant.headline == "Pukul 3 petang, muka dah kilat?"
         assert variant.visual_brief.text_placement.startswith("Headline upper third")
+        assert variant.visual_brief.text_treatment == "soft-gradient"
 
     def test_variants_are_tied_to_their_concept_with_distinct_ids(self, store):
         provider = ScriptedProvider(verdicts=[passing()])

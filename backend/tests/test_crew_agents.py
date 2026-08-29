@@ -65,6 +65,7 @@ def visual_draft(**overrides) -> VisualDraft:
         image_prompt='A Malaysian woman on an LRT platform, "Pukul 3 petang" in the sky.',
         text_placement="Headline upper third, CTA bottom-right on a solid band.",
         placement_zone="top-left",
+        text_treatment="soft-gradient",
     )
     return VisualDraft(**{**defaults, **overrides})
 
@@ -197,6 +198,7 @@ class TestVisualPlanner:
         )
 
         assert "never rewrite it" in provider.calls[0]["system"].lower()
+        assert "top-level collection is `briefs`" in provider.calls[0]["system"]
 
 
 class TestDirector:

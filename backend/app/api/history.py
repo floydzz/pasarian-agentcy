@@ -20,10 +20,10 @@ from sqlalchemy.orm import Session
 
 from app.agents.events import AgentEvent, EventSink
 from app.clock import utcnow
-from app.api.schemas import RunDetail, RunRead
+from app.api.schemas import CreativeRead, RunDetail, RunRead
 from app.config import get_settings
 from app.db import get_db
-from app.models import Campaign, Run
+from app.models import Asset, Campaign, Concept, Run, Variant
 
 log = logging.getLogger(__name__)
 
@@ -143,3 +143,44 @@ def read_run(run_id: int, db: Session = Depends(get_db)) -> Run:
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"no run {run_id}")
     return row
+
+
+@router.get("/creatives", response_model=list[CreativeRead])
+def list_creatives(
+    limit: int = 200,
+    campaign_id: int | None = None,
+    db: Session = Depends(get_db),
+) -> list[CreativeRead]:
+    """Every creative made, newest first — the work rather than the log.
+
+    `/runs` records what the machine did; this is what it produced. Joined all
+    the way out to the campaign so the gallery can name each image without a
+    request per row, which at a few hundred creatives is the difference
+    between a page and a stampede.
+    """
+    rows = db.execute(
+        select(Asset, Campaign.id, Campaign.name, Concept.theme, Variant.headline)
+        .join(Variant, Asset.variant_id == Variant.id)
+        .join(Concept, Variant.concept_id == Concept.id)
+        .join(Campaign, Concept.campaign_id == Campaign.id)
+        .where(Campaign.id == campaign_id if campaign_id is not None else True)
+        .order_by(Asset.id.desc())
+        .limit(max(1, min(limit, 500)))
+    ).all()
+
+    return [
+        CreativeRead(
+            id=asset.id,
+            variant_id=asset.variant_id,
+            media_url=asset.media_url,
+            qa_status=asset.qa_status,
+            qa_notes=asset.qa_notes,
+            review_status=asset.review_status,
+            created_at=asset.created_at,
+            campaign_id=owner_id,
+            campaign_name=owner_name,
+            concept_theme=theme,
+            headline=headline,
+        )
+        for asset, owner_id, owner_name, theme, headline in rows
+    ]

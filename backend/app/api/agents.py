@@ -1,4 +1,4 @@
-"""Reading and changing how the four agents are tuned.
+"""Reading and changing how the strategist and crew are tuned.
 
 The shape of this API is taken from `app.agents.tuning` rather than restated
 here, so an agent that gains a knob gains it on the settings screen without
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api", tags=["agents"])
 
 @router.get("/agents", response_model=list[AgentRead])
 def list_agents(db: Session = Depends(get_db)) -> list[AgentRead]:
-    """All four, in the order work moves through them."""
+    """The strategist first, then the crew in pipeline order."""
     saved = {row.agent: row for row in db.scalars(select(AgentSetting))}
     return [_read(profile, saved.get(profile.agent)) for profile in tuning.PROFILES]
 
@@ -47,7 +47,14 @@ def update_agent(
         row.standing_note = note or None
 
     fields = {knob.field for knob in profile.knobs}
-    for field in ("concept_count", "company_k", "trend_k", "max_revisions"):
+    for field in (
+        "concept_count",
+        "company_k",
+        "trend_k",
+        "max_revisions",
+        "max_redos",
+        "context_turns",
+    ):
         value = getattr(payload, field)
         if value is None:
             continue

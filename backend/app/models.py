@@ -59,6 +59,33 @@ class Campaign(TimestampMixin, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    #: A conversation can outlive its campaign. The database clears the
+    #: association when a campaign is removed, leaving the strategy history.
+    conversations: Mapped[list["Conversation"]] = relationship(
+        back_populates="campaign", passive_deletes=True
+    )
+    product_references: Mapped[list["ProductReference"]] = relationship(
+        back_populates="campaign",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class ProductReference(TimestampMixin, Base):
+    """A real product image a campaign may keep intact in its creative."""
+
+    __tablename__ = "product_references"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    media_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    #: One primary photo is selected for product-lock composition.
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    campaign: Mapped[Campaign] = relationship(back_populates="product_references")
 
 
 class Concept(TimestampMixin, Base):
@@ -165,6 +192,221 @@ class AgentSetting(TimestampMixin, Base):
     max_revisions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     #: Times vision QA may send a creative back to be re-rendered.
     max_redos: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Number of recent turns the marketing strategist reads before replying.
+    context_turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class Conversation(TimestampMixin, Base):
+    """A named, durable conversation with the marketing strategist.
+
+    A thread starts unbound. Once the strategist has enough of a brief to
+    create a campaign, it adopts that campaign; deleting the campaign later
+    only clears this pointer, so the conversation remains useful history.
+    """
+
+    __tablename__ = "conversations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    campaign: Mapped[Campaign | None] = relationship(back_populates="conversations")
+    messages: Mapped[list["ChatMessage"]] = relationship(
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class ChatMessage(TimestampMixin, Base):
+    """One user, strategist, or machine line inside a conversation."""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    #: String rather than a database enum: roles are presentation categories
+    #: and a future migration can add one without changing deployed MySQL enum
+    #: values.
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    #: The action the strategist proposed, if any. This is an audit trail;
+    #: the executor still validates current campaign state before it acts.
+    action: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+
+
+class BrandProfile(TimestampMixin, Base):
+    """The single workspace's source of truth about its company.
+
+    Authentication and organisations are deliberately not in this MVP, so one
+    profile belongs to the one workspace.  The API turns this row into the only
+    document in the company corpus whenever a person saves it.
+    """
+
+    __tablename__ = "brand_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    industry: Mapped[str] = mapped_column(String(120), nullable=False)
+    website: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    brand_voice: Mapped[str] = mapped_column(Text, nullable=False)
+    target_audience: Mapped[str] = mapped_column(Text, nullable=False)
+    products: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    approved_claims: Mapped[str | None] = mapped_column(Text, nullable=True)
+    restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DemoVideo(TimestampMixin, Base):
+    """One rendered Agentcy product-explainer waiting for, or past, review.
+
+    This stays separate from customer campaign assets.  Its subject is Agentcy
+    itself, its storyboard is fixed product UI, and it has its own export gate.
+    """
+
+    __tablename__ = "demo_videos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(280), nullable=False)
+    strapline: Mapped[str] = mapped_column(Text, nullable=False)
+    cta: Mapped[str] = mapped_column(String(280), nullable=False)
+    media_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    poster_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    scene_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    qa_status: Mapped[str] = mapped_column(
+        String(20), default="flagged", nullable=False
+    )
+    qa_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_status: Mapped[str] = mapped_column(
+        String(20), default="pending", nullable=False
+    )
+
+
+class MarketingVideo(TimestampMixin, Base):
+    """A configurable marketing video made from a persisted storyboard.
+
+    `DemoVideo` preserves the initial fixed Agentcy film. New work belongs in
+    this table: its generic title is intentional, and each row carries all
+    configuration needed to reproduce it later at the review gate.
+
+    `campaign_id` is nullable because a video does not need a campaign to
+    exist — the product explainer and any one-off film have none — but a video
+    made inside a campaign's video studio belongs to it and dies with it.
+    """
+
+    __tablename__ = "marketing_videos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(280), nullable=False)
+    profile: Mapped[str] = mapped_column(String(40), nullable=False)
+    brand_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    product_name: Mapped[str] = mapped_column(String(280), nullable=False)
+    target_audience: Mapped[str] = mapped_column(Text, nullable=False)
+    cta: Mapped[str] = mapped_column(String(280), nullable=False)
+    storyboard: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+    #: Whether this video was rendered over generated b-roll. Saved with the
+    #: brief so a redo reproduces the same video rather than quietly dropping
+    #: back to the deterministic render.
+    use_broll: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Persist the photo actually used so redos cannot drift to a newer image.
+    product_reference_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    media_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    poster_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    scene_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    qa_status: Mapped[str] = mapped_column(
+        String(20), default="flagged", nullable=False
+    )
+    qa_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_status: Mapped[str] = mapped_column(
+        String(20), default="pending", nullable=False
+    )
+
+
+class CinematicTrailer(TimestampMixin, Base):
+    """A long-form, AI-shot product film.
+
+    Shot jobs live in their own table rather than a JSON blob: each external
+    task can be submitted, polled, retried and downloaded independently while
+    the rest of a two-minute render keeps its work.
+    """
+
+    __tablename__ = "cinematic_trailers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    #: A cinematic project may stand on its own, but work created from a
+    #: campaign's storyboard stays attached to that campaign so Video Studio
+    #: can show only the clips that belong to the script being reviewed.
+    campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    title: Mapped[str] = mapped_column(String(280), nullable=False)
+    aspect_ratio: Mapped[str] = mapped_column(String(12), default="16:9", nullable=False)
+    cta: Mapped[str] = mapped_column(String(280), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    media_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    poster_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # A real browser-recorded product journey. Feature-shot generation receives
+    # only an extracted still of the relevant timestamp, never the full
+    # recording. Legacy protected shots may still use it locally.
+    application_capture_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    #: An optional licensed or AI-generated instrumental mixed beneath the
+    #: finished master. It is a trailer-level source, not a brittle per-shot
+    #: prompt, so the score remains coherent across clip regenerations.
+    soundtrack_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    #: A real product photo placed locally during cinematic composition.
+    product_reference_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    duration_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    review_status: Mapped[str] = mapped_column(
+        String(20), default="pending", nullable=False
+    )
+
+    shots: Mapped[list["CinematicTrailerShot"]] = relationship(
+        back_populates="trailer",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="CinematicTrailerShot.position",
+    )
+
+
+class CinematicTrailerShot(TimestampMixin, Base):
+    """One vendor task and its persisted AI clip inside a trailer."""
+
+    __tablename__ = "cinematic_trailer_shots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trailer_id: Mapped[int] = mapped_column(
+        ForeignKey("cinematic_trailers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[str] = mapped_column(String(160), nullable=False)
+    title_card: Mapped[str] = mapped_column(String(280), nullable=False)
+    prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(String(32), nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    voiceover: Mapped[str] = mapped_column(Text, nullable=False)
+    audio_cue: Mapped[str] = mapped_column(Text, nullable=False)
+    reference_asset_urls: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    protect_reference: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Which verified Agentcy screen is composited into the finished shot.
+    # This is separate from `mode`: protected screens never go to the model.
+    product_surface: Mapped[str] = mapped_column(String(32), default="none", nullable=False)
+    remote_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    provider_status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    provider_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    media_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
+    trailer: Mapped[CinematicTrailer] = relationship(back_populates="shots")
 
 
 class Run(TimestampMixin, Base):
@@ -234,42 +476,3 @@ class TrendSource(TimestampMixin, Base):
     #: The signals themselves, so the watchlist can show what it is feeding the
     #: planner without a second round trip to Google.
     last_signals: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-
-
-class ProductReference(TimestampMixin, Base):
-    """A real product image a campaign may keep intact in its creative."""
-
-    __tablename__ = "product_references"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    campaign_id: Mapped[int] = mapped_column(
-        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    label: Mapped[str] = mapped_column(String(200), nullable=False)
-    media_url: Mapped[str] = mapped_column(String(1000), nullable=False)
-    #: One primary photo is selected for product-lock composition.
-    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
-    campaign: Mapped[Campaign] = relationship(back_populates="product_references")
-
-
-class BrandProfile(TimestampMixin, Base):
-    """The single workspace's source of truth about its company.
-
-    Authentication and organisations are deliberately not in this MVP, so one
-    profile belongs to the one workspace.  The API turns this row into the only
-    document in the company corpus whenever a person saves it.
-    """
-
-    __tablename__ = "brand_profiles"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    company_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    industry: Mapped[str] = mapped_column(String(120), nullable=False)
-    website: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    brand_voice: Mapped[str] = mapped_column(Text, nullable=False)
-    target_audience: Mapped[str] = mapped_column(Text, nullable=False)
-    products: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
-    approved_claims: Mapped[str | None] = mapped_column(Text, nullable=True)
-    restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
