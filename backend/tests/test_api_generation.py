@@ -1,3 +1,6 @@
+import threading
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -262,3 +265,100 @@ class TestGenerationFailure:
 
         fetched = client.get(f"/api/campaigns/{campaign['id']}").json()
         assert fetched["status"] == CampaignStatus.GENERATING
+
+
+class TestConceptsAreGeneratedAtTheSameTime:
+    """Concepts are independent, so waiting for them one at a time was waste.
+
+    Each concept is retrieved for, written, planned and reviewed on its own,
+    and no node in the crew graph reads another concept's output. Measured on
+    2026-08-27, a real three-concept generate took 2096s — three sequential
+    waits on the same vendor for one pass of work.
+    """
+
+    class SlowCrew(StubCrew):
+        """A crew that sleeps like a vendor and records the overlap."""
+
+        def __init__(self, *, delay: float = 0.15) -> None:
+            super().__init__()
+            self.delay = delay
+            self.live = 0
+            self.peak = 0
+            self._guard = threading.Lock()
+
+        def run(self, concept, *, sink=None) -> CrewResult:
+            with self._guard:
+                self.live += 1
+                self.peak = max(self.peak, self.live)
+            try:
+                time.sleep(self.delay)
+                return super().run(concept, sink=sink)
+            finally:
+                with self._guard:
+                    self.live -= 1
+
+    @pytest.fixture
+    def slow(self, session):
+        # Three concepts, because one concept cannot demonstrate overlap and
+        # the shared `planner` fixture only plans one.
+        planner = StubPlanner(
+            concepts=[make_concept(theme) for theme in ("Humidity", "Price", "Pride")]
+        )
+        crew = self.SlowCrew()
+        app.dependency_overrides[get_db] = lambda: session
+        app.dependency_overrides[get_planner] = lambda: planner
+        app.dependency_overrides[get_crew] = lambda: crew
+        with TestClient(app) as test_client:
+            yield test_client, crew
+        app.dependency_overrides.clear()
+
+    def test_more_than_one_concept_is_in_flight(self, slow):
+        client, crew = slow
+        campaign = client.post(
+            "/api/campaigns", json={"name": "C", "brief": "b"}
+        ).json()
+        approved_campaign(client, campaign)
+
+        client.post(f"/api/campaigns/{campaign['id']}/generate")
+
+        assert crew.peak > 1
+
+    def test_three_concepts_take_about_as_long_as_one(self, slow):
+        client, crew = slow
+        campaign = client.post(
+            "/api/campaigns", json={"name": "C", "brief": "b"}
+        ).json()
+        approved_campaign(client, campaign)
+
+        started = time.time()
+        client.post(f"/api/campaigns/{campaign['id']}/generate")
+        elapsed = time.time() - started
+
+        # Three 0.15s concepts: ~0.15s overlapped, ~0.45s sequential.
+        assert elapsed < 0.35
+
+    def test_every_concept_still_produces_its_variants(self, slow):
+        """Speed that loses work is not speed."""
+        client, crew = slow
+        campaign = client.post(
+            "/api/campaigns", json={"name": "C", "brief": "b"}
+        ).json()
+        planned = approved_campaign(client, campaign)
+
+        body = client.post(f"/api/campaigns/{campaign['id']}/generate").json()
+
+        assert body["concepts_generated"] == len(planned["concepts"])
+        assert len(crew.ran) == len(planned["concepts"])
+
+    def test_variants_stay_in_concept_order(self, slow):
+        """A fast concept finishing first must not reshuffle the campaign."""
+        client, crew = slow
+        campaign = client.post(
+            "/api/campaigns", json={"name": "C", "brief": "b"}
+        ).json()
+        approved_campaign(client, campaign)
+        client.post(f"/api/campaigns/{campaign['id']}/generate")
+
+        variants = client.get(f"/api/campaigns/{campaign['id']}/variants").json()
+        concept_ids = [row["concept_id"] for row in variants]
+        assert concept_ids == sorted(concept_ids)

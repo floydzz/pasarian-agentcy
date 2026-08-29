@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.events import AgentEvent
+from app.agents.parallel import in_parallel
 from app.agents.studio import RenderedAsset, Studio, VariantSpec
 from app.api.deps import get_campaign_or_404, get_studio
 from app.api.history import RENDER, RunLog
@@ -47,21 +48,20 @@ def render(
         raise HTTPException(status.HTTP_409_CONFLICT, "no variants to render")
 
     record = RunLog(campaign, RENDER)
-    produced: list[RenderedAsset] = []
-    try:
-        for spec in todo:
-            produced.append(studio.run(spec, sink=record.capture))
-    except RenderError as error:
-        # Keep whatever earlier variants produced — the run is resumable.
-        written = _persist(db, produced)
-        _advance(db, campaign, written)
-        db.commit()
-        record.failed(db, str(error), **_counts(written, produced))
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
+    produced, failure = _run_studio(studio, todo, sink=record.capture)
 
+    # Persisted before the failure is raised either way: a creative that came
+    # back is a vendor call already paid for, and the next run resumes from it.
     written = _persist(db, produced)
     _advance(db, campaign, written)
     db.commit()
+
+    if failure is not None:
+        record.failed(db, str(failure), **_counts(written, produced))
+        if not isinstance(failure, RenderError):
+            raise failure
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(failure)) from failure
+
     _record_render(db, record, written, produced)
     return _summarise(written, skipped=skipped)
 
@@ -85,15 +85,11 @@ def render_streaming(
 
     def work(sink) -> list[RenderedAsset]:
         report = record.tee(sink)
-        produced: list[RenderedAsset] = []
-        for spec in todo:
-            try:
-                produced.append(studio.run(spec, sink=report))
-            except RenderError as error:
-                # Stop here rather than pressing on: whatever finished is kept
-                # and the next run picks up the variants that did not.
-                report(AgentEvent("system", "failed", str(error)))
-                break
+        produced, failure = _run_studio(studio, todo, sink=report)
+        if failure is not None:
+            # Said on the stream rather than raised: whatever finished is kept
+            # and the next run picks up the variants that did not.
+            report(AgentEvent("system", "failed", str(failure)))
         return produced
 
     def finish(produced: list[RenderedAsset]) -> dict:
@@ -202,6 +198,30 @@ def close_asset_gate(campaign_id: int, db: Session = Depends(get_db)) -> Campaig
 RENDERABLE = (CampaignStatus.GENERATING, CampaignStatus.PENDING_ASSET_REVIEW)
 
 
+def _run_studio(
+    studio: Studio,
+    todo: list[VariantSpec],
+    *,
+    sink,
+) -> tuple[list[RenderedAsset], Exception | None]:
+    """Every pending variant, rendered at the same time.
+
+    A render is a text-to-image round trip and then a vision QA round trip,
+    per variant, with nothing shared between them — eight of them sequentially
+    measured 913s on 2026-08-27, which is eight waits for one pass of work.
+
+    Narrower than the crew's fan-out on purpose. These are image jobs against a
+    metered vendor, and a rate-limited render pass fails having spent the quota
+    rather than having produced the creatives.
+    """
+    produced, failure = in_parallel(
+        todo,
+        lambda spec: studio.run(spec, sink=sink),
+        lanes=get_settings().render_lanes,
+    )
+    return [asset for _, asset in produced], failure
+
+
 def _renderable(db: Session, campaign_id: int) -> Campaign:
     campaign = get_campaign_or_404(db, campaign_id)
     if campaign.status not in RENDERABLE:
@@ -274,6 +294,14 @@ def _advance(db: Session, campaign: Campaign, written: list[Asset]) -> None:
 
     Auto-approved assets still carry an explicit approved status, so nothing
     downstream has to know whether a human was in the loop.
+
+    Auto-mode waives the *asking*, never the finishing. A render pass can end
+    with work still outstanding — variants it never reached, because it was
+    capped or broke off on a `RenderError`, and creatives QA flagged, which
+    auto-mode deliberately leaves for a person. Skipping the gate then would
+    strand the campaign rather than ship it: `READY_TO_PUBLISH` is not in
+    `RENDERABLE`, so the unrendered variants could never be picked up, and the
+    flagged creatives would sit pending behind a gate closed for good.
     """
     if not written:
         return
@@ -285,8 +313,26 @@ def _advance(db: Session, campaign: Campaign, written: list[Asset]) -> None:
     for row in written:
         if row.qa_status == "passed":
             row.review_status = "approved"
-    if any(row.review_status == "approved" for row in written):
+    db.flush()
+
+    if _finished(db, campaign):
         campaign.status = CampaignStatus.READY_TO_PUBLISH
+
+
+def _finished(db: Session, campaign: Campaign) -> bool:
+    """Whether every variant has a creative and every creative has a verdict.
+
+    Asked of the whole campaign rather than the batch just written: a resumed
+    render only knows about the variants it picked up, and the question here is
+    whether anything at all is still owed.
+    """
+    variants = _variants_of(db, campaign.id)
+    assets = list_assets(campaign.id, db)
+    if len(assets) < len(variants):
+        return False
+    return bool(assets) and all(
+        asset.review_status != "pending" for asset in assets
+    )
 
 
 def _summarise(written: list[Asset], *, skipped: int) -> RenderRead:

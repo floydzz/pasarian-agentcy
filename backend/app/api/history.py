@@ -12,6 +12,7 @@ be lost because the bookkeeping for it failed.
 from __future__ import annotations
 
 import logging
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -39,6 +40,12 @@ class RunLog:
     The campaign's name and id are copied at construction because the worker
     thread must not touch the session, and the row has to survive the campaign
     being deleted anyway.
+
+    Several agents now post here at once — concepts are generated in parallel
+    and variants rendered in parallel — so the log is guarded. The lock is not
+    about corrupting the list, which `append` would not do anyway; it is about
+    keeping the recorded order and the streamed order the same. Without it a
+    run could be replayed from history in an order nobody ever saw on screen.
     """
 
     def __init__(self, campaign: Campaign, kind: str) -> None:
@@ -47,16 +54,22 @@ class RunLog:
         self.kind = kind
         self.started = utcnow()
         self.events: list[dict] = []
+        self._guard = threading.Lock()
 
     def capture(self, event: AgentEvent) -> None:
-        self.events.append(event.as_dict())
+        with self._guard:
+            self.events.append(event.as_dict())
 
     def tee(self, sink: EventSink) -> EventSink:
-        """Wrap a stream's sink so events are both sent and kept."""
+        """Wrap a stream's sink so events are both sent and kept.
+
+        Recorded and forwarded under one lock, so the two orderings agree.
+        """
 
         def both(event: AgentEvent) -> None:
-            self.capture(event)
-            sink(event)
+            with self._guard:
+                self.events.append(event.as_dict())
+                sink(event)
 
         return both
 

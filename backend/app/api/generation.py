@@ -15,11 +15,13 @@ from sqlalchemy.orm import Session
 from app.agents.base import CrewError
 from app.agents.crew import CrewResult, GenerationCrew
 from app.agents.events import AgentEvent
+from app.agents.parallel import in_parallel
 from app.api.deps import get_campaign_or_404, get_crew
 from app.api.conversions import to_domain_concept
 from app.api.history import GENERATE, RunLog
 from app.api.streaming import event_stream
 from app.api.schemas import AutoModeUpdate, CampaignRead, GenerationRead, VariantRead
+from app.config import get_settings
 from app.db import get_db
 from app.domain import CampaignStatus, ConceptStatus
 from app.models import Campaign, Concept, Variant
@@ -78,19 +80,19 @@ def generate(
     todo, skipped = _pending(campaign)
     record = RunLog(campaign, GENERATE)
 
-    produced: list[tuple[int, CrewResult]] = []
-    try:
-        for concept_id, concept in todo:
-            produced.append((concept_id, crew.run(concept, sink=record.capture)))
-    except CrewError as error:
-        # Keep whatever earlier concepts produced — the run is resumable.
-        written = _persist(db, produced)
-        db.commit()
-        record.failed(db, str(error), **_counts(written, produced))
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
+    produced, failure = _run_crew(crew, todo, sink=record.capture)
 
+    # Persisted before the failure is raised either way: concepts that finished
+    # are work the campaign owns, and the next run resumes from what is here.
     written = _persist(db, produced)
     db.commit()
+
+    if failure is not None:
+        record.failed(db, str(failure), **_counts(written, produced))
+        if not isinstance(failure, CrewError):
+            raise failure
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(failure)) from failure
+
     _record_crew(db, record, written, produced)
     return _summarise(written, generated=len(produced), skipped=skipped)
 
@@ -122,15 +124,11 @@ def generate_streaming(
 
     def work(sink) -> list[tuple[int, CrewResult]]:
         report = record.tee(sink)
-        produced: list[tuple[int, CrewResult]] = []
-        for concept_id, concept in todo:
-            try:
-                produced.append((concept_id, crew.run(concept, sink=report)))
-            except CrewError as error:
-                # Stop here rather than pressing on: whatever finished is kept
-                # and the next run picks up the concepts that did not.
-                report(AgentEvent("system", "failed", str(error)))
-                break
+        produced, failure = _run_crew(crew, todo, sink=report)
+        if failure is not None:
+            # Said on the stream rather than raised: whatever finished is kept
+            # and the next run picks up the concepts that did not.
+            report(AgentEvent("system", "failed", str(failure)))
         return produced
 
     def finish(produced: list[tuple[int, CrewResult]]) -> dict:
@@ -149,6 +147,33 @@ def generate_streaming(
         media_type="application/x-ndjson",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
+
+
+def _run_crew(
+    crew: GenerationCrew,
+    todo: list[tuple[int, object]],
+    *,
+    sink,
+) -> tuple[list[tuple[int, CrewResult]], Exception | None]:
+    """Every approved concept, generated at the same time.
+
+    The concepts are independent by construction — each is retrieved for,
+    written, planned and reviewed against the brand on its own, and no node in
+    the crew graph reads another concept's output. Running them one after
+    another was three sequential waits on the same vendor for no more work: a
+    measured 2096s for three concepts on 2026-08-27.
+
+    Events from the concepts interleave on the console as a result. That is the
+    truth of what is happening — three copywriters really are working at once —
+    and the console counts work in flight per agent rather than tracking the
+    last event it saw, so a lane stays lit until the last of them is done.
+    """
+    done, failure = in_parallel(
+        todo,
+        lambda job: crew.run(job[1], sink=sink),
+        lanes=get_settings().crew_lanes,
+    )
+    return [(todo[index][0], result) for index, result in done], failure
 
 
 def _pending(campaign: Campaign) -> tuple[list[tuple[int, object]], int]:

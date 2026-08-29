@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     #: `wan2.7-image` ran dry. Empty means "fail on the first refusal".
     llm_fallback_models: str = ""
 
+    #: How many concepts the crew works on at once, and how many variants the
+    #: studio renders at once. Both loops are vendor round trips with nothing
+    #: shared between iterations, so these are the difference between waiting
+    #: once and waiting N times. Bounded rather than unlimited because vendors
+    #: rate-limit: nine simultaneous image jobs is how a render pass becomes
+    #: nine 429s. Set either to 1 to get the old sequential behaviour back.
+    crew_lanes: int = 3
+    render_lanes: int = 4
+
     claude_model: str | None = None
     openai_model: str | None = None
     qwen_model: str | None = None
