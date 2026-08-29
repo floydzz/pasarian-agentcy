@@ -45,8 +45,9 @@ actually differ along those axes, or is this one idea reworded three times? \
 Judge the real difference between them, not whether they use different words. \
 Two variants that could stand in for each other is a failure.
 3. EXECUTION. Does each image brief fit its copy — is there room in the frame \
-for the real headline and CTA, and does the brief describe an image a generator \
-could actually produce?
+for the real headline and CTA, does its text treatment suit the scene rather \
+than cover it by default, and does the brief describe an image a generator could \
+actually produce?
 
 Then return one verdict:
 
@@ -123,6 +124,7 @@ class Director:
                     f"Composition: {planned.composition_notes}",
                     f"Image prompt: {planned.image_prompt}",
                     f"Text placement: {planned.text_placement}",
+                    f"Text treatment: {planned.text_treatment}",
                 ]
             )
             for position, (written, planned) in enumerate(

@@ -43,6 +43,37 @@ def test_leaves_the_opposite_zone_alone():
     ).tobytes()
 
 
+@pytest.mark.parametrize("treatment", ["bare", "soft-gradient", "glass-panel", "ribbon"])
+def test_every_planned_text_treatment_renders(treatment):
+    out = compose_creative(
+        _solid((30, 30, 30)),
+        headline="Raya Deals",
+        cta="Shop now",
+        zone="top-left",
+        treatment=treatment,
+    )
+    assert Image.open(io.BytesIO(out)).size == (1024, 1024)
+
+
+def test_text_treatment_changes_the_surface_not_just_the_label():
+    background = _solid((30, 30, 30))
+    bare = compose_creative(
+        background,
+        headline="Raya Deals",
+        cta="Shop now",
+        zone="top-left",
+        treatment="bare",
+    )
+    glass = compose_creative(
+        background,
+        headline="Raya Deals",
+        cta="Shop now",
+        zone="top-left",
+        treatment="glass-panel",
+    )
+    assert bare != glass
+
+
 def test_dark_background_gets_light_text():
     assert pick_text_colour(Image.new("RGB", (10, 10), (10, 10, 10))) == (255, 255, 255)
 
@@ -54,6 +85,17 @@ def test_light_background_gets_dark_text():
 def test_rejects_a_zone_outside_the_grid():
     with pytest.raises(ValueError, match="unknown placement zone"):
         compose_creative(_solid((30, 30, 30)), headline="h", cta="c", zone="nowhere")
+
+
+def test_rejects_an_unknown_text_treatment():
+    with pytest.raises(ValueError, match="unknown text treatment"):
+        compose_creative(
+            _solid((30, 30, 30)),
+            headline="h",
+            cta="c",
+            zone="top-left",
+            treatment="opaque-card",
+        )
 
 
 def test_resizes_a_background_that_arrives_at_the_wrong_shape():

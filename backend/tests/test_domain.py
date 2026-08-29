@@ -90,6 +90,7 @@ class TestVariant:
                 "image_prompt": "a dewy face in soft light, product bottle right third",
                 "text_placement": "headline upper-left, CTA lower-right",
                 "placement_zone": "top-left",
+                "text_treatment": "bare",
             },
         )
         base.update(over)
@@ -151,3 +152,15 @@ def test_visual_brief_accepts_a_grid_zone():
         placement_zone="top-left",
     )
     assert brief.placement_zone == "top-left"
+    assert brief.text_treatment == "glass-panel"
+
+
+def test_visual_brief_rejects_an_unknown_text_treatment():
+    with pytest.raises(ValidationError):
+        VisualBrief(
+            composition_notes="notes",
+            image_prompt="prompt",
+            text_placement="upper third",
+            placement_zone="top-left",
+            text_treatment="opaque-card",
+        )

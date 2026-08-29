@@ -82,7 +82,7 @@ def test_qa_notes_are_fed_back_into_the_next_render(tmp_path):
     prompts = []
 
     class Recording(DemoMediaProvider):
-        def render_image(self, prompt, *, aspect="1:1"):
+        def render_image(self, prompt, *, aspect="1:1", reference_images=()):
             prompts.append(prompt)
             return super().render_image(prompt, aspect=aspect)
 
@@ -95,7 +95,7 @@ def test_qa_notes_are_fed_back_into_the_next_render(tmp_path):
 
 def test_a_render_failure_propagates(tmp_path):
     class Broken(DemoMediaProvider):
-        def render_image(self, prompt, *, aspect="1:1"):
+        def render_image(self, prompt, *, aspect="1:1", reference_images=()):
             raise RenderError("vendor is down")
 
     with pytest.raises(RenderError, match="vendor is down"):

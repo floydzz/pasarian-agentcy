@@ -15,7 +15,7 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageStat
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageStat
 
 from app.config import REPO_ROOT
 
@@ -49,6 +49,10 @@ SYSTEM_FONTS = {
 
 LIGHT_TEXT = (255, 255, 255)
 DARK_TEXT = (17, 17, 17)
+
+#: Copy surfaces the visual planner is allowed to choose. Keeping this runtime
+#: guard beside the renderer makes an invalid persisted plan fail clearly.
+TEXT_TREATMENTS = {"bare", "soft-gradient", "glass-panel", "ribbon"}
 
 #: Above this mean luminance the background counts as light.
 LUMINANCE_PIVOT = 140
@@ -85,12 +89,18 @@ def compose_creative(
     headline: str,
     cta: str,
     zone: str,
+    treatment: str = "glass-panel",
     aspect: str = "1:1",
 ) -> bytes:
     if zone not in ZONES:
         raise ValueError(
             f"unknown placement zone {zone!r} — expected one of "
             f"{', '.join(sorted(ZONES))}"
+        )
+    if treatment not in TEXT_TREATMENTS:
+        raise ValueError(
+            f"unknown text treatment {treatment!r} — expected one of "
+            f"{', '.join(sorted(TEXT_TREATMENTS))}"
         )
 
     width, height = MediaProvider.size_for(aspect)
@@ -108,13 +118,6 @@ def compose_creative(
     )
     colour = pick_text_colour(image.crop(box))
 
-    # A scrim under the type, so a busy background cannot beat the contrast we
-    # just measured. Drawn on its own layer to keep it translucent.
-    scrim = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    scrim_colour = (0, 0, 0, 90) if colour == LIGHT_TEXT else (255, 255, 255, 110)
-    ImageDraw.Draw(scrim).rounded_rectangle(_pad(box, 18, width, height), 24, fill=scrim_colour)
-    image = Image.alpha_composite(image.convert("RGBA"), scrim).convert("RGB")
-
     draw = ImageDraw.Draw(image)
     box_width = box[2] - box[0]
     box_height = box[3] - box[1]
@@ -122,12 +125,49 @@ def compose_creative(
     headline_font, lines = _fit(draw, headline, box_width, int(box_height * 0.66), bold=True)
     cta_font = resolve_font(max(headline_font.size // 2, 14), bold=False)
 
-    y = box[1]
+    headline_y = box[1]
+    line_heights = [_line_height(draw, line, headline_font) for line in lines]
+    cta_y = headline_y + sum(line_heights) + 12
+    content_box = _content_box(
+        draw,
+        box,
+        lines,
+        headline_font,
+        cta.upper(),
+        cta_font,
+        cta_y,
+    )
+    image = _apply_text_treatment(
+        image,
+        content_box=content_box,
+        zone_box=box,
+        colour=colour,
+        treatment=treatment,
+    )
+
+    draw = ImageDraw.Draw(image)
+    y = headline_y
+    stroke_width = max(round(headline_font.size / 30), 2) if treatment == "bare" else 0
+    stroke_fill = DARK_TEXT if colour == LIGHT_TEXT else LIGHT_TEXT
     for line in lines:
-        draw.text((box[0], y), line, font=headline_font, fill=colour)
+        draw.text(
+            (box[0], y),
+            line,
+            font=headline_font,
+            fill=colour,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
         y += _line_height(draw, line, headline_font)
 
-    draw.text((box[0], y + 12), cta.upper(), font=cta_font, fill=colour)
+    draw.text(
+        (box[0], cta_y),
+        cta.upper(),
+        font=cta_font,
+        fill=colour,
+        stroke_width=max(stroke_width // 2, 1) if treatment == "bare" else 0,
+        stroke_fill=stroke_fill,
+    )
 
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
@@ -155,6 +195,84 @@ def _pad(box: tuple[int, int, int, int], amount: int, width: int, height: int):
         min(box[2] + amount, width),
         min(box[3] + amount, height),
     )
+
+
+def _content_box(
+    draw: ImageDraw.ImageDraw,
+    zone_box: tuple[int, int, int, int],
+    lines: list[str],
+    headline_font,
+    cta: str,
+    cta_font,
+    cta_y: int,
+) -> tuple[int, int, int, int]:
+    """The tight rectangle around the words, clipped to the planned zone."""
+    widest = max(
+        [draw.textbbox((0, 0), line, font=headline_font)[2] for line in lines]
+        + [draw.textbbox((0, 0), cta, font=cta_font)[2]]
+    )
+    cta_bottom = cta_y + draw.textbbox((0, 0), cta, font=cta_font)[3]
+    return (
+        zone_box[0],
+        zone_box[1],
+        min(zone_box[0] + widest, zone_box[2]),
+        min(cta_bottom, zone_box[3]),
+    )
+
+
+def _apply_text_treatment(
+    image: Image.Image,
+    *,
+    content_box: tuple[int, int, int, int],
+    zone_box: tuple[int, int, int, int],
+    colour: tuple[int, int, int],
+    treatment: str,
+) -> Image.Image:
+    """Add the particular copy surface the visual plan chose.
+
+    The old composer always painted one large rounded box across the entire
+    planned zone. These treatments differ in both character and surface area:
+    bare has no surface; glass hugs actual copy; gradient has no hard edge; and
+    ribbon is an intentional editorial band.
+    """
+    if treatment == "bare":
+        return image
+
+    width, height = image.size
+    base = (0, 0, 0) if colour == LIGHT_TEXT else (255, 255, 255)
+    if treatment == "soft-gradient":
+        mask = Image.new("L", image.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle(
+            _pad(content_box, 32, width, height),
+            radius=36,
+            fill=132,
+        )
+        # The feathered mask protects contrast without announcing a title card.
+        mask = mask.filter(
+            ImageFilter.GaussianBlur(radius=max(min(width, height) // 24, 26))
+        )
+        surface = Image.new("RGBA", image.size, (*base, 0))
+        surface.putalpha(mask)
+    elif treatment == "glass-panel":
+        surface = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        alpha = 116 if colour == LIGHT_TEXT else 132
+        ImageDraw.Draw(surface).rounded_rectangle(
+            _pad(content_box, 24, width, height),
+            radius=24,
+            fill=(*base, alpha),
+        )
+    else:  # ribbon
+        surface = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        ribbon = (
+            max(zone_box[0] - 10, 0),
+            max(content_box[1] - 22, 0),
+            min(zone_box[2] + 10, width),
+            min(content_box[3] + 22, height),
+        )
+        alpha = 156 if colour == LIGHT_TEXT else 174
+        ImageDraw.Draw(surface).rectangle(ribbon, fill=(*base, alpha))
+
+    return Image.alpha_composite(image.convert("RGBA"), surface).convert("RGB")
 
 
 def _line_height(draw: ImageDraw.ImageDraw, line: str, font) -> int:

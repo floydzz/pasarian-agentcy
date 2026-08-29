@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from app.agents.base import CrewError, Provider, render_context, with_house_note
 from app.agents.copywriter import CopyDraft
-from app.domain import Concept, PlacementZone
+from app.domain import Concept, PlacementZone, TextTreatment
 from app.rag.store import Retrieved
 
 SYSTEM_PROMPT = """You are the visual planner for a Malaysian SME's marketing \
@@ -35,14 +35,26 @@ bottom-right. It must agree with `text_placement`. The headline is composited \
 onto the image afterwards at exactly this zone, so `image_prompt` must ask for \
 clear, uncluttered space there — never put a face or the subject's focal point \
 in the zone you chose.
+- `text_treatment` chooses how the exact headline and CTA are protected after \
+generation. It must be one of: `bare` (no panel; subtle text outline only), \
+`soft-gradient` (a diffuse, borderless contrast gradient), `glass-panel` (a \
+tight translucent rounded panel), or `ribbon` (a slim editorial band). Choose \
+what fits the specific scene and the density behind the words. Across a set of \
+two or more variants, use at least two treatments whenever doing so preserves \
+legibility; do not give every concept the same default box.
 - `composition_notes` explain the layout to a human reviewer: where the eye \
-lands first, and what negative space the text sits in.
+lands first, what negative space the text sits in, and why this text treatment \
+fits the composition.
 
 COMPANY KNOWLEDGE is ground truth for how the brand is allowed to look — \
 respect it over any instinct of your own.
 
 Each variant executes a different creative axis, so the images must differ too. \
-Re-shooting one setup with a new caption pasted on is a failure."""
+Re-shooting one setup with a new caption pasted on is a failure.
+
+Return one JSON object whose only top-level collection is `briefs`. Each item
+in `briefs` is one VisualDraft in the supplied copy order. Do not call that
+collection `variants`: that is the copywriter's contract, not yours."""
 
 
 class VisualDraft(BaseModel):
@@ -52,6 +64,7 @@ class VisualDraft(BaseModel):
     image_prompt: str
     text_placement: str
     placement_zone: PlacementZone
+    text_treatment: TextTreatment
 
 
 class VisualSet(BaseModel):

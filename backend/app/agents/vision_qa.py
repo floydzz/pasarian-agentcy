@@ -85,13 +85,20 @@ class VisionQA:
 
     # -- prompt ------------------------------------------------------------
 
-    def build_prompt(self, *, headline: str, cta: str, brief: VisualBrief) -> str:
+    def build_prompt(
+        self,
+        *,
+        headline: str,
+        cta: str,
+        brief: VisualBrief,
+    ) -> str:
         return "\n".join(
             [
                 "## WHAT WAS COMPOSITED ONTO THIS IMAGE",
                 f"Headline: {headline}",
                 f"Call to action: {cta}",
                 f"Placed at: {brief.placement_zone}",
+                f"Text treatment: {brief.text_treatment}",
                 "",
                 "## WHAT THE IMAGE WAS SUPPOSED TO BE",
                 brief.image_prompt,

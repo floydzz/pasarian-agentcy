@@ -149,6 +149,7 @@ class Studio:
             headline=spec.headline,
             cta=spec.cta,
             zone=spec.brief.placement_zone,
+            treatment=spec.brief.text_treatment,
             aspect=self.aspect,
         )
 
@@ -158,7 +159,7 @@ class Studio:
                 "renderer",
                 "finished",
                 f"Background rendered and headline composited at "
-                f"{spec.brief.placement_zone}",
+                f"{spec.brief.placement_zone} with {spec.brief.text_treatment}",
             ),
         )
         return {"creative": creative}

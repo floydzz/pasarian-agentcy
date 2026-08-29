@@ -94,6 +94,11 @@ PlacementZone = Literal[
     "bottom-left", "bottom-center", "bottom-right",
 ]
 
+#: How the compositor protects the copy after the image model has rendered the
+#: background.  This is a creative decision made by the visual planner, rather
+#: than a global UI decoration applied to every asset.
+TextTreatment = Literal["bare", "soft-gradient", "glass-panel", "ribbon"]
+
 
 class VisualBrief(BaseModel):
     composition_notes: str
@@ -103,6 +108,9 @@ class VisualBrief(BaseModel):
     text_placement: str
     #: The same intent as `text_placement`, in the one form Pillow can act on.
     placement_zone: PlacementZone
+    #: The visual planner's copy-surface decision.  Existing briefs pre-date
+    #: this field, so they retain the old readable glass panel on rerender.
+    text_treatment: TextTreatment = "glass-panel"
 
 
 class Variant(BaseModel):
