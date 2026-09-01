@@ -18,7 +18,14 @@ export interface Track {
  *
  * The sections are given rather than fixed, because an image studio holds
  * concepts, variants and creatives while a video studio holds a storyboard and
- * cuts — and both deserve the same filmstrip. */
+ * cuts — and both deserve the same filmstrip.
+ *
+ * The track must also keep enough vertical space for a card. The studio's
+ * station, gate, and product library can fill a short viewport before the
+ * track begins. Letting this flex item absorb only the leftover pixels made
+ * the cards effectively unreachable and left the parent with nothing to
+ * scroll. A minimum height lets the StudioShell overflow vertically while the
+ * cards continue to scroll sideways. */
 export function WorkTrack({
   tracks,
   tab,
@@ -36,7 +43,12 @@ export function WorkTrack({
   children: ReactNode
 }) {
   return (
-    <section className={cn('flex flex-col', review ? 'shrink-0' : 'min-h-0 flex-1')}>
+    <section
+      className={cn(
+        'flex flex-col',
+        review ? 'shrink-0' : 'min-h-[32rem] shrink-0',
+      )}
+    >
       <header className="flex shrink-0 items-center gap-1 px-5 pt-4 pb-3 sm:px-8">
         {tracks.map((track) => (
           <Tab
