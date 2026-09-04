@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Rationale } from '@/components/Rationale'
 import { EditDialog } from '@/components/EditDialog'
 import { cn } from '@/lib/utils'
-import { MICRO } from '@/lib/motion'
+import { MICRO, SETTLE } from '@/lib/motion'
 import type { Concept, ConceptStatus } from '@/api/types'
 
 const STATUS_LABEL: Record<ConceptStatus, string> = {
@@ -35,14 +35,35 @@ export function ConceptCard({
   onRevise: (note: string) => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
+  const rejected = concept.status === 'rejected'
+  const approved = concept.status === 'approved'
 
   return (
-    <article
-      className={cn(
-        'on-paper flex h-full w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_18px_44px_-28px_rgba(0,0,0,0.9)] transition-opacity duration-500',
-        concept.status === 'rejected' && 'opacity-45',
-      )}
+    // The same vocabulary the asset gate uses, for the same reason: a concept
+    // you have turned down should leave the deck rather than sit in it at a
+    // lower opacity, and one you have approved should be visibly ringed.
+    <motion.article
+      initial={false}
+      animate={{
+        scale: rejected ? 0.945 : 1,
+        opacity: rejected ? 0.5 : 1,
+        filter: rejected ? 'saturate(0.2)' : 'saturate(1)',
+      }}
+      transition={SETTLE}
+      className="on-paper relative flex h-full w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_18px_44px_-28px_rgba(0,0,0,0.9)]"
     >
+      <AnimatePresence>
+        {approved && (
+          <motion.span
+            aria-hidden
+            initial={{ opacity: 0, scale: 1.015 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={SETTLE}
+            className="pointer-events-none absolute inset-0 z-10 rounded-2xl ring-2 ring-go/55"
+          />
+        )}
+      </AnimatePresence>
       <header className="shrink-0 px-6 pt-5 pb-4">
         <div className="flex items-center justify-between gap-3">
           <p className="data text-text-3">
@@ -120,7 +141,7 @@ export function ConceptCard({
         onOpenChange={setEditing}
         onSubmit={onRevise}
       />
-    </article>
+    </motion.article>
   )
 }
 

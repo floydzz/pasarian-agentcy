@@ -393,7 +393,7 @@ function ProgressMetric({ label, value, tone }: { label: string; value: number; 
 function ShotCard({ shot, busy, onRegenerate }: { shot: CinematicTrailerShot; busy: boolean; onRegenerate: () => void }) {
   const succeeded = shot.provider_status === 'succeeded'
   return (
-    <article className="glass overflow-hidden rounded-xl">
+    <article className="resolve glass overflow-hidden rounded-xl">
       {shot.media_url ? (
         <video controls playsInline preload="metadata" src={shot.media_url} className="aspect-video w-full bg-void object-cover" />
       ) : (

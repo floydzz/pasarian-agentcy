@@ -421,7 +421,7 @@ function SceneEditor({
   onRemove: () => void
 }) {
   return (
-    <article className="rounded-lg border border-edge bg-[rgba(233,238,247,0.032)] p-4 sm:p-5">
+    <article className="resolve rounded-lg border border-edge bg-[rgba(233,238,247,0.032)] p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <p className="label text-text-3">Scene {String(index + 1).padStart(2, '0')}</p>
         {removable && (
@@ -504,7 +504,7 @@ function VideoCard({
 }) {
   const approved = video.review_status === 'approved'
   return (
-    <article className="glass overflow-hidden rounded-xl">
+    <article className="resolve glass overflow-hidden rounded-xl">
       <div className="grid sm:grid-cols-[minmax(0,0.7fr)_minmax(15rem,1.3fr)]">
         <video
           controls

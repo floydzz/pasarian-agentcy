@@ -1,7 +1,17 @@
+import { createContext, Children, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { EASE_OUT, STAGGER, STAGGER_CHILD } from '@/lib/motion'
+
+/** Whether the strip is long enough for centre-focus to mean anything.
+ *
+ * The scroll-driven focus effect reads a card's position in its scroller. In a
+ * strip that does not overflow, no card ever reaches the centre, so every card
+ * would sit permanently at its dimmed end state and the track would look
+ * broken rather than focused. Below the threshold the whole strip is simply
+ * present, which is the truth: there is nothing there to scroll past. */
+const Focusable = createContext(false)
 
 /** One section of the strip: what it is called and how much of it there is. */
 export interface Track {
@@ -42,6 +52,10 @@ export function WorkTrack({
   review?: boolean
   children: ReactNode
 }) {
+  // Three cards fit across a laptop at this card width, so a fourth is the
+  // first that can actually be scrolled to.
+  const focusable = !review && Children.count(children) >= 4
+
   return (
     <section
       className={cn(
@@ -91,7 +105,7 @@ export function WorkTrack({
                   : 'quiet-scroll snap-track flex h-full items-stretch gap-4 overflow-x-auto overflow-y-hidden px-5 pb-5 sm:px-8',
               )}
             >
-              {children}
+              <Focusable value={focusable}>{children}</Focusable>
             </motion.div>
           )}
         </AnimatePresence>
@@ -102,6 +116,8 @@ export function WorkTrack({
 
 /** One card in the strip. Fixed width so the strip has a rhythm. */
 export function TrackItem({ children, review = false }: { children: ReactNode; review?: boolean }) {
+  const focusable = useContext(Focusable)
+
   return (
     <motion.div
       variants={STAGGER_CHILD}
@@ -113,7 +129,15 @@ export function TrackItem({ children, review = false }: { children: ReactNode; r
           : 'snap-card h-full min-h-[12rem] w-[21rem] shrink-0 sm:w-[25rem]',
       )}
     >
-      {children}
+      {/* The focus effect gets its own element. Putting it on the motion
+          element above would have a CSS animation and `motion` writing the
+          same transform, and the CSS animation wins — which would silently
+          delete the entrance stagger. */}
+      {focusable ? (
+        <div className="track-focus flex h-full w-full">{children}</div>
+      ) : (
+        children
+      )}
     </motion.div>
   )
 }

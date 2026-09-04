@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useViewTransitionState } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import { Page } from '@/components/os/Shell'
 import { PageHead } from '@/components/os/Sidebar'
 import { cn } from '@/lib/utils'
+import { useRoomNav } from '@/lib/rooms'
 import { api, ApiError } from '@/api/client'
 import type { Campaign } from '@/api/types'
 
@@ -65,6 +66,19 @@ export function Home() {
 
 export function CampaignRow({ campaign, index }: { campaign: Campaign; index: number }) {
   const needsYou = campaign.status.startsWith('pending_')
+  const roomNav = useRoomNav()
+  const toImage = `/campaigns/${campaign.id}/image`
+  const toVideo = `/campaigns/${campaign.id}/video`
+  const toPublish = `/campaigns/${campaign.id}/publish`
+
+  // Only the row you are actually leaving through is named. Naming all of
+  // them would leave every other row as an exiting element with its own
+  // animation, and a directory dissolving row by row is not what the gesture
+  // is about — one campaign travelling into its studio is.
+  const enteringImage = useViewTransitionState(toImage)
+  const enteringVideo = useViewTransitionState(toVideo)
+  const leaving = enteringImage || enteringVideo
+
   return (
     <motion.li
       initial={{ opacity: 0, y: 8 }}
@@ -74,7 +88,12 @@ export function CampaignRow({ campaign, index }: { campaign: Campaign; index: nu
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="display text-[1rem] text-foreground">{campaign.name}</h2>
+          <h2
+            style={{ viewTransitionName: leaving ? `campaign-${campaign.id}` : undefined }}
+            className="display text-[1rem] text-foreground"
+          >
+            {campaign.name}
+          </h2>
           <span className={cn('data', needsYou ? 'text-halt' : 'text-text-3')}>
             {STATUS[campaign.status]}
           </span>
@@ -87,13 +106,13 @@ export function CampaignRow({ campaign, index }: { campaign: Campaign; index: nu
         </p>
       </div>
       <div className="flex flex-wrap gap-2 sm:justify-end">
-        <Link to={`/campaigns/${campaign.id}/image`} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-text-2 transition-colors hover:border-image/60 hover:text-image">
+        <Link to={toImage} viewTransition onClick={() => roomNav(toImage)} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-text-2 transition-colors hover:border-image/60 hover:text-image">
           Image console
         </Link>
-        <Link to={`/campaigns/${campaign.id}/video`} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-video transition-colors hover:border-video/60">
+        <Link to={toVideo} viewTransition onClick={() => roomNav(toVideo)} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-video transition-colors hover:border-video/60">
           Video studio
         </Link>
-        <Link to={`/campaigns/${campaign.id}/publish`} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground">
+        <Link to={toPublish} viewTransition onClick={() => roomNav(toPublish)} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground">
           Publish
         </Link>
       </div>

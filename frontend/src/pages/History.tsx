@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { Page } from "@/components/os/Shell";
 import { PageHead } from "@/components/os/Sidebar";
+import { Plate } from "@/components/Plate";
 import { cn } from "@/lib/utils";
 import { DEPTH, EASE_OUT } from "@/lib/motion";
 import { api, ApiError } from "@/api/client";
@@ -224,7 +225,7 @@ function Piece({ creative }: { creative: Creative }) {
   return (
     <Link
       to={`/campaigns/${creative.campaign_id}/image`}
-      className="group block"
+      className="resolve group block"
       title={creative.headline}
     >
       <div
@@ -233,11 +234,11 @@ function Piece({ creative }: { creative: Creative }) {
           flagged && "ring-1 ring-flag/40",
         )}
       >
-        <img
+        <Plate
           src={creative.media_url}
           alt={`Creative for “${creative.headline}”`}
+          frameClassName="w-full"
           className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-          loading="lazy"
         />
       </div>
       <p className="mt-2 truncate text-[0.8125rem] text-text-2 transition-colors group-hover:text-foreground">

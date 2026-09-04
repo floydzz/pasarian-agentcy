@@ -1,4 +1,10 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Navigate,
+  Route,
+  RouterProvider,
+} from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { Shell } from '@/components/os/Shell'
 import { Agents } from '@/pages/Agents'
@@ -15,13 +21,18 @@ import { VideoStudio } from '@/pages/studio/VideoStudio'
 import { Progress } from '@/pages/Progress'
 import { Publish } from '@/pages/Publish'
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Every screen sits inside the rail, the console included: leaving a
-            run to change a setting should not mean leaving the machine. */}
-        <Route element={<Shell />}>
+/** A data router rather than `BrowserRouter`.
+ *
+ * The room transitions need it. `<Link viewTransition>` and
+ * `useViewTransitionState` are both implemented on the data router's
+ * navigation, so under `BrowserRouter` the prop is accepted and silently does
+ * nothing — every navigation stays a hard cut and the shared campaign name
+ * never travels. Nothing else about the route table changes. */
+const router = createBrowserRouter(
+  // Every screen sits inside the rail, the console included: leaving a run to
+  // change a setting should not mean leaving the machine.
+  createRoutesFromElements(
+    <Route element={<Shell />}>
           <Route path="/chat" element={<Navigate to="/?chat=open" replace />} />
           <Route path="/" element={<Home />} />
           {/* A campaign is a hub with two studios under it, and the studios
@@ -49,9 +60,16 @@ export default function App() {
               remember which campaign made it is not how anyone looks. */}
           <Route path="/export" element={<Navigate to="/publish" replace />} />
           <Route path="/publish" element={<Publish />} />
-        </Route>
-      </Routes>
+    </Route>,
+  ),
+)
+
+export default function App() {
+  return (
+    <>
+      <RouterProvider router={router} />
+      {/* Outside the router: toasts are global and need no route context. */}
       <Toaster position="bottom-right" />
-    </BrowserRouter>
+    </>
   )
 }

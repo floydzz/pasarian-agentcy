@@ -13,6 +13,13 @@ import type { Transition, Variants } from 'motion/react'
  *    ad spend.
  */
 
+/** These curves and durations also exist in CSS, as `--motion-*` custom
+ * properties at the foot of `index.css`, because the view transitions and the
+ * scroll-driven animations are declarative and cannot read this file. The two
+ * must agree: a curve that exists in one syntax and not the other is how an
+ * interface ends up with two motion systems that quietly disagree. Change one,
+ * change the other. */
+
 /** Expo-out. Arrives fast, settles slowly: reads as mass, not as bounce. */
 export const EASE_OUT = [0.16, 1, 0.3, 1] as const
 

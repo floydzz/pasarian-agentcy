@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { BOOT, MICRO, rise } from '@/lib/motion'
+import { useRoomNav } from '@/lib/rooms'
 import type { Campaign } from '@/api/types'
 
 const STATUS_LABEL: Record<Campaign['status'], string> = {
@@ -38,6 +39,8 @@ export function TopBar({
   const studio = MEDIUM[medium]
   const halted = campaign.status.startsWith('pending_')
   const still = useReducedMotion()
+  const roomNav = useRoomNav()
+  const up = `/campaigns/${campaign.id}`
 
   return (
     <motion.header
@@ -45,7 +48,9 @@ export function TopBar({
       className="relative z-20 flex shrink-0 items-center gap-4 px-5 py-4 sm:px-8"
     >
       <Link
-        to={`/campaigns/${campaign.id}`}
+        to={up}
+        viewTransition
+        onClick={() => roomNav(up)}
         className="group flex shrink-0 items-center gap-2 text-text-3 transition-colors hover:text-foreground"
       >
         <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden>
@@ -60,10 +65,19 @@ export function TopBar({
         <span className="text-xs">Campaign</span>
       </Link>
 
-      <span aria-hidden className={cn('h-4 w-px shrink-0 rounded-full', studio.accent)} />
+      {/* The two studios are one machine. Letting the rule travel and change
+          colour between them says so; redrawing it would not. */}
+      <span
+        aria-hidden
+        style={{ viewTransitionName: 'studio-accent' }}
+        className={cn('h-4 w-px shrink-0 rounded-full', studio.accent)}
+      />
 
       <div className="min-w-0 flex-1">
-        <h1 className="display truncate text-[0.9375rem] text-foreground sm:text-base">
+        <h1
+          style={{ viewTransitionName: `campaign-${campaign.id}` }}
+          className="display truncate text-[0.9375rem] text-foreground sm:text-base"
+        >
           {campaign.name}
         </h1>
         <p className={cn('text-[0.6875rem]', studio.text)}>{studio.label}</p>

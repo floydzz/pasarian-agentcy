@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { api, ApiError } from '@/api/client'
 import type { ProductReference } from '@/api/types'
+import { Plate } from '@/components/Plate'
 import { cn } from '@/lib/utils'
 
 /** Campaign-owned packshots, rendered as protected source material.
@@ -136,9 +137,10 @@ export function ProductReferenceLibrary({
                 reference.is_primary ? 'border-go/70' : 'border-edge',
               )}
             >
-              <img
+              <Plate
                 src={reference.media_url}
                 alt={reference.label}
+                frameClassName="w-full"
                 className="aspect-square w-full object-contain bg-[rgba(233,238,247,0.04)] p-1.5"
               />
               <div className="border-t border-edge px-2 py-2">

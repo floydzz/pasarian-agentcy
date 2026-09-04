@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page } from '@/components/os/Shell'
+import { Plate } from '@/components/Plate'
 import { PageHead } from '@/components/os/Sidebar'
 import { cn } from '@/lib/utils'
 import { api, ApiError } from '@/api/client'
@@ -304,7 +305,7 @@ function SocialPostPreview({ platform, piece, post, brandName }: {
 function PostMedia({ piece, className }: { piece: Piece; className: string }) {
   return (
     <div className={cn('relative overflow-hidden bg-[#e9e9e9]', className)}>
-      {piece.kind === 'image' ? <img src={piece.url} alt={piece.label} className="h-full w-full object-cover" /> : <video src={piece.url} poster={piece.poster} muted playsInline preload="metadata" className="h-full w-full object-cover" />}
+      {piece.kind === 'image' ? <Plate src={piece.url} alt={piece.label} frameClassName="h-full w-full" className="h-full w-full object-cover" /> : <video src={piece.url} poster={piece.poster} muted playsInline preload="metadata" className="h-full w-full object-cover" />}
       {piece.kind === 'video' && <span className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur"><Play size={15} fill="currentColor" /></span>}
     </div>
   )

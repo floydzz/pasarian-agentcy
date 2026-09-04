@@ -298,3 +298,180 @@
       }
   }
 }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   Motion.
+
+   `lib/motion.ts` holds the same vocabulary in JS for the `motion` library.
+   These two must agree: a curve that exists in one syntax and not the other
+   is how an interface ends up with two motion systems that disagree. When you
+   change one, change the other.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Expo-out. Arrives fast, settles slowly: reads as mass, not as bounce. */
+    --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    /* For things that move under their own power. */
+    --motion-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+    --motion-micro: 160ms;
+    --motion-settle: 420ms;
+    --motion-depth: 720ms;
+    /* A print resolving out of the developer. */
+    --motion-plate: 760ms;
+}
+
+@layer base {
+  /* ── Rooms ─────────────────────────────────────────────────────────────
+
+     The third clause of the doctrine: moving between rooms is a camera move,
+     not a cut. The instrument does not reload — it turns to face something
+     else.
+
+     Only `<main>` is captured. The rail and the dock stay live, unsnapshotted
+     DOM, so the rail's travelling mark keeps animating under `motion` through
+     a navigation instead of freezing into a still image for the duration. */
+
+  main {
+    view-transition-name: room;
+    }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    }
+
+  ::view-transition-old(room),
+  ::view-transition-new(room) {
+    animation-duration: var(--motion-depth);
+    animation-timing-function: var(--motion-ease-in-out);
+    animation-fill-mode: both;
+    /* Both rooms are dark; blending them multiplies the dark and the
+       transition reads as a dip to black rather than as a move. */
+    mix-blend-mode: normal;
+    }
+
+  /* Depth before position. Going deeper, the room you leave is passed
+     through and the room you enter comes up from under. Coming back, the
+     reverse — so the gesture always says which way through the machine you
+     are travelling. */
+  @keyframes room-out-deeper {
+    to { opacity: 0; transform: scale(1.035); filter: blur(5px); }
+    }
+  @keyframes room-in-deeper {
+    from { opacity: 0; transform: scale(0.968); filter: blur(7px); }
+    }
+  @keyframes room-out-shallower {
+    to { opacity: 0; transform: scale(0.968); filter: blur(5px); }
+    }
+  @keyframes room-in-shallower {
+    from { opacity: 0; transform: scale(1.035); filter: blur(7px); }
+    }
+
+  html[data-nav='forward']::view-transition-old(room) {
+    animation-name: room-out-deeper;
+    }
+  html[data-nav='forward']::view-transition-new(room) {
+    animation-name: room-in-deeper;
+    }
+  html[data-nav='back']::view-transition-old(room) {
+    animation-name: room-out-shallower;
+    }
+  html[data-nav='back']::view-transition-new(room) {
+    animation-name: room-in-shallower;
+    }
+
+  /* A move between two rooms at the same depth — image studio to video
+     studio — is a cross-fade, not a push: nothing about it is deeper. */
+  html[data-nav='level']::view-transition-old(room),
+  html[data-nav='level']::view-transition-new(room) {
+    animation-duration: var(--motion-settle);
+    }
+
+  /* The campaign name and the studio's accent rule travel between rooms
+     under their own steam, so they must not be dragged along by the room's
+     scale as well. */
+  ::view-transition-group(*) {
+    animation-timing-function: var(--motion-ease-out);
+    }
+
+  /* ── The plate ─────────────────────────────────────────────────────────
+
+     A generated image is the product's whole output, so the moment it
+     resolves is worth designing. It arrives as an exposure and develops:
+     over-scaled and blurred, coming to rest at its true size. Driven by the
+     image's `load` event rather than by mount, so the animation describes the
+     decode and never runs against an image that is not there yet. */
+
+  @keyframes plate-develop {
+    from {
+      opacity: 0;
+      transform: scale(1.045);
+      filter: blur(14px) saturate(0.4) brightness(0.7);
+      }
+    60% {
+      opacity: 1;
+      }
+    to {
+      opacity: 1;
+      transform: scale(1);
+      filter: blur(0) saturate(1) brightness(1);
+      }
+    }
+
+  .plate-develop {
+    animation: plate-develop var(--motion-plate) var(--motion-ease-out) both;
+    }
+
+  /* ── Scroll as a timeline ──────────────────────────────────────────────
+
+     Scroll-driven rather than observer-driven: no listeners, no state, and
+     the work happens off the main thread. */
+
+  @keyframes resolve-in {
+    from { opacity: 0; transform: translateY(1.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+    }
+
+  /* An entry that resolves as it comes up the page. */
+  .resolve {
+    animation: resolve-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+    }
+
+  /* The filmstrip. A card is fully present only while it is the thing in
+     front of you; the rest of the strip is visibly context. This is the same
+     claim the snap points already make, made continuously. */
+  @keyframes centre-focus {
+    0%, 100% { opacity: 0.32; transform: scale(0.93); }
+    50% { opacity: 1; transform: scale(1); }
+    }
+
+  .track-focus {
+    animation: centre-focus linear both;
+    animation-timeline: view(inline);
+    animation-range: cover 0% cover 100%;
+    }
+
+  /* Ambient light that does not keep pace with the content in front of it,
+     so a studio has depth while you scroll it rather than being a flat field
+     that slides.
+
+     It moves with `translate` rather than `transform` on purpose: the layers
+     inside this bed are positioned with Tailwind's transform utilities and
+     animated by `motion`, and a keyframe writing `transform` would overwrite
+     both. `translate` composes with them instead of replacing them. */
+  @keyframes drift-slower {
+    to { translate: 0 9vh; }
+    }
+
+  .parallax-bed {
+    animation: drift-slower linear both;
+    animation-timeline: scroll(nearest);
+    }
+
+  /* Reduced motion is handled by the global block above, which collapses
+     every animation-duration in the document — including the view
+     transitions and the scroll-driven animations declared here. */
+}

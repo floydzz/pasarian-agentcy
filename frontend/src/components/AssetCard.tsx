@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import { Plate } from '@/components/Plate'
 import { cn } from '@/lib/utils'
+import { SETTLE } from '@/lib/motion'
 import type { Asset, Variant } from '@/api/types'
 
 /** One finished creative, at the gate.
@@ -31,23 +34,51 @@ export function AssetCard({
   const [redoing, setRedoing] = useState(false)
   const flagged = asset.qa_status === 'flagged'
   const decided = asset.review_status !== 'pending'
+  const rejected = asset.review_status === 'rejected'
+  const approved = asset.review_status === 'approved'
 
   return (
-    <article
+    // A decision here is the product's whole claim: a person standing between
+    // the agents and the ad spend. It was previously a change of border
+    // colour. A rejected creative now recedes — back, dim and drained of
+    // colour, the same vocabulary the machine itself uses when it steps back
+    // at a gate — so the deck visibly narrows to the work still in the running.
+    <motion.article
+      initial={false}
+      animate={{
+        scale: rejected ? 0.945 : 1,
+        opacity: rejected ? 0.5 : 1,
+        filter: rejected ? 'saturate(0.2)' : 'saturate(1)',
+      }}
+      transition={SETTLE}
       className={cn(
-        'on-paper flex h-full w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_18px_44px_-28px_rgba(0,0,0,0.9)]',
-        flagged && 'ring-1 ring-flag/40',
+        'on-paper relative flex h-full w-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_18px_44px_-28px_rgba(0,0,0,0.9)]',
+        flagged && !decided && 'ring-1 ring-flag/40',
       )}
     >
+      {/* Approval draws a line around the thing approved. */}
+      <AnimatePresence>
+        {approved && (
+          <motion.span
+            aria-hidden
+            initial={{ opacity: 0, scale: 1.015 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={SETTLE}
+            className="pointer-events-none absolute inset-0 z-10 rounded-2xl ring-2 ring-go/55"
+          />
+        )}
+      </AnimatePresence>
       {/* Capped rather than left at its full square: the whole point of the
           gate is the three buttons under it, and a card whose actions start
           below the fold is a card nobody acts on. */}
       <div className="max-h-[52%] w-full shrink-0 overflow-hidden">
-        <img
+        <Plate
           src={asset.media_url}
           alt={variant ? `Creative for “${variant.headline}”` : 'Generated creative'}
+          frameClassName="w-full"
           className="aspect-square w-full object-cover"
-          loading="lazy"
+          latent={redoing}
         />
       </div>
 
@@ -119,7 +150,7 @@ export function AssetCard({
           </p>
         )}
       </div>
-    </article>
+    </motion.article>
   )
 }
 
@@ -137,10 +168,13 @@ function Action({
   onClick: () => void | Promise<void>
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       disabled={disabled}
       onClick={() => void onClick()}
+      whileHover={disabled ? undefined : { y: -1 }}
+      whileTap={disabled ? undefined : { y: 0, scale: 0.96 }}
+      transition={SETTLE}
       className={cn(
         'display rounded-full border px-3.5 py-1.5 text-[0.75rem] transition-colors duration-200',
         'disabled:cursor-not-allowed disabled:opacity-40',
@@ -152,6 +186,6 @@ function Action({
       )}
     >
       {label}
-    </button>
+    </motion.button>
   )
 }

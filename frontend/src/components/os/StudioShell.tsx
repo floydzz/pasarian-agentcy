@@ -54,7 +54,7 @@ export function StudioShell({
       // A plan review can be taller than a laptop viewport. The shell, rather
       // than the browser body, owns that vertical scroll so the rail stays
       // fixed while the decision cards remain reachable below the machine.
-      className="quiet-scroll relative flex h-full flex-col overflow-x-hidden overflow-y-auto bg-void text-foreground"
+      className="quiet-scroll relative isolate flex h-full flex-col overflow-x-hidden overflow-y-auto bg-void text-foreground"
     >
       <Ambience medium={medium} active={running !== null} halted={halted} still={still} />
 
@@ -136,7 +136,10 @@ function Ambience({
   still: boolean
 }) {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div
+      aria-hidden
+      className="parallax-bed pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+    >
       <motion.div
         className="absolute -top-1/3 left-1/2 h-[70vh] w-[110vw] -translate-x-1/2 rounded-[50%]"
         initial={false}

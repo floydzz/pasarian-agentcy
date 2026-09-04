@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api, ApiError } from '@/api/client'
 import type { Campaign, ChatMessage, Conversation } from '@/api/types'
 import { cn } from '@/lib/utils'
+import { DEPTH, SETTLE, STAGGER, STAGGER_CHILD } from '@/lib/motion'
 
 /** A persistent strategist beside the work, rather than a separate room.
  *
@@ -13,13 +15,7 @@ import { cn } from '@/lib/utils'
  * one-use intent. The studio owns the stream and is therefore the truthful
  * place to watch the agents, their graph and their gates work.
  */
-export function MarketingChatDock({
-  open,
-  onClose,
-}: {
-  open: boolean
-  onClose: () => void
-}) {
+export function MarketingChatDock({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const campaignId = campaignFromPath(pathname)
@@ -51,7 +47,6 @@ export function MarketingChatDock({
   )
 
   useEffect(() => {
-    if (!open) return
     let current = true
     setLoading(true)
     refreshThreads()
@@ -63,10 +58,10 @@ export function MarketingChatDock({
     return () => {
       current = false
     }
-  }, [open, refreshThreads, selectForPage])
+  }, [refreshThreads, selectForPage])
 
   useEffect(() => {
-    if (!open || campaignId === null) {
+    if (campaignId === null) {
       setPageCampaign(null)
       return
     }
@@ -78,7 +73,7 @@ export function MarketingChatDock({
     return () => {
       current = false
     }
-  }, [campaignId, open])
+  }, [campaignId])
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
@@ -163,8 +158,6 @@ export function MarketingChatDock({
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void submit()
   }
 
-  if (!open) return null
-
   const title = pageCampaign?.name ?? conversation?.campaign?.name ?? 'Marketing strategist'
   const status = pageCampaign?.status ?? conversation?.campaign?.status
   const selectableThreads = threads.filter(
@@ -175,9 +168,15 @@ export function MarketingChatDock({
     : (conversation?.messages ?? [])
 
   return (
-    <aside
+    // `layoutId` is shared with the bubble in the shell, so the strategist
+    // grows out of the control you pressed instead of the control vanishing
+    // while a panel appears somewhere else on screen. One object, two sizes.
+    <motion.aside
+      layoutId="strategist"
       aria-label="Marketing strategist"
-      className="fixed inset-y-3 right-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[27rem] flex-col overflow-hidden rounded-2xl border border-edge bg-void shadow-2xl sm:inset-y-5 sm:right-5 sm:w-[26rem]"
+      transition={DEPTH}
+      style={{ borderRadius: 16 }}
+      className="fixed inset-y-3 right-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[27rem] flex-col overflow-hidden border border-edge bg-void shadow-2xl sm:inset-y-5 sm:right-5 sm:w-[26rem]"
     >
       <header className="flex shrink-0 items-start justify-between gap-3 border-b border-edge px-5 py-4">
         <div className="min-w-0">
@@ -240,12 +239,12 @@ export function MarketingChatDock({
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <motion.div variants={STAGGER} initial="hidden" animate="shown" className="space-y-3">
             {visibleMessages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
-            {sending && <Thinking />}
-          </div>
+            <AnimatePresence>{sending && <Thinking />}</AnimatePresence>
+          </motion.div>
         )}
         <div ref={bottom} />
       </div>
@@ -273,21 +272,31 @@ export function MarketingChatDock({
           ⌘/Ctrl + Enter · approval decisions always stay with you.
         </p>
       </form>
-    </aside>
+    </motion.aside>
   )
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   if (message.role === 'system') {
     return (
-      <div className="border-l border-halt/70 py-1 pl-2.5 text-[0.75rem] leading-relaxed text-text-2">
+      <motion.div
+        variants={STAGGER_CHILD}
+        initial="hidden"
+        animate="shown"
+        className="border-l border-halt/70 py-1 pl-2.5 text-[0.75rem] leading-relaxed text-text-2"
+      >
         {message.content}
-      </div>
+      </motion.div>
     )
   }
   const user = message.role === 'user'
   return (
-    <article className={cn('flex', user ? 'justify-end' : 'justify-start')}>
+    <motion.article
+      variants={STAGGER_CHILD}
+      initial="hidden"
+      animate="shown"
+      className={cn('flex', user ? 'justify-end' : 'justify-start')}
+    >
       <div
         className={cn(
           'max-w-[92%] rounded-xl px-3 py-2.5',
@@ -306,13 +315,20 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
         <p className="whitespace-pre-wrap text-[0.8125rem] leading-relaxed">{message.content}</p>
       </div>
-    </article>
+    </motion.article>
   )
 }
 
 function Thinking() {
   return (
-    <article className="flex justify-start" aria-label="Strategist is typing">
+    <motion.article
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={SETTLE}
+      className="flex justify-start"
+      aria-label="Strategist is typing"
+    >
       <div className="flex items-center gap-1.5 rounded-xl border border-edge bg-[rgba(233,238,247,0.035)] px-3.5 py-3">
         {[0, 1, 2].map((dot) => (
           <span
@@ -323,7 +339,7 @@ function Thinking() {
         ))}
         <span className="sr-only">Strategist is checking the brief…</span>
       </div>
-    </article>
+    </motion.article>
   )
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion, useReducedMotion } from 'motion/react'
+import { useRoomNav } from '@/lib/rooms'
 import { cn } from '@/lib/utils'
 import { EASE_OUT, SETTLE } from '@/lib/motion'
 import { api } from '@/api/client'
@@ -46,6 +47,7 @@ const GROUPS = [
 export function Sidebar() {
   const [system, setSystem] = useState<System | null>(null)
   const still = useReducedMotion()
+  const roomNav = useRoomNav()
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -70,6 +72,8 @@ export function Sidebar() {
     >
       <NavLink
         to="/"
+        viewTransition
+        onClick={() => roomNav('/')}
         className="flex h-16 shrink-0 items-center gap-3 px-4 lg:px-5"
         aria-label="Agentcy home"
       >
@@ -99,6 +103,10 @@ export function Sidebar() {
                       <motion.span
                         layoutId="rail-mark"
                         transition={still ? { duration: 0 } : SETTLE}
+                        // The rail sits outside `<main>`, so it is never
+                        // captured by a room transition and this mark keeps
+                        // travelling under `motion` while the room changes.
+                        style={{ viewTransitionName: 'none' }}
                         className="absolute inset-0 -z-10 rounded-lg bg-[rgba(233,238,247,0.06)]"
                       >
                         <span className="absolute top-1/2 -left-2.5 h-5 w-px -translate-y-1/2 bg-foreground lg:-left-3" />
@@ -116,6 +124,8 @@ export function Sidebar() {
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
+                      viewTransition
+                      onClick={() => roomNav(item.to)}
                       end={'end' in item ? item.end : false}
                       // The label is in the DOM at every width for assistive
                       // tech; the tooltip is for sighted people on the narrow

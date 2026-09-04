@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Switch } from '@/components/ui/switch'
@@ -48,6 +49,26 @@ export function GateShell({
    * common one, and only ever a real alternative, never a second primary. */
   secondary?: GateAction | null
 }) {
+  // The beat where the run is handed back to the machine.
+  //
+  // Halting is loud — amber, a sweep, a pulsing diamond — and until now
+  // releasing was silent: the amber simply stopped being there. That made the
+  // most consequential thing a person does in this product the only thing the
+  // interface did not acknowledge. One cool pass down the bar closes the
+  // gesture the amber opened.
+  const [releasing, setReleasing] = useState(false)
+  const wasHalted = useRef(halted)
+
+  useEffect(() => {
+    if (wasHalted.current && !halted) {
+      setReleasing(true)
+      const timer = setTimeout(() => setReleasing(false), 900)
+      wasHalted.current = halted
+      return () => clearTimeout(timer)
+    }
+    wasHalted.current = halted
+  }, [halted])
+
   return (
     <motion.section
       layout
@@ -70,6 +91,21 @@ export function GateShell({
               x: { duration: 4.2, repeat: Infinity, ease: 'linear' },
               opacity: { duration: 0.5 },
             }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* The release. Green, once, edge to edge — the decision has been made
+          and the path is open, which is the only thing `--go` ever means. */}
+      <AnimatePresence>
+        {releasing && !still && (
+          <motion.span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-px w-full origin-left bg-gradient-to-r from-transparent via-go to-transparent"
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: [0, 1, 1, 0], scaleX: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.9, ease: EASE_OUT }}
           />
         )}
       </AnimatePresence>
