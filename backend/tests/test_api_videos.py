@@ -203,6 +203,60 @@ def test_scripted_demo_stream_shows_each_seeded_video_handoff(client, studio, mo
     assert "reused demo video" in body
 
 
+def test_scripted_demo_video_uses_an_approved_campaign_asset_as_its_visual_anchor(
+    client, studio, storage, session, monkeypatch
+):
+    from app.domain import ConceptStatus
+    from app.models import Asset, Concept, Variant
+
+    campaign = a_campaign(client)
+    concept = Concept(
+        campaign_id=campaign["id"],
+        theme="Approved campaign creative",
+        format="image",
+        trend_rationale="Demo.",
+        brand_rationale="Demo.",
+        variant_count=1,
+        variation_axes=["hero"],
+        status=ConceptStatus.APPROVED,
+    )
+    session.add(concept)
+    session.flush()
+    variant = Variant(
+        concept_id=concept.id,
+        hook_type="hero",
+        headline="Approved campaign creative",
+        body="Carry this approved asset into the video.",
+        cta="See it move",
+        visual_brief={},
+        director_status="pass",
+    )
+    session.add(variant)
+    session.flush()
+    image = Image.new("RGB", (640, 640), "plum")
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    source = output.getvalue()
+    asset = Asset(
+        variant_id=variant.id,
+        media_url=storage.save(source, suffix=".png"),
+        qa_status="passed",
+        review_status="approved",
+    )
+    session.add(asset)
+    session.commit()
+    monkeypatch.setattr(
+        "app.api.videos.get_settings", lambda: SimpleNamespace(scripted_demo=True)
+    )
+
+    rendered = client.post(
+        f"/api/campaigns/{campaign['id']}/videos/render", json=custom_payload()
+    ).json()
+
+    assert studio.seen[-1].product_image == source
+    assert rendered["product_reference_url"] == asset.media_url
+
+
 def test_campaign_video_locks_the_selected_product_photo(client, studio):
     campaign = a_campaign(client)
     product = Image.new("RGB", (400, 400), "darkorange")

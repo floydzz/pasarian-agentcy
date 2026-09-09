@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AgentStation } from '@/components/os/AgentStation'
 import { FlowGraph, VIDEO_FLOW, type NodeState } from '@/components/os/FlowGraph'
@@ -39,6 +39,7 @@ const MAX_SCENES = 8
 
 export function VideoStudio() {
   const id = Number(useParams().id)
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [draft, setDraft] = useState<MarketingVideoCreate | null>(null)
@@ -199,7 +200,8 @@ export function VideoStudio() {
   const approveAll = () =>
     act(async () => {
       await Promise.all(pending.map((video) => api.approveVideo(video.id)))
-      toast.success(pending.length === 1 ? 'Cut approved' : 'Cuts approved')
+      toast.success(pending.length === 1 ? 'Cut approved — opening Publish' : 'Cuts approved — opening Publish')
+      navigate(`/campaigns/${campaign.id}/publish`)
     })
 
   const gate: NodeState = halted ? 'blocking' : 'quiet'

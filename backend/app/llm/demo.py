@@ -196,7 +196,7 @@ class DemoProvider(LLMProvider):
                 }
             if videos == 0:
                 return {
-                    "reply": "[scripted demo] I am opening Video Studio and rendering a campaign cut from the saved storyboard and existing local video. No video model or tokens are used.",
+                    "reply": "[scripted demo] I am opening Video Studio and rendering a local campaign cut around the approved image asset. No video model or tokens are used.",
                     "action": "run_video",
                 }
         return {

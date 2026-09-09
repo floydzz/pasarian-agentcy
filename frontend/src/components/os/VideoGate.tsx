@@ -43,16 +43,16 @@ export function VideoGate({
 
   const action: GateAction | null = halted
     ? {
-        label: `Approve the cut · ${pending.length}`,
+        label: `Approve cut & open Publish · ${pending.length}`,
         onClick: onApprove,
         disabled: busy,
       }
     : {
         label: running
-          ? scriptedDemo ? 'Staging seeded cut…' : 'Rendering…'
+          ? scriptedDemo ? 'Rendering approved-asset cut…' : 'Rendering…'
           : videos.length === 0
-            ? scriptedDemo ? 'Render seeded demo cut' : 'Render the video'
-            : scriptedDemo ? 'Render another seeded cut' : 'Render another cut',
+            ? scriptedDemo ? 'Render approved-asset demo cut' : 'Render the video'
+            : scriptedDemo ? 'Render another approved-asset cut' : 'Render another cut',
         onClick: onRender,
         disabled: busy || scenes < 3,
       }
@@ -65,7 +65,7 @@ export function VideoGate({
       ? scenes < 3
         ? 'A storyboard needs at least three scenes'
         : scriptedDemo
-          ? `${scenes} scenes ready to stage from the seeded video library`
+          ? `${scenes} scenes ready to render around an approved campaign image`
           : `${scenes} scenes ready to render`
       : `All ${videos.length} decided — ${approved} approved`
 

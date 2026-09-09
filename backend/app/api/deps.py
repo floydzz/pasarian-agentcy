@@ -246,6 +246,9 @@ def get_video_studio(tuned: Tuning = Depends(get_tuning)) -> VideoStudio:
         storage=get_storage(),
         broll=get_broll_provider(),
         max_broll_clips=settings.max_broll_clips_per_run,
+        stage_delay_seconds=(
+            settings.scripted_demo_stage_seconds if settings.scripted_demo else 0
+        ),
     )
 
 

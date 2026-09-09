@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from dataclasses import dataclass
 
 from app.agents.events import AgentEvent, EventSink, emit
@@ -33,6 +35,8 @@ class MarketingVideoSpec:
     use_broll: bool = False
     #: Source photo to keep intact in the finished motion-graphics frames.
     product_image: bytes | None = None
+    #: An honest console label for a locally preserved campaign image.
+    visual_source: str | None = None
 
 
 @dataclass(frozen=True)
@@ -56,12 +60,14 @@ class VideoStudio:
         storage: AssetStorage,
         broll: BrollProvider | None = None,
         max_broll_clips: int = 8,
+        stage_delay_seconds: float = 0,
     ) -> None:
         self.renderer = renderer
         self.qa = qa
         self.storage = storage
         self.broll = broll
         self.max_broll_clips = max_broll_clips
+        self.stage_delay_seconds = max(0, stage_delay_seconds)
 
     # -- b-roll ------------------------------------------------------------
 
@@ -130,6 +136,7 @@ class VideoStudio:
                 f"Reading the {len(spec.storyboard)}-scene {spec.profile.replace('_', ' ')} brief",
             ),
         )
+        self._pause_for_demo()
         emit(
             sink,
             AgentEvent(
@@ -144,9 +151,14 @@ class VideoStudio:
             AgentEvent(
                 "visual_planner",
                 "started",
-                "Mapping the story beats to motion-graphics layouts",
+                (
+                    f"Mapping the story beats around the {spec.visual_source}"
+                    if spec.visual_source
+                    else "Mapping the story beats to motion-graphics layouts"
+                ),
             ),
         )
+        self._pause_for_demo()
         emit(
             sink,
             AgentEvent(
@@ -159,6 +171,7 @@ class VideoStudio:
             sink,
             AgentEvent("renderer", "started", "Drawing scenes and encoding the vertical MP4"),
         )
+        self._pause_for_demo()
         backdrops = self._backdrops(spec, sink)
         try:
             renderer_kwargs = {"backdrops": backdrops}
@@ -232,3 +245,8 @@ class VideoStudio:
             ),
         )
         return result
+
+    def _pause_for_demo(self) -> None:
+        """Leave scripted local stages readable without affecting real runs."""
+        if self.stage_delay_seconds:
+            time.sleep(self.stage_delay_seconds)

@@ -122,13 +122,16 @@ For the most reliable presentation, restore the checked-in workspace first:
 
 Then open the strategist and follow its suggested replies: create campaign,
 plan, approve concepts in Image Studio, continue image generation twice
-(copy/visual planning, then saved-media render), approve an image, generate and
-approve the campaign video, and open Publish. Publish prepares previews, copy,
-and downloads; it never posts to a live social account.
+(copy/visual planning, then saved-media render), approve an image, then use
+the docked strategist's **Generate the campaign video** reply. The local video
+renderer carries the latest approved campaign image into the finished MP4.
+Approve the cut and Publish opens automatically. Publish prepares previews,
+copy, and downloads; it never posts to a live social account.
 
 The campaign-video handoff opens
-`/campaigns/:id/video/demo?run=render`; it makes a fresh campaign-owned copy
-of a finished seeded MP4. For the separate long-form product-film showcase,
+`/campaigns/:id/video/demo?run=render`; it builds a fresh campaign-owned local
+MP4 around the approved campaign creative. A saved seeded MP4 remains the
+fallback only for incomplete legacy campaigns without a usable image. For the separate long-form product-film showcase,
 ask the strategist to **Open cinematic cut demo**, or open
 `/cinematic-trailer/demo`. That route is read-only and shows the seeded master
 cut plus its completed shot breakdown—no provider job is queued. Set

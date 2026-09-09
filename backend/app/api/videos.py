@@ -22,7 +22,7 @@ from app.api.streaming import event_stream
 from app.config import get_settings
 from app.db import get_db
 from app.media.base import RenderError
-from app.models import MarketingVideo, ProductReference
+from app.models import Asset, Concept, MarketingVideo, ProductReference, Variant
 from app.video import MarketingVideoScene, video_brief_for
 
 router = APIRouter(prefix="/api", tags=["marketing videos"])
@@ -218,7 +218,10 @@ def _render(
     reusable: dict | None = None,
 ) -> RenderedMarketingVideo:
     try:
-        if reusable is not None:
+        # In scripted mode an approved campaign image becomes the visual
+        # anchor in a fresh, locally encoded MP4. The seeded MP4 is only the
+        # fallback when a legacy campaign has no usable image to preserve.
+        if reusable is not None and product_image is None:
             return _reuse_video(studio, payload, reusable, sink=sink)
         return studio.run(
             MarketingVideoSpec(
@@ -234,6 +237,11 @@ def _render(
                 ],
                 use_broll=payload.use_broll,
                 product_image=product_image,
+                visual_source=(
+                    "approved campaign image"
+                    if product_image is not None and get_settings().scripted_demo
+                    else None
+                ),
             ),
             sink=sink,
         )
@@ -429,6 +437,14 @@ def _campaign_product(
     reference_id: int | None,
     studio: VideoStudio,
 ) -> tuple[str | None, bytes | None]:
+    # A demo cut must visibly carry forward the creative the person just
+    # approved. It intentionally wins over a preselected product-library
+    # photo: the campaign's newly generated creative is the thing this demo
+    # needs to prove travelled from Image Studio into Video Studio.
+    if get_settings().scripted_demo:
+        campaign_asset = _approved_campaign_asset(db, campaign_id, studio)
+        if campaign_asset is not None:
+            return campaign_asset
     if reference_id is None:
         return primary_product_image(db, campaign_id, studio.storage)
     reference = db.get(ProductReference, reference_id)
@@ -438,6 +454,27 @@ def _campaign_product(
         return reference.media_url, studio.storage.read(reference.media_url)
     except (ValueError, OSError):
         raise HTTPException(status.HTTP_409_CONFLICT, "selected product image is no longer available") from None
+
+
+def _approved_campaign_asset(
+    db: Session, campaign_id: int, studio: VideoStudio
+) -> tuple[str, bytes] | None:
+    """Find the latest QA-passed image the person approved for this campaign."""
+    assets = db.scalars(
+        select(Asset)
+        .join(Variant, Asset.variant_id == Variant.id)
+        .join(Concept, Variant.concept_id == Concept.id)
+        .where(Concept.campaign_id == campaign_id)
+        .where(Asset.review_status == "approved")
+        .where(Asset.qa_status == "passed")
+        .order_by(Asset.id.desc())
+    )
+    for asset in assets:
+        try:
+            return asset.media_url, studio.storage.read(asset.media_url)
+        except (ValueError, OSError):
+            continue
+    return None
 
 
 def _stored_product_image(studio: VideoStudio, media_url: str | None) -> bytes | None:

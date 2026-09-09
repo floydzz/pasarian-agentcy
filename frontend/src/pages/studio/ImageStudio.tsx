@@ -233,8 +233,7 @@ export function ImageStudio() {
           onApproveAssets={() =>
             act(async () => {
               await api.approveAllAssets(campaign.id)
-              toast.success('Creatives approved — ready to export')
-              navigate(`/campaigns/${campaign.id}/publish`)
+              toast.success('Creatives approved — ask Strategist to generate the campaign video')
             })
           }
           onRejectRest={() =>

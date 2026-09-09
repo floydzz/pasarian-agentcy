@@ -98,7 +98,7 @@ export function ImageGate({
             // state drew no button at all, and the export screen — the whole
             // point of reaching it — was reachable only by typing its URL.
             : campaign.status === 'ready_to_publish' || campaign.status === 'published'
-              ? { label: 'Export', onClick: onExport, disabled: busy }
+              ? { label: 'Open Publish', onClick: onExport, disabled: busy }
               : null
 
   // Refusing is only offered where it means something: at the open asset gate,

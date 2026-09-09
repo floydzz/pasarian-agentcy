@@ -34,7 +34,14 @@ export function Shell() {
   return (
     <div className="dark flex h-dvh overflow-hidden bg-void text-foreground">
       <Sidebar />
-      <main className="relative min-w-0 flex-1 overflow-hidden">
+      <main
+        className={`relative min-w-0 flex-1 overflow-hidden transition-[margin] duration-300 ${
+          // On desktop the strategist is a dock, not a sheet over the work.
+          // The studio therefore has its own visible width while chat remains
+          // available. On a phone it intentionally stays an overlay.
+          chatOpen ? 'lg:mr-[27rem]' : ''
+        }`}
+      >
         <Outlet />
       </main>
       {/* The bubble and the dock are one object at two sizes, so they are

@@ -227,7 +227,7 @@ class MarketingChat:
             ChatAction.RUN_GENERATE: "I’m starting the creative crew for the concepts you approved. You will still review every asset before it can move on.",
             ChatAction.RUN_RENDER: "I’m opening Image Studio and turning the approved copy into image creatives. In demo mode this reuses the local media library and spends no model tokens.",
             ChatAction.OPEN_IMAGE: "I’m opening Image Studio at the decision waiting for you.",
-            ChatAction.RUN_VIDEO: "I’m opening Video Studio and rendering the campaign cut from the saved storyboard and local media library.",
+            ChatAction.RUN_VIDEO: "I’m opening Video Studio and rendering the campaign cut around an approved campaign image with the local renderer.",
             ChatAction.OPEN_VIDEO: "I’m opening Video Studio so you can review the finished cut.",
             ChatAction.OPEN_CINEMATIC_DEMO: "I’m opening the seeded cinematic cut demo. It is a finished local production cut, so no video job or tokens are used.",
             ChatAction.OPEN_PUBLISH: "I’m opening Publish with the approved image and video ads ready for channel previews and export.",

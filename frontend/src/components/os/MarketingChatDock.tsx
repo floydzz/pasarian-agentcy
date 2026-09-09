@@ -71,12 +71,19 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
       return
     }
     let current = true
-    api
-      .getCampaign(campaignId)
-      .then((campaign) => current && setPageCampaign(campaign))
-      .catch((error: ApiError) => current && toast.error(error.message))
+    const syncCampaign = () =>
+      api
+        .getCampaign(campaignId)
+        .then((campaign) => current && setPageCampaign(campaign))
+        .catch((error: ApiError) => current && toast.error(error.message))
+    void syncCampaign()
+    // Studio actions happen outside the chat request. Refreshing the compact
+    // route context means the next suggested reply changes from image review
+    // to video generation without closing or reopening the strategist.
+    const timer = window.setInterval(syncCampaign, 3_000)
     return () => {
       current = false
+      window.clearInterval(timer)
     }
   }, [campaignId])
 
@@ -269,18 +276,23 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
 
       <form onSubmit={submit} className="shrink-0 border-t border-edge bg-[rgba(5,7,11,0.88)] px-4 py-4 backdrop-blur">
         {scriptedDemo && (
-          <div className="mb-3 flex flex-wrap gap-1.5 px-1">
-            {demoReplies(status).map((reply) => (
-              <button
-                key={reply}
-                type="button"
-                disabled={sending}
-                onClick={() => void submit(undefined, reply)}
-                className="data rounded-full border border-edge px-2.5 py-1.5 text-[0.625rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:opacity-40"
-              >
-                {reply}
-              </button>
-            ))}
+          <div className="mb-3 px-1">
+            <p className="mb-2 text-[0.6875rem] leading-relaxed text-text-3">
+              {demoNextStep(status)}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {demoReplies(status).map((reply) => (
+                <button
+                  key={reply}
+                  type="button"
+                  disabled={sending}
+                  onClick={() => void submit(undefined, reply)}
+                  className="data rounded-full border border-edge px-2.5 py-1.5 text-[0.625rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:opacity-40"
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         <div className="flex items-end gap-2 rounded-xl border border-edge bg-[rgba(233,238,247,0.035)] p-2 transition-colors focus-within:border-edge-strong">
@@ -404,6 +416,13 @@ function demoReplies(status?: Campaign['status']) {
   if (status === 'pending_asset_review') return ['Open Image console for asset approval']
   if (status === 'ready_to_publish') return ['Generate the campaign video', 'Open cinematic cut demo', 'Open Publish']
   return ['Open Publish']
+}
+
+function demoNextStep(status?: Campaign['status']) {
+  if (status === 'pending_plan_approval') return 'Approve a concept in Image Studio, then I will unlock image generation.'
+  if (status === 'pending_asset_review') return 'Approve the image assets you want to keep. Video generation unlocks after the asset gate closes.'
+  if (status === 'ready_to_publish') return 'Images are approved. Generate the campaign video next, or open Publish if you are showing image ads only.'
+  return 'I will keep the walkthrough at the next safe stage; approvals always stay with you.'
 }
 
 function handoffMessage(stage: NonNullable<import('@/api/types').ChatSendResult['authorized']>) {
