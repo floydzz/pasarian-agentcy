@@ -69,7 +69,7 @@ export function ImageStudio() {
   useEffect(() => {
     if (!campaign) return
     const stage = searchParams.get('run')
-    if (stage !== 'plan' && stage !== 'generate') return
+    if (stage !== 'plan' && stage !== 'generate' && stage !== 'render') return
     const handoff = `${campaign.id}:${stage}`
     if (acceptedHandoffs.current.has(handoff)) return
     acceptedHandoffs.current.add(handoff)
@@ -80,9 +80,14 @@ export function ImageStudio() {
         setTab('concepts')
         refresh().catch(() => undefined)
       })
-    } else {
+    } else if (stage === 'generate') {
       void run('crew', `/campaigns/${campaign.id}/generate/stream`, () => {
         setTab('variants')
+        refresh().catch(() => undefined)
+      })
+    } else {
+      void run('studio', `/campaigns/${campaign.id}/render/stream`, () => {
+        setTab('creatives')
         refresh().catch(() => undefined)
       })
     }

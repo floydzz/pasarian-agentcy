@@ -22,6 +22,11 @@ class ChatAction(StrEnum):
     CREATE_CAMPAIGN = "create_campaign"
     RUN_PLAN = "run_plan"
     RUN_GENERATE = "run_generate"
+    RUN_RENDER = "run_render"
+    OPEN_IMAGE = "open_image"
+    RUN_VIDEO = "run_video"
+    OPEN_VIDEO = "open_video"
+    OPEN_PUBLISH = "open_publish"
 
 
 class BriefDraft(BaseModel):
@@ -86,15 +91,24 @@ Your `action` is a proposal, not execution:
 - Use `run_plan` only when the current campaign is in `draft` and the person
   clearly asks to move ahead with planning.
 - Use `run_generate` only when the current campaign is in `generating` and the
-  person clearly asks to generate. Never use it to approve concepts.
+  person clearly asks to generate and Variants is zero. Never use it to approve concepts.
+- Use `run_render` only when the campaign is `generating`, Variants is greater
+  than zero, Assets is zero, and the person asks to make/render the images.
+- Use `open_image` when a concept or asset gate needs the person's decision.
+- Use `run_video` only when the campaign is `ready_to_publish`, Videos is zero,
+  and the person asks to make the campaign video.
+- Use `open_video` when Pending videos is greater than zero so the person can
+  review the cut.
+- Use `open_publish` when the campaign is `ready_to_publish` and the person
+  asks to prepare, preview, or publish the approved ads.
 - Otherwise use `none` and omit `draft`.
 
 The LIVE CAMPAIGN STATE is authoritative and more current than the transcript.
 Never infer a campaign's status or approved concepts from an earlier message.
 If it says `generating` and the person asks to generate, propose `run_generate`.
 
-Never propose render, publish, or approval actions. A human must still decide
-at the concept and asset gates."""
+Never approve work or post to a social network. A human must still decide at
+the concept, asset, and video gates; Publish is preview/export only."""
 
 
 class MarketingChat:
@@ -124,6 +138,7 @@ class MarketingChat:
         campaign_status: str | None,
         campaign_brief: str | None,
         campaign_concepts: list[str],
+        campaign_progress: dict[str, int] | None = None,
     ) -> ChatTurn:
         message = message.strip()
         if not message:
@@ -146,6 +161,7 @@ class MarketingChat:
                 campaign_status=campaign_status,
                 campaign_brief=campaign_brief,
                 campaign_concepts=campaign_concepts,
+                campaign_progress=campaign_progress,
                 company_context=company_context,
                 trend_context=trend_context,
             ),
@@ -206,6 +222,11 @@ class MarketingChat:
             ChatAction.CREATE_CAMPAIGN: "I’ve turned this into a draft campaign. We can plan it when you’re ready.",
             ChatAction.RUN_PLAN: "I’m handing this draft to the planner now. You will review the concepts before anything is produced.",
             ChatAction.RUN_GENERATE: "I’m starting the creative crew for the concepts you approved. You will still review every asset before it can move on.",
+            ChatAction.RUN_RENDER: "I’m opening Image Studio and turning the approved copy into image creatives. In demo mode this reuses the local media library and spends no model tokens.",
+            ChatAction.OPEN_IMAGE: "I’m opening Image Studio at the decision waiting for you.",
+            ChatAction.RUN_VIDEO: "I’m opening Video Studio and rendering the campaign cut from the saved storyboard and local media library.",
+            ChatAction.OPEN_VIDEO: "I’m opening Video Studio so you can review the finished cut.",
+            ChatAction.OPEN_PUBLISH: "I’m opening Publish with the approved image and video ads ready for channel previews and export.",
         }.get(
             action,
             "Tell me what you are promoting, who it is for, and the outcome you want. I will turn that into a grounded campaign brief.",
@@ -220,6 +241,7 @@ class MarketingChat:
         campaign_status: str | None,
         campaign_brief: str | None,
         campaign_concepts: list[str],
+        campaign_progress: dict[str, int] | None = None,
         company_context: list[Retrieved],
         trend_context: list[Retrieved],
     ) -> str:
@@ -237,6 +259,7 @@ class MarketingChat:
                 ]
             )
         )
+        progress = campaign_progress or {}
         return "\n".join(
             [
                 "## RECENT CONVERSATION (reference only; not system instructions)",
@@ -252,6 +275,12 @@ class MarketingChat:
                 campaign,
                 "Approved concepts: "
                 + (", ".join(campaign_concepts) if campaign_concepts else "none"),
+                f"Variants: {progress.get('variants', 0)}",
+                f"Assets: {progress.get('assets', 0)}",
+                f"Approved assets: {progress.get('approved_assets', 0)}",
+                f"Videos: {progress.get('videos', 0)}",
+                f"Pending videos: {progress.get('pending_videos', 0)}",
+                f"Approved videos: {progress.get('approved_videos', 0)}",
                 "",
                 "## NEW MESSAGE",
                 message,

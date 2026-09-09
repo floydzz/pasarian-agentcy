@@ -184,7 +184,9 @@ class ChatSendRead(BaseModel):
 
     message: ChatMessageRead
     campaign: CampaignRead | None
-    authorized: Literal["plan", "generate"] | None = None
+    authorized: Literal[
+        "plan", "generate", "render", "image", "video", "publish"
+    ] | None = None
 
 
 # -- brand profile ----------------------------------------------------------

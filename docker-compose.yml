@@ -68,6 +68,9 @@ services:
       # Generative b-roll for the video studio. `demo` declines, which makes
       # the studio render its own scenes — the free, instant path.
       VIDEO_PROVIDER: ${VIDEO_PROVIDER:-demo}
+      # Rehearsal path: scripted strategist + existing media library. This
+      # performs no paid text, image, or video generation calls.
+      SCRIPTED_DEMO: ${SCRIPTED_DEMO:-true}
       DASHSCOPE_VIDEO_MODEL: ${DASHSCOPE_VIDEO_MODEL:-happyhorse-1.1-t2v}
       VIDEO_TIMEOUT_SECONDS: ${VIDEO_TIMEOUT_SECONDS:-600}
       ASSETS_PATH: /data/assets

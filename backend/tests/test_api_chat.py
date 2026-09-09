@@ -4,7 +4,9 @@ from fastapi.testclient import TestClient
 from app.agents.chat import BriefDraft, ChatAction, ChatTurn
 from app.api.deps import get_marketing_chat
 from app.db import get_db
+from app.domain import CampaignStatus, ConceptStatus
 from app.main import app
+from app.models import Asset, Campaign, Concept, Variant
 
 
 class StubStrategist:
@@ -139,3 +141,118 @@ def test_listing_threads_keeps_newest_first(client):
     listed = client.get("/api/conversations").json()
 
     assert [thread["id"] for thread in listed[:2]] == [second["id"], first["id"]]
+
+
+def _campaign_with_variant(client, session, *, status=CampaignStatus.GENERATING):
+    created = client.post(
+        "/api/campaigns", json={"name": "Scripted launch", "brief": "Launch the saved demo."}
+    ).json()
+    campaign = session.get(Campaign, created["id"])
+    campaign.status = status
+    concept = Concept(
+        campaign_id=campaign.id,
+        theme="Saved-media story",
+        format="image",
+        trend_rationale="Offline demo trend.",
+        brand_rationale="Offline demo brand.",
+        variant_count=1,
+        variation_axes=["hero"],
+        status=ConceptStatus.APPROVED,
+    )
+    session.add(concept)
+    session.flush()
+    variant = Variant(
+        concept_id=concept.id,
+        hook_type="hero",
+        headline="A saved campaign, ready now",
+        body="Reuse the approved library.",
+        cta="See the collection",
+        visual_brief={
+            "composition_notes": "Saved demo composition.",
+            "image_prompt": "Saved demo image.",
+            "text_placement": "Top left.",
+            "placement_zone": "top-left",
+            "text_treatment": "bare",
+        },
+        director_status="pass",
+        revision_count=0,
+    )
+    session.add(variant)
+    session.commit()
+    return campaign, variant
+
+
+def _attached_thread(client, campaign_id):
+    thread = client.post("/api/conversations", json={}).json()
+    client.patch(
+        f"/api/conversations/{thread['id']}", json={"campaign_id": campaign_id}
+    )
+    return thread
+
+
+def test_the_strategist_can_handoff_a_saved_media_render(client, session, strategist):
+    campaign, _ = _campaign_with_variant(client, session)
+    thread = _attached_thread(client, campaign.id)
+    strategist.turns = [
+        ChatTurn(reply="Rendering from the saved library.", action=ChatAction.RUN_RENDER)
+    ]
+
+    response = client.post(
+        f"/api/conversations/{thread['id']}/messages",
+        json={"content": "Continue image generation."},
+    )
+
+    assert response.json()["authorized"] == "render"
+
+
+def test_the_strategist_can_handoff_video_after_image_approval(client, session, strategist):
+    campaign, variant = _campaign_with_variant(
+        client, session, status=CampaignStatus.READY_TO_PUBLISH
+    )
+    session.add(
+        Asset(
+            variant_id=variant.id,
+            media_url="/media/saved.png",
+            qa_status="passed",
+            review_status="approved",
+        )
+    )
+    session.commit()
+    thread = _attached_thread(client, campaign.id)
+    strategist.turns = [
+        ChatTurn(reply="Opening the saved video render.", action=ChatAction.RUN_VIDEO)
+    ]
+
+    response = client.post(
+        f"/api/conversations/{thread['id']}/messages",
+        json={"content": "Generate the campaign video."},
+    )
+
+    assert response.json()["authorized"] == "video"
+
+
+def test_the_strategist_can_open_publish_but_does_not_post(client, session, strategist):
+    campaign, variant = _campaign_with_variant(
+        client, session, status=CampaignStatus.READY_TO_PUBLISH
+    )
+    session.add(
+        Asset(
+            variant_id=variant.id,
+            media_url="/media/saved.png",
+            qa_status="passed",
+            review_status="approved",
+        )
+    )
+    session.commit()
+    thread = _attached_thread(client, campaign.id)
+    strategist.turns = [
+        ChatTurn(reply="Opening Publish previews.", action=ChatAction.OPEN_PUBLISH)
+    ]
+
+    response = client.post(
+        f"/api/conversations/{thread['id']}/messages",
+        json={"content": "Open Publish."},
+    )
+
+    assert response.json()["authorized"] == "publish"
+    assert session.get(Campaign, campaign.id).status is CampaignStatus.READY_TO_PUBLISH

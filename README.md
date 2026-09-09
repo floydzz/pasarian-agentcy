@@ -104,6 +104,29 @@ offline with canned copy — retrieval, citation verification, the gates and the
 director's revision loop are all real, only the writing is fake, and every
 canned string is prefixed `[demo]`. That is the mode to rehearse in.
 
+The packaged app also defaults `SCRIPTED_DEMO=true`. In that mode every text,
+embedding, image, and video provider is forced offline even if a paid key is
+present. The strategist shows one-click rehearsal replies for the complete
+journey. Image and campaign-video renders copy suitable files from the restored
+workspace library into new campaign-owned URLs, replay the visible agent/QA
+events, and return immediately without model calls or token usage. If the
+library is empty, the local demo renderer remains the zero-cost fallback.
+
+For the most reliable presentation, restore the checked-in workspace first:
+
+```bash
+./seed/restore.sh --reset
+```
+
+Then open the strategist and follow its suggested replies: create campaign,
+plan, approve concepts in Image Studio, continue image generation twice
+(copy/visual planning, then saved-media render), approve an image, generate and
+approve the campaign video, and open Publish. Publish prepares previews, copy,
+and downloads; it never posts to a live social account.
+
+Set `SCRIPTED_DEMO=false` only when deliberately testing configured live
+providers.
+
 To use a real model, put the keys in `.env` at the repo root — compose reads it:
 
 ```bash

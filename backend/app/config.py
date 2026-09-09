@@ -100,6 +100,12 @@ class Settings(BaseSettings):
     #: A runaway guard, not a normal limit — three concepts at six variants is 18.
     max_renders_per_run: int = 24
 
+    #: Presentation mode: all strategist copy is scripted and media generation
+    #: reuses finished files already present in the workspace. The copies get
+    #: new URLs, so redoing or deleting demo work cannot damage the source
+    #: library. Off outside the packaged demo unless explicitly enabled.
+    scripted_demo: bool = False
+
     serpapi_key: str = ""
     trends_geo: str = "MY"
 

@@ -40,7 +40,16 @@ export interface ProductReference {
 // -- marketing chat -------------------------------------------------------
 
 export type ChatRole = 'user' | 'assistant' | 'system'
-export type ChatAction = 'create_campaign' | 'run_plan' | 'run_generate' | 'none'
+export type ChatAction =
+  | 'create_campaign'
+  | 'run_plan'
+  | 'run_generate'
+  | 'run_render'
+  | 'open_image'
+  | 'run_video'
+  | 'open_video'
+  | 'open_publish'
+  | 'none'
 
 export interface ChatMessage {
   id: number
@@ -65,7 +74,7 @@ export interface Conversation {
 export interface ChatSendResult {
   message: ChatMessage
   campaign: Campaign | null
-  authorized: 'plan' | 'generate' | null
+  authorized: 'plan' | 'generate' | 'render' | 'image' | 'video' | 'publish' | null
 }
 
 export interface Concept {
@@ -330,6 +339,7 @@ export interface System {
   /** False when no b-roll provider is configured, so the video studio can
    * hide the option rather than offer a switch that does nothing. */
   broll_available: boolean
+  scripted_demo: boolean
 }
 
 /** One integer a person may move, carrying the range it may move inside.

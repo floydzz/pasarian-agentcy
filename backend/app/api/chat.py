@@ -25,7 +25,7 @@ from app.api.schemas import (
 )
 from app.db import get_db
 from app.domain import CampaignStatus, ConceptStatus
-from app.models import Campaign, ChatMessage, Concept, Conversation
+from app.models import Asset, Campaign, ChatMessage, Concept, Conversation, MarketingVideo, Variant
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -137,6 +137,7 @@ def send_message(
         for message in prior_messages
     ]
     campaign = conversation.campaign
+    progress = _campaign_progress(db, campaign.id) if campaign else None
 
     try:
         turn = strategist.respond(
@@ -152,6 +153,7 @@ def send_message(
             ]
             if campaign
             else [],
+            campaign_progress=progress,
         )
     except Exception as error:
         # The user's request is still durable. A vendor refusal should read as
@@ -258,7 +260,76 @@ def _execute_action(
             return None
         return "generate"
 
+    if action is ChatAction.RUN_RENDER:
+        if campaign.status is not CampaignStatus.GENERATING:
+            _system(db, conversation, _wrong_stage(campaign, "render images"))
+            return None
+        progress = _campaign_progress(db, campaign.id)
+        if progress["variants"] == 0:
+            _system(db, conversation, "The creative crew must finish the copy before Image Studio can render it.")
+            return None
+        if progress["assets"] > 0:
+            _system(db, conversation, "Image creatives already exist. I opened their review workspace instead of generating duplicates.")
+            return "image"
+        return "render"
+
+    if action is ChatAction.OPEN_IMAGE:
+        return "image"
+
+    if action is ChatAction.RUN_VIDEO:
+        if campaign.status is not CampaignStatus.READY_TO_PUBLISH:
+            _system(db, conversation, "Approve at least one image creative before producing the campaign video.")
+            return None
+        progress = _campaign_progress(db, campaign.id)
+        if progress["videos"] > 0:
+            _system(db, conversation, "A campaign video already exists. I opened Video Studio for review instead of rendering a duplicate.")
+            return "video"
+        return "video"
+
+    if action is ChatAction.OPEN_VIDEO:
+        return "video"
+
+    if action is ChatAction.OPEN_PUBLISH:
+        if campaign.status is not CampaignStatus.READY_TO_PUBLISH:
+            _system(db, conversation, _wrong_stage(campaign, "prepare publishing"))
+            return None
+        progress = _campaign_progress(db, campaign.id)
+        if progress["approved_assets"] == 0 and progress["approved_videos"] == 0:
+            _system(db, conversation, "Approve an image or video before opening the publish package.")
+            return None
+        return "publish"
+
     return None
+
+
+def _campaign_progress(db: Session, campaign_id: int) -> dict[str, int]:
+    """Small authoritative counters for the strategist's scripted next step."""
+    variants = list(
+        db.scalars(
+            select(Variant)
+            .join(Concept, Variant.concept_id == Concept.id)
+            .where(Concept.campaign_id == campaign_id)
+        )
+    )
+    assets = list(
+        db.scalars(
+            select(Asset)
+            .join(Variant, Asset.variant_id == Variant.id)
+            .join(Concept, Variant.concept_id == Concept.id)
+            .where(Concept.campaign_id == campaign_id)
+        )
+    )
+    videos = list(
+        db.scalars(select(MarketingVideo).where(MarketingVideo.campaign_id == campaign_id))
+    )
+    return {
+        "variants": len(variants),
+        "assets": len(assets),
+        "approved_assets": sum(row.review_status == "approved" for row in assets),
+        "videos": len(videos),
+        "pending_videos": sum(row.review_status == "pending" for row in videos),
+        "approved_videos": sum(row.review_status == "approved" for row in videos),
+    }
 
 
 def _thread_title(content: str) -> str:

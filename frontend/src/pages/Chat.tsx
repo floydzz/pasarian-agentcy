@@ -125,7 +125,21 @@ export function Chat() {
       setPendingMessage(null)
       replaceThread(refreshed)
       if (result.authorized && result.campaign) {
-        await startRun(active.id, result.campaign, result.authorized)
+        if (result.authorized === 'plan' || result.authorized === 'generate') {
+          await startRun(active.id, result.campaign, result.authorized)
+        } else if (result.authorized === 'render') {
+          navigate(`/campaigns/${result.campaign.id}/image?run=render`)
+        } else if (result.authorized === 'image') {
+          navigate(`/campaigns/${result.campaign.id}/image`)
+        } else if (result.authorized === 'video') {
+          navigate(
+            result.message.action === 'run_video'
+              ? `/campaigns/${result.campaign.id}/video?run=render`
+              : `/campaigns/${result.campaign.id}/video`,
+          )
+        } else {
+          navigate(`/campaigns/${result.campaign.id}/publish`)
+        }
       }
     } catch (error) {
       setPendingMessage(null)

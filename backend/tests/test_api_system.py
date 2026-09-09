@@ -33,6 +33,25 @@ def test_it_reports_the_active_providers(client, monkeypatch):
     assert body["embedding_provider"] == "qwen"
 
 
+def test_scripted_demo_reports_the_forced_offline_runtime(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.system.get_settings",
+        lambda: _settings(
+            llm_provider="qwen",
+            embedding_provider="qwen",
+            video_provider="dashscope",
+            scripted_demo=True,
+        ),
+    )
+
+    body = client.get("/api/system").json()
+
+    assert body["scripted_demo"] is True
+    assert body["llm_provider"] == "demo"
+    assert body["embedding_provider"] == "demo"
+    assert body["broll_available"] is False
+
+
 class TestBrollAvailability:
     """The studio only offers the b-roll switch when it would do something."""
 

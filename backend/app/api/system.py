@@ -28,15 +28,19 @@ class SystemRead(BaseModel):
     #: reads this to decide whether to offer the option at all, rather than
     #: showing a switch that quietly does nothing.
     broll_available: bool
+    #: True when all strategist and generation work uses scripted/local demo
+    #: paths rather than paid providers.
+    scripted_demo: bool
 
 
 @router.get("/system", response_model=SystemRead)
 def read_system() -> SystemRead:
     settings = get_settings()
     return SystemRead(
-        llm_provider=settings.llm_provider,
-        embedding_provider=settings.embedding_provider,
+        llm_provider="demo" if settings.scripted_demo else settings.llm_provider,
+        embedding_provider="demo" if settings.scripted_demo else settings.embedding_provider,
         trends_live=bool(settings.serpapi_key),
         geo=settings.trends_geo,
-        broll_available=settings.broll_is_available,
+        broll_available=False if settings.scripted_demo else settings.broll_is_available,
+        scripted_demo=settings.scripted_demo,
     )

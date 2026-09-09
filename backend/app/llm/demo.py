@@ -128,8 +128,13 @@ class DemoProvider(LLMProvider):
         lower = message.lower()
         affirmative = any(
             phrase in lower
-            for phrase in ("plan", "go ahead", "start", "let's do", "lets do", "proceed", "generate")
+            for phrase in ("plan", "go ahead", "start", "let's do", "lets do", "proceed", "generate", "continue", "next")
         )
+        variants = self._int_after(prompt, r"Variants: (\d+)", default=0)
+        assets = self._int_after(prompt, r"Assets: (\d+)", default=0)
+        videos = self._int_after(prompt, r"Videos: (\d+)", default=0)
+        pending_videos = self._int_after(prompt, r"Pending videos: (\d+)", default=0)
+        approved_videos = self._int_after(prompt, r"Approved videos: (\d+)", default=0)
 
         if "No campaign is attached" in prompt:
             if len(message) < 28:
@@ -140,33 +145,54 @@ class DemoProvider(LLMProvider):
             title_words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'’/-]*", message)[:6]
             title = "[demo] " + (" ".join(title_words) or "Marketing campaign")
             return {
-                "reply": "[demo] I have enough to frame a first campaign. I kept the stated goal in the brief and left the concept gate for you.",
+                "reply": "[scripted demo] Campaign brief created with no model call. Reply “Plan this campaign” and I will open the live Image Studio planning console.",
                 "action": "create_campaign",
-                "draft": {"name": title[:200], "brief": f"[demo] {message}"},
+                "draft": {"name": title[:200], "brief": f"[scripted demo] {message}"},
             }
 
         if "Status: draft" in prompt and affirmative:
             return {
-                "reply": "[demo] Good brief. I am handing it to the planner now; the resulting concepts will still wait for your decision.",
+                "reply": "[scripted demo] Starting the saved offline planning script. It uses zero model tokens and will stop at the concept approval gate.",
                 "action": "run_plan",
             }
-        if "Status: generating" in prompt and affirmative:
+        if "Status: generating" in prompt and variants == 0 and affirmative:
             return {
-                "reply": "[demo] The approved concepts are ready for the creative crew. I am starting generation now.",
+                "reply": "[scripted demo] Starting the offline creative crew for the approved concepts. Reply “Continue image generation” again when the copy variants are ready, and I will render from your saved media library.",
                 "action": "run_generate",
+            }
+        if "Status: generating" in prompt and variants > 0 and assets == 0:
+            return {
+                "reply": "[scripted demo] The copy variants are ready. I am opening Image Studio to reuse your existing generated assets, run the scripted QA events, and create new campaign-owned copies instantly.",
+                "action": "run_render",
             }
         if "Status: pending_plan_approval" in prompt:
             return {
-                "reply": "[demo] The concepts are at your approval gate. Choose what is worth making in the campaign workspace; I will not bypass that decision.",
-                "action": "none",
+                "reply": "[scripted demo] The concepts are ready. I am opening Image Studio—approve at least one concept, close the plan gate, then ask me to “Continue image generation”.",
+                "action": "open_image",
             }
         if "Status: pending_asset_review" in prompt:
             return {
-                "reply": "[demo] The finished assets are waiting for your review. I will not publish or render past that human gate.",
-                "action": "none",
+                "reply": "[scripted demo] The reused image creatives are waiting at the real review gate. Approve the ones you want, close the gate, then ask me to “Generate the campaign video”.",
+                "action": "open_image",
             }
+        if "Status: ready_to_publish" in prompt:
+            if approved_videos > 0 or "publish" in lower:
+                return {
+                    "reply": "[scripted demo] The approved image and video ads are ready. I am opening Publish for channel previews, copy, and downloads. Nothing will be posted to a live account.",
+                    "action": "open_publish",
+                }
+            if pending_videos > 0:
+                return {
+                    "reply": "[scripted demo] The campaign video is already rendered. I am opening Video Studio so you can approve the cut, then ask me to “Open Publish”.",
+                    "action": "open_video",
+                }
+            if videos == 0:
+                return {
+                    "reply": "[scripted demo] I am opening Video Studio and rendering a campaign cut from the saved storyboard and existing local video. No video model or tokens are used.",
+                    "action": "run_video",
+                }
         return {
-            "reply": "[demo] I have the campaign context. Tell me whether to refine the brief or move to the next available stage.",
+            "reply": "[scripted demo] I have the current campaign state. Reply “Continue image generation”, “Generate the campaign video”, or “Open Publish”; I will choose the safe next stage without crossing a review gate.",
             "action": "none",
         }
 

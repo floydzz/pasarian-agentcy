@@ -57,12 +57,13 @@ def get_store() -> KnowledgeStore:
     ever one configuration to key on anyway.
     """
     settings = get_settings()
+    provider = "demo" if settings.scripted_demo else settings.embedding_provider
     return KnowledgeStore(
         path=settings.chroma_dir,
         embedder=get_embedder(
-            settings.embedding_provider,
-            api_key=settings.active_embedding_key,
-            model=settings.active_embedding_model,
+            provider,
+            api_key=settings.demo_api_key if settings.scripted_demo else settings.active_embedding_key,
+            model=settings.demo_embedding_model if settings.scripted_demo else settings.active_embedding_model,
         ),
     )
 
@@ -75,12 +76,17 @@ def _llm(*, vision: bool = False):
     `Settings.active_vision_model`.
     """
     settings = get_settings()
+    provider = "demo" if settings.scripted_demo else settings.llm_provider
     return get_provider(
-        settings.llm_provider,
-        api_key=settings.active_llm_key,
-        model=settings.active_vision_model if vision else settings.active_llm_model,
-        reasoning=settings.llm_reasoning,
-        fallback_models=settings.llm_fallback_chain,
+        provider,
+        api_key=settings.demo_api_key if settings.scripted_demo else settings.active_llm_key,
+        model=(
+            settings.demo_vision_model if vision else settings.demo_model
+        ) if settings.scripted_demo else (
+            settings.active_vision_model if vision else settings.active_llm_model
+        ),
+        reasoning=False if settings.scripted_demo else settings.llm_reasoning,
+        fallback_models=[] if settings.scripted_demo else settings.llm_fallback_chain,
     )
 
 
@@ -166,11 +172,12 @@ def get_storage() -> AssetStorage:
 
 def get_studio(tuned: Tuning = Depends(get_tuning)) -> Studio:
     settings = get_settings()
+    provider = "demo" if settings.scripted_demo else settings.media_provider
     return Studio(
         provider=get_media_provider(
-            settings.media_provider,
-            api_key=settings.active_media_key,
-            image_model=settings.active_media_model,
+            provider,
+            api_key=settings.demo_api_key if settings.scripted_demo else settings.active_media_key,
+            image_model=settings.demo_image_model if settings.scripted_demo else settings.active_media_model,
             timeout_seconds=settings.media_timeout_seconds,
         ),
         # QA judges with the same model the crew wrote with, for the same
@@ -212,6 +219,8 @@ def get_broll_provider() -> BrollProvider | None:
     b-roll", which is the same outcome with one less round trip.
     """
     settings = get_settings()
+    if settings.scripted_demo:
+        return None
     if not settings.broll_is_available:
         return None
     provider = get_video_provider(

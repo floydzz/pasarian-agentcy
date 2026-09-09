@@ -122,6 +122,47 @@ def test_demo_provider_accepts_images_and_ignores_them():
     assert verdict.status in {"passed", "flagged"}
 
 
+def test_demo_strategist_advances_from_copy_to_saved_image_render():
+    from app.llm.demo import DemoProvider
+
+    turn = DemoProvider()._chat(
+        """## LIVE CAMPAIGN STATE
+Name: Scripted launch
+Status: generating
+Variants: 3
+Assets: 0
+Approved assets: 0
+Videos: 0
+Pending videos: 0
+Approved videos: 0
+## NEW MESSAGE
+Continue image generation"""
+    )
+
+    assert turn["action"] == "run_render"
+    assert "existing generated assets" in turn["reply"]
+
+
+def test_demo_strategist_sends_a_finished_cut_to_publish():
+    from app.llm.demo import DemoProvider
+
+    turn = DemoProvider()._chat(
+        """## LIVE CAMPAIGN STATE
+Name: Scripted launch
+Status: ready_to_publish
+Variants: 3
+Assets: 3
+Approved assets: 1
+Videos: 1
+Pending videos: 0
+Approved videos: 1
+## NEW MESSAGE
+Open Publish"""
+    )
+
+    assert turn["action"] == "open_publish"
+
+
 class TestQwenArrayUnwrapping:
     """DashScope wraps the object in a one-element array when an image is sent.
 

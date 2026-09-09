@@ -1,5 +1,6 @@
 import base64
 import io
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -154,6 +155,31 @@ def test_a_video_made_in_a_campaign_belongs_to_it(client):
 
     assert body["campaign_id"] == campaign["id"]
     assert client.get(f"/api/campaigns/{campaign['id']}/videos").json()[0]["id"] == body["id"]
+
+
+def test_scripted_demo_copies_an_existing_video_without_rendering_again(
+    client, studio, storage, monkeypatch
+):
+    source = client.post("/api/videos/render", json=custom_payload()).json()
+    source_video = storage.read(source["media_url"])
+    source_poster = storage.read(source["poster_url"])
+    studio.seen.clear()
+    monkeypatch.setattr(
+        "app.api.videos.get_settings",
+        lambda: SimpleNamespace(scripted_demo=True),
+    )
+    campaign = a_campaign(client)
+
+    copied = client.post(
+        f"/api/campaigns/{campaign['id']}/videos/render",
+        json=custom_payload(),
+    ).json()
+
+    assert studio.seen == []
+    assert copied["media_url"] != source["media_url"]
+    assert copied["poster_url"] != source["poster_url"]
+    assert storage.read(copied["media_url"]) == source_video
+    assert storage.read(copied["poster_url"]) == source_poster
 
 
 def test_campaign_video_locks_the_selected_product_photo(client, studio):

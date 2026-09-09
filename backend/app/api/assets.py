@@ -51,7 +51,10 @@ def render(
         raise HTTPException(status.HTTP_409_CONFLICT, "no variants to render")
 
     record = RunLog(campaign, RENDER)
-    produced, failure = _run_studio(studio, todo, sink=record.capture)
+    reusable = _reusable_media(db, campaign.id, storage, needed=len(todo))
+    produced, failure = _run_studio(
+        studio, todo, sink=record.capture, reusable=reusable, storage=storage
+    )
 
     # Persisted before the failure is raised either way: a creative that came
     # back is a vendor call already paid for, and the next run resumes from it.
@@ -86,10 +89,13 @@ def render_streaming(
         raise HTTPException(status.HTTP_409_CONFLICT, "no variants to render")
 
     record = RunLog(campaign, RENDER)
+    reusable = _reusable_media(db, campaign.id, storage, needed=len(todo))
 
     def work(sink) -> list[RenderedAsset]:
         report = record.tee(sink)
-        produced, failure = _run_studio(studio, todo, sink=report)
+        produced, failure = _run_studio(
+            studio, todo, sink=report, reusable=reusable, storage=storage
+        )
         if failure is not None:
             # Said on the stream rather than raised: whatever finished is kept
             # and the next run picks up the variants that did not.
@@ -214,6 +220,8 @@ def _run_studio(
     todo: list[VariantSpec],
     *,
     sink,
+    reusable: list[tuple[bytes, str]] | None = None,
+    storage: AssetStorage | None = None,
 ) -> tuple[list[RenderedAsset], Exception | None]:
     """Every pending variant, rendered at the same time.
 
@@ -225,12 +233,80 @@ def _run_studio(
     metered vendor, and a rate-limited render pass fails having spent the quota
     rather than having produced the creatives.
     """
+    if reusable and storage is not None:
+        return _reuse_assets(todo, reusable, storage=storage, sink=sink), None
+
     produced, failure = in_parallel(
         todo,
         lambda spec: studio.run(spec, sink=sink),
         lanes=get_settings().render_lanes,
     )
     return [asset for _, asset in produced], failure
+
+
+def _reusable_media(
+    db: Session, campaign_id: int, storage: AssetStorage, *, needed: int
+) -> list[tuple[bytes, str]]:
+    """Snapshot good existing images for a zero-token scripted demo render.
+
+    Bytes are copied to fresh URLs later. A demo campaign therefore owns its
+    files and a redo/delete cannot break the source campaign or seed library.
+    Missing volume files are skipped; an empty pool falls back to the existing
+    offline renderer, which is still fake and unbilled.
+    """
+    if not get_settings().scripted_demo:
+        return []
+    urls = db.scalars(
+        select(Asset.media_url)
+        .join(Variant, Asset.variant_id == Variant.id)
+        .join(Concept, Variant.concept_id == Concept.id)
+        .where(Concept.campaign_id != campaign_id)
+        .where(Asset.qa_status == "passed")
+        .order_by(Asset.id.desc())
+    )
+    pool: list[tuple[bytes, str]] = []
+    for url in urls:
+        try:
+            suffix = storage.path_for(url).suffix.lower()
+            if suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
+                continue
+            pool.append((storage.read(url), suffix))
+            if len(pool) >= max(needed, 1):
+                break
+        except (ValueError, OSError):
+            continue
+    return pool
+
+
+def _reuse_assets(
+    todo: list[VariantSpec],
+    pool: list[tuple[bytes, str]],
+    *,
+    storage: AssetStorage,
+    sink,
+) -> list[RenderedAsset]:
+    produced: list[RenderedAsset] = []
+    for index, spec in enumerate(todo):
+        emit = sink
+        if emit is not None:
+            emit(AgentEvent("renderer", "started", f"Matching variant {spec.variant_id} to the saved media library"))
+        data, suffix = pool[index % len(pool)]
+        media_url = storage.save(data, suffix=suffix)
+        if emit is not None:
+            emit(AgentEvent("renderer", "finished", "Existing generated creative copied to a new campaign-owned asset", {"variant_id": spec.variant_id, "source": "local_demo_library"}))
+            emit(AgentEvent("vision_qa", "started", "Replaying the saved offline quality check"))
+            emit(AgentEvent("vision_qa", "finished", "QA passed the reused demo creative", {"status": "passed"}))
+            emit(AgentEvent("system", "finished", f"Creative for variant {spec.variant_id} is ready for review", {"variant_id": spec.variant_id, "qa_status": "passed"}))
+        produced.append(
+            RenderedAsset(
+                variant_id=spec.variant_id,
+                media_url=media_url,
+                qa_status="passed",
+                qa_notes=None,
+                redos=0,
+            )
+        )
+    return produced
 
 
 def _renderable(db: Session, campaign_id: int) -> Campaign:

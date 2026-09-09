@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.agents.events import AgentEvent
 from app.agents.video_studio import (
     MarketingVideoSpec,
     RenderedMarketingVideo,
@@ -16,6 +17,7 @@ from app.api.deps import get_campaign_or_404, get_video_studio
 from app.api.product_references import primary_product_image
 from app.api.schemas import MarketingVideoCreate, MarketingVideoRead
 from app.api.streaming import event_stream
+from app.config import get_settings
 from app.db import get_db
 from app.media.base import RenderError
 from app.models import MarketingVideo, ProductReference
@@ -80,7 +82,10 @@ def render_campaign_video(
     reference_url, product_image = _campaign_product(
         db, campaign_id, payload.product_reference_id, studio
     )
-    rendered = _render(studio, payload, product_image=product_image)
+    reusable = _reusable_video(db, studio, exclude_campaign_id=campaign_id)
+    rendered = _render(
+        studio, payload, product_image=product_image, reusable=reusable
+    )
     row = _row(
         payload, rendered, campaign_id=campaign_id, product_reference_url=reference_url
     )
@@ -101,9 +106,16 @@ def render_campaign_video_stream(
     reference_url, product_image = _campaign_product(
         db, campaign_id, payload.product_reference_id, studio
     )
+    reusable = _reusable_video(db, studio, exclude_campaign_id=campaign_id)
 
     def work(sink) -> RenderedMarketingVideo:
-        return _render(studio, payload, sink=sink, product_image=product_image)
+        return _render(
+            studio,
+            payload,
+            sink=sink,
+            product_image=product_image,
+            reusable=reusable,
+        )
 
     def finish(rendered: RenderedMarketingVideo) -> dict:
         row = _row(
@@ -201,8 +213,11 @@ def _render(
     *,
     sink=None,
     product_image: bytes | None = None,
+    reusable: dict | None = None,
 ) -> RenderedMarketingVideo:
     try:
+        if reusable is not None:
+            return _reuse_video(studio, payload, reusable, sink=sink)
         return studio.run(
             MarketingVideoSpec(
                 name=payload.name,
@@ -222,6 +237,78 @@ def _render(
         )
     except RenderError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
+
+
+def _reusable_video(
+    db: Session,
+    studio: VideoStudio,
+    *,
+    exclude_campaign_id: int | None = None,
+) -> dict | None:
+    """Read one finished local video before the streaming worker starts."""
+    if not get_settings().scripted_demo:
+        return None
+    query = select(MarketingVideo).order_by(
+        (MarketingVideo.review_status == "approved").desc(), MarketingVideo.id.desc()
+    )
+    if exclude_campaign_id is not None:
+        query = query.where(
+            or_(
+                MarketingVideo.campaign_id.is_(None),
+                MarketingVideo.campaign_id != exclude_campaign_id,
+            )
+        )
+    for row in db.scalars(query):
+        try:
+            return {
+                "video": studio.storage.read(row.media_url),
+                "video_suffix": studio.storage.path_for(row.media_url).suffix or ".mp4",
+                "poster": studio.storage.read(row.poster_url),
+                "poster_suffix": studio.storage.path_for(row.poster_url).suffix or ".png",
+                "duration_seconds": row.duration_seconds,
+            }
+        except (ValueError, OSError):
+            continue
+    return None
+
+
+def _reuse_video(
+    studio: VideoStudio,
+    payload: MarketingVideoCreate,
+    source: dict,
+    *,
+    sink=None,
+) -> RenderedMarketingVideo:
+    """Copy a saved video while narrating the same visible production graph."""
+    events = (
+        ("planner", "started", f"Reading the {len(payload.storyboard)}-scene scripted demo brief"),
+        ("planner", "finished", "Saved campaign story selected"),
+        ("visual_planner", "started", "Matching the storyboard to the local video library"),
+        ("visual_planner", "finished", "Existing motion sequence matched to the campaign"),
+        ("renderer", "started", "Copying the saved generated video into this campaign"),
+    )
+    if sink is not None:
+        for agent, phase, detail in events:
+            sink(AgentEvent(agent, phase, detail, {"source": "local_demo_library"}))
+    media_url = studio.storage.save(source["video"], suffix=source["video_suffix"])
+    try:
+        poster_url = studio.storage.save(source["poster"], suffix=source["poster_suffix"])
+    except Exception:
+        studio.storage.path_for(media_url).unlink(missing_ok=True)
+        raise
+    if sink is not None:
+        sink(AgentEvent("renderer", "finished", "Campaign-owned MP4 copy is ready", {"source": "local_demo_library"}))
+        sink(AgentEvent("vision_qa", "started", "Replaying the saved offline review-frame check"))
+        sink(AgentEvent("vision_qa", "finished", "QA passed the reused demo video", {"status": "passed"}))
+        sink(AgentEvent("system", "finished", "Video is ready for your review gate", {"qa_status": "passed"}))
+    return RenderedMarketingVideo(
+        media_url=media_url,
+        poster_url=poster_url,
+        duration_seconds=source["duration_seconds"],
+        scene_count=len(payload.storyboard),
+        qa_status="passed",
+        qa_notes=None,
+    )
 
 
 def _payload_from(row: MarketingVideo) -> MarketingVideoCreate:

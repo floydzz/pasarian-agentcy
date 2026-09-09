@@ -26,8 +26,13 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [scriptedDemo, setScriptedDemo] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<ChatMessage | null>(null)
   const bottom = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    api.system().then((system) => setScriptedDemo(system.scripted_demo)).catch(() => undefined)
+  }, [])
 
   const refreshThreads = useCallback(async () => {
     const listed = await api.listConversations()
@@ -118,9 +123,9 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
     return created
   }
 
-  async function submit(event?: FormEvent) {
+  async function submit(event?: FormEvent, suggested?: string) {
     event?.preventDefault()
-    const content = draft.trim()
+    const content = (suggested ?? draft).trim()
     if (!content || sending) return
 
     setSending(true)
@@ -134,16 +139,26 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
       const refreshed = await api.getConversation(active.id)
       setPendingMessage(null)
       replaceThread(refreshed)
+      if (result.campaign) setPageCampaign(result.campaign)
 
       if (result.authorized && result.campaign) {
         // The server has already rechecked campaign state and approvals. The
         // query is a short-lived UI handoff, not an authority to run anything.
-        navigate(`/campaigns/${result.campaign.id}/image?run=${result.authorized}`)
-        toast.success(
-          result.authorized === 'plan'
-            ? 'Opening Image studio to monitor planning.'
-            : 'Opening Image studio to monitor the creative crew.',
-        )
+        const base = `/campaigns/${result.campaign.id}`
+        if (result.authorized === 'plan' || result.authorized === 'generate' || result.authorized === 'render') {
+          navigate(`${base}/image?run=${result.authorized}`)
+        } else if (result.authorized === 'image') {
+          navigate(`${base}/image`)
+        } else if (result.authorized === 'video') {
+          navigate(
+            result.message.action === 'run_video'
+              ? `${base}/video?run=render`
+              : `${base}/video`,
+          )
+        } else {
+          navigate(`${base}/publish`)
+        }
+        toast.success(handoffMessage(result.authorized))
       }
     } catch (error) {
       setPendingMessage(null)
@@ -250,6 +265,21 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
       </div>
 
       <form onSubmit={submit} className="shrink-0 border-t border-edge bg-[rgba(5,7,11,0.88)] px-4 py-4 backdrop-blur">
+        {scriptedDemo && (
+          <div className="mb-3 flex flex-wrap gap-1.5 px-1">
+            {demoReplies(status).map((reply) => (
+              <button
+                key={reply}
+                type="button"
+                disabled={sending}
+                onClick={() => void submit(undefined, reply)}
+                className="data rounded-full border border-edge px-2.5 py-1.5 text-[0.625rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:opacity-40"
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2 rounded-xl border border-edge bg-[rgba(233,238,247,0.035)] p-2 transition-colors focus-within:border-edge-strong">
           <textarea
             value={draft}
@@ -269,7 +299,7 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="mt-2 px-1 text-[0.625rem] text-text-3">
-          ⌘/Ctrl + Enter · approval decisions always stay with you.
+          {scriptedDemo ? 'Scripted demo · zero model tokens · approvals stay with you.' : '⌘/Ctrl + Enter · approval decisions always stay with you.'}
         </p>
       </form>
     </motion.aside>
@@ -359,6 +389,29 @@ function optimisticMessage(content: string, conversationId: number): ChatMessage
 function campaignFromPath(pathname: string): number | null {
   const matched = pathname.match(/^\/campaigns\/(\d+)(?:\/|$)/)
   return matched ? Number(matched[1]) : null
+}
+
+function demoReplies(status?: Campaign['status']) {
+  if (!status) {
+    return ['Create a complete NailIt Merdeka campaign for luxury-minded Malaysian shoppers.']
+  }
+  if (status === 'draft') return ['Plan this campaign']
+  if (status === 'pending_plan_approval') return ['Open Image console for concept approval']
+  if (status === 'generating') return ['Continue image generation']
+  if (status === 'pending_asset_review') return ['Open Image console for asset approval']
+  if (status === 'ready_to_publish') return ['Generate the campaign video', 'Open Publish']
+  return ['Open Publish']
+}
+
+function handoffMessage(stage: NonNullable<import('@/api/types').ChatSendResult['authorized']>) {
+  return {
+    plan: 'Opening Image Studio to monitor the scripted plan.',
+    generate: 'Opening Image Studio to monitor the scripted creative crew.',
+    render: 'Opening Image Studio to reuse the saved asset library.',
+    image: 'Opening Image Studio at the approval gate.',
+    video: 'Opening Video Studio for the campaign cut.',
+    publish: 'Opening the publish-ready campaign package.',
+  }[stage]
 }
 
 function stageLabel(status: Campaign['status']) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -49,6 +49,7 @@ export function VideoStudio() {
   // fact about configuration, not about this campaign.
   const [brollAvailable, setBrollAvailable] = useState(false)
   const { log, agents, running, error, run, clearError } = useConsole()
+  const acceptedDemoRender = useRef(false)
 
   useEffect(() => {
     api
@@ -95,6 +96,25 @@ export function VideoStudio() {
       refresh().catch(() => undefined)
     }
   }, [error, clearError, refresh])
+
+  /** A strategist handoff can start the saved-media demo render as soon as
+   * both the campaign and its generated storyboard are loaded. Removing the
+   * query first makes refresh safe and prevents duplicate cuts. */
+  useEffect(() => {
+    if (!campaign || !draft || searchParams.get('run') !== 'render') return
+    if (acceptedDemoRender.current) return
+    acceptedDemoRender.current = true
+    setSearchParams({}, { replace: true })
+    void run(
+      'studio',
+      `/campaigns/${campaign.id}/videos/render/stream`,
+      () => {
+        setTab('cuts')
+        refresh().catch(() => undefined)
+      },
+      draft,
+    )
+  }, [campaign, draft, refresh, run, searchParams, setSearchParams])
 
   const act = useCallback(
     async (action: () => Promise<unknown>) => {

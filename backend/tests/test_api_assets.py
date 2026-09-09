@@ -1,12 +1,13 @@
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.agents.studio import Studio
 from app.agents.vision_qa import QAVerdict
-from app.api.deps import get_crew, get_planner, get_studio
+from app.api.deps import get_crew, get_planner, get_storage, get_studio
 from app.db import get_db
 from app.domain import CampaignStatus, Concept
 from app.main import app
@@ -52,6 +53,7 @@ def client(session, studio):
     )
     app.dependency_overrides[get_crew] = lambda: StubCrew()
     app.dependency_overrides[get_studio] = lambda: studio
+    app.dependency_overrides[get_storage] = lambda: studio.storage
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -129,6 +131,76 @@ def test_the_rendered_bytes_are_a_real_creative(client, campaign_with_variants, 
         f"/api/campaigns/{campaign_with_variants.id}/render"
     ).json()["assets"][0]
     assert storage.read(asset["media_url"])[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_scripted_demo_copies_existing_media_without_calling_the_image_pipeline(
+    client, campaign_with_variants, storage, session, studio, monkeypatch
+):
+    from app.domain import ConceptStatus
+    from app.models import Asset, Campaign, Concept as ConceptRow, Variant
+
+    source_bytes = studio.provider.render_image("saved source")
+    source_campaign = Campaign(name="Saved library", brief="Existing generated work")
+    session.add(source_campaign)
+    session.flush()
+    source_concept = ConceptRow(
+        campaign_id=source_campaign.id,
+        theme="Saved hero",
+        format="image",
+        trend_rationale="Saved trend",
+        brand_rationale="Saved brand",
+        variant_count=1,
+        variation_axes=["hero"],
+        status=ConceptStatus.APPROVED,
+    )
+    session.add(source_concept)
+    session.flush()
+    source_variant = Variant(
+        concept_id=source_concept.id,
+        hook_type="hero",
+        headline="Saved headline",
+        body="Saved body",
+        cta="Saved CTA",
+        visual_brief={
+            "composition_notes": "Saved",
+            "image_prompt": "Saved",
+            "text_placement": "Top left",
+            "placement_zone": "top-left",
+        },
+        director_status="pass",
+        revision_count=0,
+    )
+    session.add(source_variant)
+    session.flush()
+    source_url = storage.save(source_bytes)
+    session.add(
+        Asset(
+            variant_id=source_variant.id,
+            media_url=source_url,
+            qa_status="passed",
+            review_status="approved",
+        )
+    )
+    session.commit()
+    monkeypatch.setattr(
+        "app.api.assets.get_settings",
+        lambda: SimpleNamespace(
+            scripted_demo=True, max_renders_per_run=24, render_lanes=4
+        ),
+    )
+    monkeypatch.setattr(
+        studio,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("scripted demo called the image pipeline"),
+    )
+
+    rendered = client.post(
+        f"/api/campaigns/{campaign_with_variants.id}/render"
+    ).json()["assets"]
+
+    assert len(rendered) == 3
+    assert all(row["media_url"] != source_url for row in rendered)
+    assert all(storage.read(row["media_url"]) for row in rendered)
 
 
 # -- the gate --------------------------------------------------------------
