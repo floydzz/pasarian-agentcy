@@ -234,7 +234,7 @@ export function ImageStudio() {
             act(async () => {
               await api.approveAllAssets(campaign.id)
               toast.success('Creatives approved — ready to export')
-              navigate(`/campaigns/${campaign.id}/export`)
+              navigate(`/campaigns/${campaign.id}/publish`)
             })
           }
           onRejectRest={() =>
@@ -252,7 +252,7 @@ export function ImageStudio() {
               )
             })
           }
-          onExport={() => navigate(`/campaigns/${campaign.id}/export`)}
+          onExport={() => navigate(`/campaigns/${campaign.id}/publish`)}
           onAutoMode={(payload) => act(() => api.setAutoMode(campaign.id, payload))}
         />
       }

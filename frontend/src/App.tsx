@@ -41,7 +41,10 @@ const router = createBrowserRouter(
           <Route path="/campaigns/:id" element={<CampaignHub />} />
           <Route path="/campaigns/:id/image" element={<ImageStudio />} />
           <Route path="/campaigns/:id/video" element={<VideoStudio />} />
-          <Route path="/campaigns/:id/export" element={<Navigate to="publish" replace />} />
+          <Route
+            path="/campaigns/:id/export"
+            element={<Navigate to="../publish" relative="path" replace />}
+          />
           <Route path="/campaigns/:id/publish" element={<Publish />} />
           <Route path="/studio/image" element={<StudioShortcut medium="image" />} />
           <Route path="/studio/video" element={<StudioShortcut medium="video" />} />
