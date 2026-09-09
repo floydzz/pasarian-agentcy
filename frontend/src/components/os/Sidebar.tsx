@@ -44,6 +44,37 @@ const GROUPS = [
   },
 ] as const
 
+/** Return the rail room for direct campaign routes as well as rail routes.
+ *
+ * The strategist uses the campaign-specific URLs so the page retains its
+ * context. The rail uses the top-level rooms, therefore those URLs need to be
+ * translated before the shared active marker can travel to the right entry.
+ */
+function roomForPath(pathname: string) {
+  if (
+    pathname === '/studio/image' ||
+    /^\/campaigns\/[^/]+\/image(?:\/|$)/.test(pathname)
+  ) {
+    return '/studio/image'
+  }
+  if (
+    pathname === '/studio/video' ||
+    pathname === '/demo-video' ||
+    pathname.startsWith('/cinematic-trailer') ||
+    /^\/campaigns\/[^/]+\/video(?:\/|$)/.test(pathname)
+  ) {
+    return '/studio/video'
+  }
+  if (
+    pathname === '/publish' ||
+    /^\/campaigns\/[^/]+\/publish(?:\/|$)/.test(pathname)
+  ) {
+    return '/publish'
+  }
+  if (pathname.startsWith('/campaigns/')) return '/'
+  return pathname
+}
+
 export function Sidebar() {
   const [system, setSystem] = useState<System | null>(null)
   const still = useReducedMotion()
@@ -55,15 +86,9 @@ export function Sidebar() {
   }, [])
 
   // A studio is a place inside a campaign, so the rail lights the studio you
-  // are standing in rather than losing your place — and the campaign hub
-  // itself lights Campaigns, which is where it came from.
-  const active = pathname.endsWith('/image')
-    ? '/studio/image'
-    : pathname.endsWith('/video')
-      ? '/studio/video'
-      : pathname.startsWith('/campaigns')
-        ? '/'
-        : pathname
+  // are standing in rather than losing your place. This includes guided demo
+  // routes such as `/campaigns/:id/video/demo` and campaign publish.
+  const active = roomForPath(pathname)
 
   return (
     <nav
