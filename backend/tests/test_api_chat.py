@@ -134,6 +134,25 @@ def test_an_unsafe_action_becomes_a_system_line_not_an_api_error(client, strateg
     assert "not ready" in messages[-1]["content"]
 
 
+def test_the_strategist_can_open_the_read_only_seeded_cinematic_demo(client, strategist):
+    strategist.turns = [
+        ChatTurn(
+            reply="Opening the seeded cinematic cut.",
+            action=ChatAction.OPEN_CINEMATIC_DEMO,
+        )
+    ]
+    thread = client.post("/api/conversations", json={}).json()
+
+    response = client.post(
+        f"/api/conversations/{thread['id']}/messages",
+        json={"content": "Open cinematic cut demo."},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["campaign"] is None
+    assert response.json()["authorized"] == "cinematic"
+
+
 def test_listing_threads_keeps_newest_first(client):
     first = client.post("/api/conversations", json={"title": "First"}).json()
     second = client.post("/api/conversations", json={"title": "Second"}).json()

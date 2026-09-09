@@ -26,6 +26,7 @@ class ChatAction(StrEnum):
     OPEN_IMAGE = "open_image"
     RUN_VIDEO = "run_video"
     OPEN_VIDEO = "open_video"
+    OPEN_CINEMATIC_DEMO = "open_cinematic_demo"
     OPEN_PUBLISH = "open_publish"
 
 
@@ -99,6 +100,8 @@ Your `action` is a proposal, not execution:
   and the person asks to make the campaign video.
 - Use `open_video` when Pending videos is greater than zero so the person can
   review the cut.
+- Use `open_cinematic_demo` when the person asks to view the seeded cinematic
+  cut demo. It is a read-only saved production cut and does not create work.
 - Use `open_publish` when the campaign is `ready_to_publish` and the person
   asks to prepare, preview, or publish the approved ads.
 - Otherwise use `none` and omit `draft`.
@@ -226,6 +229,7 @@ class MarketingChat:
             ChatAction.OPEN_IMAGE: "I’m opening Image Studio at the decision waiting for you.",
             ChatAction.RUN_VIDEO: "I’m opening Video Studio and rendering the campaign cut from the saved storyboard and local media library.",
             ChatAction.OPEN_VIDEO: "I’m opening Video Studio so you can review the finished cut.",
+            ChatAction.OPEN_CINEMATIC_DEMO: "I’m opening the seeded cinematic cut demo. It is a finished local production cut, so no video job or tokens are used.",
             ChatAction.OPEN_PUBLISH: "I’m opening Publish with the approved image and video ads ready for channel previews and export.",
         }.get(
             action,

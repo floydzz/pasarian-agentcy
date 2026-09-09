@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api, ApiError } from '@/api/client'
 import { cn } from '@/lib/utils'
@@ -7,7 +8,11 @@ import type { Campaign, CinematicTrailer, CinematicTrailerCreate, MarketingVideo
 /** The campaign-facing cinematic room. It consumes the editable storyboard
  * from Video Studio, turns each beat into a durable AI clip job, and keeps the
  * resulting clips plus the local composition pass together. */
-export function CinematicComposerPanel({ campaign, script }: { campaign: Campaign; script: MarketingVideoCreate }) {
+export function CinematicComposerPanel({ campaign, script, scriptedDemo }: {
+  campaign: Campaign
+  script: MarketingVideoCreate
+  scriptedDemo: boolean
+}) {
   const [trailers, setTrailers] = useState<CinematicTrailer[]>([])
   const [selected, setSelected] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -68,17 +73,29 @@ export function CinematicComposerPanel({ campaign, script }: { campaign: Campaig
           <div>
             <h2 className="display text-[1.0625rem]">Turn this storyboard into a cinematic film</h2>
             <p className="mt-1 max-w-2xl text-[0.8125rem] leading-relaxed text-text-2">
-              The {script.storyboard.length}-beat script for {campaign.name} becomes one durable clip job per scene. You can leave this page and follow its status in Progress while the provider works.
+              {scriptedDemo
+                ? 'For this walkthrough, open the finished seeded cinematic cut instead of queuing any clip jobs. It includes the complete master and its original shot breakdown.'
+                : `The ${script.storyboard.length}-beat script for ${campaign.name} becomes one durable clip job per scene. You can leave this page and follow its status in Progress while the provider works.`}
             </p>
           </div>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void act(() => api.createCinematicTrailer(blueprint(campaign, script)), 'Cinematic clip plan created from your script')}
-            className="shrink-0 rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void disabled:opacity-40"
-          >
-            Create clip plan
-          </button>
+          {!scriptedDemo && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void act(() => api.createCinematicTrailer(blueprint(campaign, script)), 'Cinematic clip plan created from your script')}
+              className="shrink-0 rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void disabled:opacity-40"
+            >
+              Create clip plan
+            </button>
+          )}
+          {scriptedDemo && (
+            <Link
+              to="/cinematic-trailer/demo"
+              className="shrink-0 rounded-full border border-video/50 px-4 py-2 text-[0.75rem] text-video transition-colors hover:bg-video/10"
+            >
+              Open seeded cut demo
+            </Link>
+          )}
         </div>
       </div>
 

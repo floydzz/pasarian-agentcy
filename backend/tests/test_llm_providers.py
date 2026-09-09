@@ -163,6 +163,20 @@ Open Publish"""
     assert turn["action"] == "open_publish"
 
 
+def test_demo_strategist_opens_the_seeded_cinematic_cut_without_a_campaign():
+    from app.llm.demo import DemoProvider
+
+    turn = DemoProvider()._chat(
+        """## LIVE CAMPAIGN STATE
+No campaign is attached to this conversation.
+## NEW MESSAGE
+Open cinematic cut demo"""
+    )
+
+    assert turn["action"] == "open_cinematic_demo"
+    assert "seeded cinematic cut" in turn["reply"]
+
+
 class TestQwenArrayUnwrapping:
     """DashScope wraps the object in a one-element array when an image is sent.
 

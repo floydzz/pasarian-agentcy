@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_, select
@@ -279,17 +281,33 @@ def _reuse_video(
     *,
     sink=None,
 ) -> RenderedMarketingVideo:
-    """Copy a saved video while narrating the same visible production graph."""
-    events = (
-        ("planner", "started", f"Reading the {len(payload.storyboard)}-scene scripted demo brief"),
-        ("planner", "finished", "Saved campaign story selected"),
-        ("visual_planner", "started", "Matching the storyboard to the local video library"),
-        ("visual_planner", "finished", "Existing motion sequence matched to the campaign"),
-        ("renderer", "started", "Copying the saved generated video into this campaign"),
-    )
+    """Copy a saved video through a visible, honest demo hand-off.
+
+    The timer is deliberately part of scripted-demo mode only. It does not
+    pretend a video model is working: it keeps each real local-library stage
+    on screen long enough for a presenter to talk through the console.
+    """
     if sink is not None:
-        for agent, phase, detail in events:
-            sink(AgentEvent(agent, phase, detail, {"source": "local_demo_library"}))
+        _demo_stage(
+            sink,
+            "planner",
+            f"Reading the {len(payload.storyboard)}-scene saved campaign storyboard",
+            "Saved campaign story selected for the demo cut",
+        )
+        _demo_stage(
+            sink,
+            "visual_planner",
+            "Matching the storyboard to the seeded local video library",
+            "Existing motion sequence matched to the campaign",
+        )
+        sink(
+            AgentEvent(
+                "renderer",
+                "started",
+                "Creating a campaign-owned MP4 copy from the seeded cut",
+                {"source": "local_demo_library"},
+            )
+        )
     media_url = studio.storage.save(source["video"], suffix=source["video_suffix"])
     try:
         poster_url = studio.storage.save(source["poster"], suffix=source["poster_suffix"])
@@ -297,9 +315,18 @@ def _reuse_video(
         studio.storage.path_for(media_url).unlink(missing_ok=True)
         raise
     if sink is not None:
-        sink(AgentEvent("renderer", "finished", "Campaign-owned MP4 copy is ready", {"source": "local_demo_library"}))
-        sink(AgentEvent("vision_qa", "started", "Replaying the saved offline review-frame check"))
-        sink(AgentEvent("vision_qa", "finished", "QA passed the reused demo video", {"status": "passed"}))
+        # Transfer is complete above; retain the renderer state while its
+        # copied bytes and poster are checked, so the console tells the truth
+        # about the last local operation instead of flashing past it.
+        _demo_pause(multiplier=2)
+        sink(AgentEvent("renderer", "finished", "Campaign-owned MP4 copy is verified", {"source": "local_demo_library"}))
+        _demo_stage(
+            sink,
+            "vision_qa",
+            "Replaying the saved offline review-frame check",
+            "QA passed the reused demo video",
+            {"status": "passed"},
+        )
         sink(AgentEvent("system", "finished", "Video is ready for your review gate", {"qa_status": "passed"}))
     return RenderedMarketingVideo(
         media_url=media_url,
@@ -309,6 +336,19 @@ def _reuse_video(
         qa_status="passed",
         qa_notes=None,
     )
+
+
+def _demo_stage(sink, agent: str, started: str, finished: str, data: dict | None = None) -> None:
+    """Emit one presenter-visible local-library stage without paid latency."""
+    sink(AgentEvent(agent, "started", started, {"source": "local_demo_library"}))
+    _demo_pause()
+    sink(AgentEvent(agent, "finished", finished, data or {"source": "local_demo_library"}))
+
+
+def _demo_pause(*, multiplier: float = 1) -> None:
+    """Keep scripted events legible; normal and non-streaming runs do not wait."""
+    seconds = getattr(get_settings(), "scripted_demo_stage_seconds", 1.0)
+    time.sleep(max(0.0, seconds) * multiplier)
 
 
 def _payload_from(row: MarketingVideo) -> MarketingVideoCreate:

@@ -185,7 +185,7 @@ class ChatSendRead(BaseModel):
     message: ChatMessageRead
     campaign: CampaignRead | None
     authorized: Literal[
-        "plan", "generate", "render", "image", "video", "publish"
+        "plan", "generate", "render", "image", "video", "cinematic", "publish"
     ] | None = None
 
 

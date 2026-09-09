@@ -48,14 +48,21 @@ export function VideoStudio() {
   // Whether the workspace has a b-roll provider at all. Asked once: it is a
   // fact about configuration, not about this campaign.
   const [brollAvailable, setBrollAvailable] = useState(false)
+  const [scriptedDemo, setScriptedDemo] = useState(false)
   const { log, agents, running, error, run, clearError } = useConsole()
   const acceptedDemoRender = useRef(false)
 
   useEffect(() => {
     api
       .system()
-      .then((system) => setBrollAvailable(system.broll_available))
-      .catch(() => setBrollAvailable(false))
+      .then((system) => {
+        setBrollAvailable(system.broll_available)
+        setScriptedDemo(system.scripted_demo)
+      })
+      .catch(() => {
+        setBrollAvailable(false)
+        setScriptedDemo(false)
+      })
   }, [])
 
   const refresh = useCallback(async () => {
@@ -232,6 +239,7 @@ export function VideoStudio() {
           scenes={scenes.length}
           broll={draft.use_broll}
           brollAvailable={brollAvailable}
+          scriptedDemo={scriptedDemo}
           onBroll={(use_broll) => setDraft({ ...draft, use_broll })}
           onRender={render}
           onApprove={approveAll}
@@ -316,7 +324,7 @@ export function VideoStudio() {
           </WorkTrack>
         </>
       ) : (
-        <CinematicComposerPanel campaign={campaign} script={draft} />
+        <CinematicComposerPanel campaign={campaign} script={draft} scriptedDemo={scriptedDemo} />
       )}
     </StudioShell>
   )

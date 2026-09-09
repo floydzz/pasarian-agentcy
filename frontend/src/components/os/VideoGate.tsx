@@ -14,6 +14,7 @@ export function VideoGate({
   scenes,
   broll,
   brollAvailable,
+  scriptedDemo,
   onBroll,
   onRender,
   onApprove,
@@ -27,6 +28,8 @@ export function VideoGate({
   /** False when no provider is configured — the switch is then not offered
    * at all, rather than shown and quietly ignored. */
   brollAvailable: boolean
+  /** Uses a campaign-owned copy of a finished local cut, never a video API. */
+  scriptedDemo: boolean
   onBroll: (broll: boolean) => void
   onRender: () => void
   onApprove: () => void
@@ -45,7 +48,11 @@ export function VideoGate({
         disabled: busy,
       }
     : {
-        label: running ? 'Rendering…' : videos.length === 0 ? 'Render the video' : 'Render another cut',
+        label: running
+          ? scriptedDemo ? 'Staging seeded cut…' : 'Rendering…'
+          : videos.length === 0
+            ? scriptedDemo ? 'Render seeded demo cut' : 'Render the video'
+            : scriptedDemo ? 'Render another seeded cut' : 'Render another cut',
         onClick: onRender,
         disabled: busy || scenes < 3,
       }
@@ -57,7 +64,9 @@ export function VideoGate({
     : videos.length === 0
       ? scenes < 3
         ? 'A storyboard needs at least three scenes'
-        : `${scenes} scenes ready to render`
+        : scriptedDemo
+          ? `${scenes} scenes ready to stage from the seeded video library`
+          : `${scenes} scenes ready to render`
       : `All ${videos.length} decided — ${approved} approved`
 
   return (

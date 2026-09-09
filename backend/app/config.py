@@ -105,6 +105,10 @@ class Settings(BaseSettings):
     #: new URLs, so redoing or deleting demo work cannot damage the source
     #: library. Off outside the packaged demo unless explicitly enabled.
     scripted_demo: bool = False
+    #: How long each visible hand-off in a saved-media demo takes. This is not
+    #: model latency: it gives the console enough time to show its planning,
+    #: transfer, and QA states while the local copy is being prepared.
+    scripted_demo_stage_seconds: float = 1.0
 
     serpapi_key: str = ""
     trends_geo: str = "MY"

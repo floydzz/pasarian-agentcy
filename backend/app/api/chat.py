@@ -233,6 +233,12 @@ def _execute_action(
         )
         return None
 
+    # This is a read-only showcase of a seed trailer, not a campaign stage.
+    # It stays available before a campaign exists so the strategist can open
+    # it during a standalone product demonstration as well.
+    if action is ChatAction.OPEN_CINEMATIC_DEMO:
+        return "cinematic"
+
     if campaign is None:
         _system(db, conversation, "There is no campaign attached yet, so I cannot start that stage.")
         return None

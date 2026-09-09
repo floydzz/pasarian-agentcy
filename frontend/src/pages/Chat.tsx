@@ -124,7 +124,9 @@ export function Chat() {
       const refreshed = await api.getConversation(active.id)
       setPendingMessage(null)
       replaceThread(refreshed)
-      if (result.authorized && result.campaign) {
+      if (result.authorized === 'cinematic') {
+        navigate('/cinematic-trailer/demo')
+      } else if (result.authorized && result.campaign) {
         if (result.authorized === 'plan' || result.authorized === 'generate') {
           await startRun(active.id, result.campaign, result.authorized)
         } else if (result.authorized === 'render') {
@@ -134,7 +136,7 @@ export function Chat() {
         } else if (result.authorized === 'video') {
           navigate(
             result.message.action === 'run_video'
-              ? `/campaigns/${result.campaign.id}/video?run=render`
+              ? `/campaigns/${result.campaign.id}/video/demo?run=render`
               : `/campaigns/${result.campaign.id}/video`,
           )
         } else {

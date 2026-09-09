@@ -40,6 +40,7 @@ const router = createBrowserRouter(
               guides, it does not stand in the way. */}
           <Route path="/campaigns/:id" element={<CampaignHub />} />
           <Route path="/campaigns/:id/image" element={<ImageStudio />} />
+          <Route path="/campaigns/:id/video/demo" element={<VideoStudio />} />
           <Route path="/campaigns/:id/video" element={<VideoStudio />} />
           <Route
             path="/campaigns/:id/export"
@@ -54,6 +55,7 @@ const router = createBrowserRouter(
               Agentcy itself, not a customer's campaign. */}
           <Route path="/video-studio" element={<Navigate to="/demo-video" replace />} />
           <Route path="/demo-video" element={<DemoVideo />} />
+          <Route path="/cinematic-trailer/demo" element={<CinematicTrailer demo />} />
           <Route path="/cinematic-trailer" element={<CinematicTrailer />} />
           <Route path="/trends" element={<Trends />} />
           <Route path="/history" element={<History />} />

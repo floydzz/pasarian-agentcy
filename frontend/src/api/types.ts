@@ -48,6 +48,7 @@ export type ChatAction =
   | 'open_image'
   | 'run_video'
   | 'open_video'
+  | 'open_cinematic_demo'
   | 'open_publish'
   | 'none'
 
@@ -74,7 +75,7 @@ export interface Conversation {
 export interface ChatSendResult {
   message: ChatMessage
   campaign: Campaign | null
-  authorized: 'plan' | 'generate' | 'render' | 'image' | 'video' | 'publish' | null
+  authorized: 'plan' | 'generate' | 'render' | 'image' | 'video' | 'cinematic' | 'publish' | null
 }
 
 export interface Concept {

@@ -141,7 +141,10 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
       replaceThread(refreshed)
       if (result.campaign) setPageCampaign(result.campaign)
 
-      if (result.authorized && result.campaign) {
+      if (result.authorized === 'cinematic') {
+        navigate('/cinematic-trailer/demo')
+        toast.success(handoffMessage(result.authorized))
+      } else if (result.authorized && result.campaign) {
         // The server has already rechecked campaign state and approvals. The
         // query is a short-lived UI handoff, not an authority to run anything.
         const base = `/campaigns/${result.campaign.id}`
@@ -152,7 +155,7 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
         } else if (result.authorized === 'video') {
           navigate(
             result.message.action === 'run_video'
-              ? `${base}/video?run=render`
+              ? `${base}/video/demo?run=render`
               : `${base}/video`,
           )
         } else {
@@ -399,7 +402,7 @@ function demoReplies(status?: Campaign['status']) {
   if (status === 'pending_plan_approval') return ['Open Image console for concept approval']
   if (status === 'generating') return ['Continue image generation']
   if (status === 'pending_asset_review') return ['Open Image console for asset approval']
-  if (status === 'ready_to_publish') return ['Generate the campaign video', 'Open Publish']
+  if (status === 'ready_to_publish') return ['Generate the campaign video', 'Open cinematic cut demo', 'Open Publish']
   return ['Open Publish']
 }
 
@@ -410,6 +413,7 @@ function handoffMessage(stage: NonNullable<import('@/api/types').ChatSendResult[
     render: 'Opening Image Studio to reuse the saved asset library.',
     image: 'Opening Image Studio at the approval gate.',
     video: 'Opening Video Studio for the campaign cut.',
+    cinematic: 'Opening the seeded cinematic cut demo.',
     publish: 'Opening the publish-ready campaign package.',
   }[stage]
 }

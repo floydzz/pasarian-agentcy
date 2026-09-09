@@ -71,6 +71,7 @@ services:
       # Rehearsal path: scripted strategist + existing media library. This
       # performs no paid text, image, or video generation calls.
       SCRIPTED_DEMO: ${SCRIPTED_DEMO:-true}
+      SCRIPTED_DEMO_STAGE_SECONDS: ${SCRIPTED_DEMO_STAGE_SECONDS:-1.0}
       DASHSCOPE_VIDEO_MODEL: ${DASHSCOPE_VIDEO_MODEL:-happyhorse-1.1-t2v}
       VIDEO_TIMEOUT_SECONDS: ${VIDEO_TIMEOUT_SECONDS:-600}
       ASSETS_PATH: /data/assets

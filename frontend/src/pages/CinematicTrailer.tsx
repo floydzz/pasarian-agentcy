@@ -12,7 +12,7 @@ import type { CinematicTrailer, CinematicTrailerShot, System } from '@/api/types
  * request: each generated shot is a paid remote job and stays visible,
  * resumable and reviewable while the rest of the trailer is still running.
  */
-export function CinematicTrailer() {
+export function CinematicTrailer({ demo = false }: { demo?: boolean }) {
   const [trailers, setTrailers] = useState<CinematicTrailer[]>([])
   const [selected, setSelected] = useState<number | null>(null)
   const [system, setSystem] = useState<System | null>(null)
@@ -21,9 +21,13 @@ export function CinematicTrailer() {
   const productInput = useRef<HTMLInputElement>(null)
   const soundtrackInput = useRef<HTMLInputElement>(null)
 
+  const seededCut = useMemo(
+    () => trailers.find((trailer) => trailer.status === 'rendered' && Boolean(trailer.media_url)) ?? null,
+    [trailers],
+  )
   const current = useMemo(
-    () => trailers.find((trailer) => trailer.id === selected) ?? trailers[0] ?? null,
-    [selected, trailers],
+    () => demo ? seededCut : trailers.find((trailer) => trailer.id === selected) ?? trailers[0] ?? null,
+    [demo, seededCut, selected, trailers],
   )
   const usesAiNativeProductScenes = Boolean(current?.shots.some(
     (shot) => shot.mode === 'reference_to_video' && shot.product_surface !== 'none' && !shot.protect_reference,
@@ -56,8 +60,12 @@ export function CinematicTrailer() {
   const refreshList = useCallback(async () => {
     const rows = await api.listCinematicTrailers()
     setTrailers(rows)
-    setSelected((id) => id ?? rows[0]?.id ?? null)
-  }, [])
+    setSelected((id) =>
+      demo
+        ? rows.find((trailer) => trailer.status === 'rendered' && Boolean(trailer.media_url))?.id ?? null
+        : id ?? rows[0]?.id ?? null,
+    )
+  }, [demo])
 
   useEffect(() => {
     refreshList().catch((error: ApiError) => toast.error(error.message))
@@ -179,10 +187,12 @@ export function CinematicTrailer() {
   return (
     <Page>
       <PageHead
-        title="Cinematic trailer"
-        action={<span className="data shrink-0 text-video">AI shots · 16:9 · 120 seconds</span>}
+        title={demo ? 'Cinematic cut demo' : 'Cinematic trailer'}
+        action={<span className="data shrink-0 text-video">{demo ? 'Seeded cut · zero tokens' : 'AI shots · 16:9 · 120 seconds'}</span>}
       >
-        Generate Agentcy’s long-form product film shot by shot. A guided recording supplies the exact UI state for every feature scene; the resulting reference-to-video clips remain fully AI-generated.
+        {demo
+          ? 'A finished, seeded production cut with its original shot breakdown. This route is read-only: it never queues a provider job or changes the saved demo media.'
+          : 'Generate Agentcy’s long-form product film shot by shot. A guided recording supplies the exact UI state for every feature scene; the resulting reference-to-video clips remain fully AI-generated.'}
       </PageHead>
 
       <section className="glass mt-8 flex flex-wrap items-center justify-between gap-5 rounded-xl px-5 py-5 sm:px-7">
@@ -191,24 +201,30 @@ export function CinematicTrailer() {
           <p className="mt-1 text-[0.8125rem] text-text-3">
             A two-minute product narrative: threat-story opening, a seamless Agentcy feature tour, then the original fourth-wall ending.
           </p>
-          {!system?.broll_available && (
+          {demo ? (
+            <p className="mt-2 text-[0.75rem] text-go">
+              Saved master and shot files are loaded from the local demo library.
+            </p>
+          ) : !system?.broll_available && (
             <p className="mt-2 text-[0.75rem] text-halt">
               Configure DashScope video generation before submitting shots.
             </p>
           )}
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => act(api.createCinematicTrailer, 'Two-minute trailer storyboard created')}
-          className="rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          New Agentcy trailer
-        </button>
+        {!demo && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => act(api.createCinematicTrailer, 'Two-minute trailer storyboard created')}
+            className="rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            New Agentcy trailer
+          </button>
+        )}
       </section>
 
       {!current ? (
-        <Empty />
+        <Empty demo={demo} />
       ) : (
         <>
           <section className="mt-6 flex flex-wrap items-center justify-between gap-4">
@@ -218,7 +234,7 @@ export function CinematicTrailer() {
                 {current.duration_seconds}s · {current.shots.length} shots · {current.aspect_ratio} · {current.status.replaceAll('_', ' ')}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            {!demo && <div className="flex flex-wrap gap-2">
               <input
                 ref={captureInput}
                 type="file"
@@ -273,10 +289,10 @@ export function CinematicTrailer() {
               {hasFinishedShots && !hasActiveShots ? (
                 <Action busy={busy} onClick={() => act(() => api.regenerateAllCinematicTrailerShots(current.id), 'New takes submitted with the saved script and UI mapping')}>Regenerate all takes · billed</Action>
               ) : null}
-            </div>
+            </div>}
           </section>
 
-          <p className={cn('mt-3 text-[0.75rem]', current.application_capture_url ? 'text-go' : 'text-text-3')}>
+          {!demo && <p className={cn('mt-3 text-[0.75rem]', current.application_capture_url ? 'text-go' : 'text-text-3')}>
             {current.product_reference_url
               ? 'Product lock is active for its intended story beats. Agentcy feature scenes remain AI-generated from their saved UI references.'
               : current.application_capture_url
@@ -284,9 +300,9 @@ export function CinematicTrailer() {
               : usesAiNativeProductScenes
               ? 'A guided Agentcy recording is required before billed generation. It gives the model a real product state instead of a generic invented dashboard.'
               : 'Attach a short Agentcy screen recording before composing to replace static UI inserts with a moving product journey.'}
-          </p>
+          </p>}
 
-          {!current.application_capture_url && usesAiNativeProductScenes && (
+          {!demo && !current.application_capture_url && usesAiNativeProductScenes && (
             <section className="mt-4 rounded-xl border border-video/30 bg-video/[0.045] px-5 py-4">
               <p className="label text-video">Guided capture required before generation</p>
               <p className="mt-2 text-[0.8125rem] leading-relaxed text-text-2">
@@ -295,11 +311,11 @@ export function CinematicTrailer() {
             </section>
           )}
 
-          <p className={cn('mt-3 text-[0.75rem]', current.soundtrack_url ? 'text-go' : 'text-text-3')}>
+          {!demo && <p className={cn('mt-3 text-[0.75rem]', current.soundtrack_url ? 'text-go' : 'text-text-3')}>
             {current.soundtrack_url
               ? 'Continuous soundtrack attached. The composer loops, fades and ducks it under native clip audio across the finished master.'
               : 'Optional: attach an MP3 or WAV instrumental after it is licensed or generated. It is mixed into the master without regenerating clips.'}
-          </p>
+          </p>}
 
           {progress && current.status !== 'draft' && (
             <section className="glass mt-5 rounded-xl px-5 py-4 sm:px-6">
@@ -357,6 +373,7 @@ export function CinematicTrailer() {
                 key={shot.id}
                 shot={shot}
                 busy={busy}
+                readOnly={demo}
                 onRegenerate={() => act(
                   () => api.regenerateCinematicTrailerShot(current.id, shot.id),
                   'New take submitted with the saved script and exact UI mapping',
@@ -370,12 +387,12 @@ export function CinematicTrailer() {
   )
 }
 
-function Empty() {
+function Empty({ demo }: { demo: boolean }) {
   return (
     <div className="mt-16 max-w-xl rounded-xl border border-dashed border-edge-strong px-6 py-10 text-center">
-      <p className="display text-[0.9375rem]">Start with the finished trailer blueprint.</p>
+      <p className="display text-[0.9375rem]">{demo ? 'The seeded cinematic cut is not available.' : 'Start with the finished trailer blueprint.'}</p>
       <p className="mt-2 text-[0.8125rem] leading-relaxed text-text-3">
-        Creating it saves every shot, prompt, audio cue and voiceover before any model work begins.
+        {demo ? 'Restore the demo seed, then reopen this route to load the completed local master and its clips.' : 'Creating it saves every shot, prompt, audio cue and voiceover before any model work begins.'}
       </p>
     </div>
   )
@@ -390,7 +407,7 @@ function ProgressMetric({ label, value, tone }: { label: string; value: number; 
   )
 }
 
-function ShotCard({ shot, busy, onRegenerate }: { shot: CinematicTrailerShot; busy: boolean; onRegenerate: () => void }) {
+function ShotCard({ shot, busy, readOnly, onRegenerate }: { shot: CinematicTrailerShot; busy: boolean; readOnly: boolean; onRegenerate: () => void }) {
   const succeeded = shot.provider_status === 'succeeded'
   return (
     <article className="resolve glass overflow-hidden rounded-xl">
@@ -412,7 +429,7 @@ function ShotCard({ shot, busy, onRegenerate }: { shot: CinematicTrailerShot; bu
         <p className="mt-2 line-clamp-3 text-[0.75rem] leading-relaxed text-text-3">{shot.voiceover}</p>
         {shot.product_surface !== 'none' && <p className="mt-3 text-[0.6875rem] text-video">Agentcy {shot.product_surface.replaceAll('_', ' ')} interface reference</p>}
         {shot.provider_error && <p className="mt-3 text-[0.75rem] leading-relaxed text-flag">{shot.provider_error}</p>}
-        {(shot.provider_status === 'succeeded' || shot.provider_status === 'failed') && (
+        {!readOnly && (shot.provider_status === 'succeeded' || shot.provider_status === 'failed') && (
           <button
             type="button"
             disabled={busy}

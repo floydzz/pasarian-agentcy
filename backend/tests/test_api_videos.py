@@ -182,6 +182,27 @@ def test_scripted_demo_copies_an_existing_video_without_rendering_again(
     assert storage.read(copied["poster_url"]) == source_poster
 
 
+def test_scripted_demo_stream_shows_each_seeded_video_handoff(client, studio, monkeypatch):
+    client.post("/api/videos/render", json=custom_payload())
+    studio.seen.clear()
+    monkeypatch.setattr(
+        "app.api.videos.get_settings",
+        lambda: SimpleNamespace(scripted_demo=True, scripted_demo_stage_seconds=0),
+    )
+    campaign = a_campaign(client)
+
+    body = client.post(
+        f"/api/campaigns/{campaign['id']}/videos/render/stream",
+        json=custom_payload(),
+    ).text
+
+    assert studio.seen == []
+    assert "saved campaign storyboard" in body
+    assert "seeded local video library" in body
+    assert "campaign-owned MP4 copy" in body
+    assert "reused demo video" in body
+
+
 def test_campaign_video_locks_the_selected_product_photo(client, studio):
     campaign = a_campaign(client)
     product = Image.new("RGB", (400, 400), "darkorange")

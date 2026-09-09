@@ -136,6 +136,14 @@ class DemoProvider(LLMProvider):
         pending_videos = self._int_after(prompt, r"Pending videos: (\d+)", default=0)
         approved_videos = self._int_after(prompt, r"Approved videos: (\d+)", default=0)
 
+        if ("cinematic" in lower or "trailer" in lower) and (
+            "demo" in lower or "cut" in lower
+        ):
+            return {
+                "reply": "[scripted demo] Opening the seeded cinematic cut. It is a completed local production asset with its shot breakdown, so no video generation or tokens are used.",
+                "action": "open_cinematic_demo",
+            }
+
         if "No campaign is attached" in prompt:
             if len(message) < 28:
                 return {

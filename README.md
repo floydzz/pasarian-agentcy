@@ -109,8 +109,10 @@ embedding, image, and video provider is forced offline even if a paid key is
 present. The strategist shows one-click rehearsal replies for the complete
 journey. Image and campaign-video renders copy suitable files from the restored
 workspace library into new campaign-owned URLs, replay the visible agent/QA
-events, and return immediately without model calls or token usage. If the
-library is empty, the local demo renderer remains the zero-cost fallback.
+events, and return without model calls or token usage. The seeded campaign
+video deliberately holds its planning, transfer, and QA stages on screen for
+about five seconds, so the console animation is visible during a walkthrough.
+If the library is empty, the local demo renderer remains the zero-cost fallback.
 
 For the most reliable presentation, restore the checked-in workspace first:
 
@@ -123,6 +125,15 @@ plan, approve concepts in Image Studio, continue image generation twice
 (copy/visual planning, then saved-media render), approve an image, generate and
 approve the campaign video, and open Publish. Publish prepares previews, copy,
 and downloads; it never posts to a live social account.
+
+The campaign-video handoff opens
+`/campaigns/:id/video/demo?run=render`; it makes a fresh campaign-owned copy
+of a finished seeded MP4. For the separate long-form product-film showcase,
+ask the strategist to **Open cinematic cut demo**, or open
+`/cinematic-trailer/demo`. That route is read-only and shows the seeded master
+cut plus its completed shot breakdown—no provider job is queued. Set
+`SCRIPTED_DEMO_STAGE_SECONDS` (default `1.0`) if you want the video console to
+linger longer or shorter at each visible demo stage.
 
 Set `SCRIPTED_DEMO=false` only when deliberately testing configured live
 providers.
