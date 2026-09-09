@@ -268,7 +268,10 @@ class ExplainerRenderer:
         shadow.putalpha(product.getchannel("A").filter(ImageFilter.GaussianBlur(12)))
         layer.alpha_composite(shadow, (x + 10, y + 14))
         layer.alpha_composite(product, (x, y))
-        image.alpha_composite(layer)
+        # Painted scenes are RGB while caption layers over b-roll are RGBA.
+        # ``alpha_composite`` only accepts an RGBA destination, whereas paste
+        # with the layer as a mask blends correctly into either canvas mode.
+        image.paste(layer, (0, 0), layer)
 
     def _hero_panel(
         self, draw: ImageDraw.ImageDraw, script: MarketingVideoScript, *, top: int

@@ -68,6 +68,33 @@ def test_renderer_accepts_an_arbitrary_marketing_storyboard(monkeypatch):
     assert Image.open(io.BytesIO(result.poster)).size == (720, 1280)
 
 
+def test_renderer_composites_an_approved_product_image_on_rgb_scenes(monkeypatch):
+    """Campaign assets can be JPEG/PNG/RGBA, but painted scenes start RGB."""
+    renderer = ExplainerRenderer(ffmpeg_binary="ffmpeg")
+    monkeypatch.setattr(renderer, "_encode", lambda scenes, backdrops=None: b"dynamic-mp4")
+    product = Image.new("RGBA", (420, 560), (230, 93, 72, 210))
+    product_bytes = io.BytesIO()
+    product.save(product_bytes, format="PNG")
+
+    result = renderer.render(
+        MarketingVideoScript(
+            brand_name="Kawan Kopi",
+            product_name="Rumah Blend",
+            target_audience="Home coffee brewers in Kuala Lumpur",
+            cta="Try Rumah Blend",
+            scenes=[
+                MarketingVideoScene("Meet the blend", "Coffee that starts at home", "Freshly roasted for the daily cup.", "hero"),
+                MarketingVideoScene("Your next cup", "Bring better coffee home", "Start with the blend made for your routine.", "cta"),
+            ],
+        ),
+        product_image=product_bytes.getvalue(),
+    )
+
+    poster = Image.open(io.BytesIO(result.poster))
+    assert poster.mode == "RGB"
+    assert poster.size == (720, 1280)
+
+
 class PassingQA:
     def review(self, image, *, headline, cta, brief, product_image=None):
         return QAVerdict(status="passed", notes="")
