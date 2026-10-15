@@ -27,7 +27,7 @@ export function LogDrawer({ log, running }: { log: LogLine[]; running: string | 
   }, [log.length, open])
 
   return (
-    <motion.section layout className="relative z-20 shrink-0 border-t border-edge bg-void">
+    <section className="relative z-20 shrink-0 border-t border-edge bg-void">
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -118,6 +118,6 @@ export function LogDrawer({ log, running }: { log: LogLine[]; running: string | 
           </svg>
         </motion.span>
       </button>
-    </motion.section>
+    </section>
   )
 }

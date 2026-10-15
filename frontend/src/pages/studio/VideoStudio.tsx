@@ -1,3 +1,4 @@
+import { useWorkspaceRefresh } from '@/hooks/useWorkspaceRefresh'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -42,6 +43,7 @@ export function VideoStudio() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [loadError, setLoadError] = useState('')
   const [draft, setDraft] = useState<MarketingVideoCreate | null>(null)
   const [videos, setVideos] = useState<MarketingVideo[]>([])
   const [productReferences, setProductReferences] = useState<ProductReference[]>([])
@@ -77,9 +79,11 @@ export function VideoStudio() {
     setProductReferences(itsProductReferences)
   }, [id])
 
+  useWorkspaceRefresh(() => refresh().catch(() => undefined))
+
   useEffect(() => {
     rememberCampaign(id)
-    refresh().catch((thrown: ApiError) => toast.error(thrown.message))
+    refresh().catch((thrown: ApiError) => { setLoadError(thrown.message); toast.error(thrown.message) })
   }, [id, refresh])
 
   // The seed is fetched once per campaign. Re-seeding on every refresh would
@@ -91,7 +95,7 @@ export function VideoStudio() {
       .then((brief) => {
         if (current) setDraft(brief)
       })
-      .catch((thrown: ApiError) => toast.error(thrown.message))
+      .catch((thrown: ApiError) => { setLoadError(thrown.message); toast.error(thrown.message) })
     return () => {
       current = false
     }
@@ -152,7 +156,7 @@ export function VideoStudio() {
     return null
   }, [log])
 
-  if (!campaign || !draft) return <Booting />
+  if (!campaign || !draft) return loadError ? <div role="alert" className="p-8"><h1 className="text-xl font-semibold">The video workspace could not load</h1><p className="mt-3 text-sm text-destructive">{loadError}</p><button className="workspace-button mt-5" onClick={() => { setLoadError(''); void Promise.all([refresh(), api.campaignVideoBrief(id).then(setDraft)]).catch((error: Error) => setLoadError(error.message)) }}>Try again</button></div> : <Booting />
 
   const workspace = searchParams.get('view') === 'clips' ? 'clips' : 'script'
   const setWorkspace = (next: 'script' | 'clips') =>
@@ -248,7 +252,7 @@ export function VideoStudio() {
         />
       }
     >
-      <div className="flex shrink-0 items-center gap-1 border-b border-edge px-5 pt-3 sm:px-8">
+      <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-edge px-4 pt-3 sm:px-8">
         <WorkspaceTab active={workspace === 'script'} onClick={() => setWorkspace('script')}>
           Script & storyboard
         </WorkspaceTab>

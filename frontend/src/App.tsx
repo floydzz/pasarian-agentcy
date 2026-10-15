@@ -5,21 +5,28 @@ import {
   Route,
   RouterProvider,
 } from 'react-router-dom'
+import { AuthGate } from '@/components/AuthGate'
+import { PageError } from '@/components/PageError'
 import { Toaster } from '@/components/ui/sonner'
 import { Shell } from '@/components/os/Shell'
-import { Agents } from '@/pages/Agents'
-import { BrandProfile } from '@/pages/BrandProfile'
-import { CampaignHub } from '@/pages/CampaignHub'
-import { CinematicTrailer } from '@/pages/CinematicTrailer'
-import { DemoVideo } from '@/pages/DemoVideo'
-import { History } from '@/pages/History'
-import { Home } from '@/pages/Home'
-import { ImageStudio } from '@/pages/studio/ImageStudio'
-import { StudioShortcut } from '@/pages/studio/StudioShortcut'
-import { Trends } from '@/pages/Trends'
-import { VideoStudio } from '@/pages/studio/VideoStudio'
-import { Progress } from '@/pages/Progress'
-import { Publish } from '@/pages/Publish'
+import { lazy } from 'react'
+const Account = lazy(() => import('@/pages/Account').then(module => ({ default: module.Account })))
+const Dashboard = lazy(() => import('@/pages/Dashboard').then(module => ({ default: module.Dashboard })))
+const Agents = lazy(() => import('@/pages/Agents').then(module => ({ default: module.Agents })))
+const BrandProfile = lazy(() => import('@/pages/BrandProfile').then(module => ({ default: module.BrandProfile })))
+const CampaignHub = lazy(() => import('@/pages/CampaignHub').then(module => ({ default: module.CampaignHub })))
+const CinematicTrailer = lazy(() => import('@/pages/CinematicTrailer').then(module => ({ default: module.CinematicTrailer })))
+const DemoVideo = lazy(() => import('@/pages/DemoVideo').then(module => ({ default: module.DemoVideo })))
+const History = lazy(() => import('@/pages/History').then(module => ({ default: module.History })))
+const Calendar = lazy(() => import('@/pages/Calendar').then(module => ({ default: module.Calendar })))
+const Chat = lazy(() => import('@/pages/Chat').then(module => ({ default: module.Chat })))
+const Home = lazy(() => import('@/pages/Home').then(module => ({ default: module.Home })))
+const ImageStudio = lazy(() => import('@/pages/studio/ImageStudio').then(module => ({ default: module.ImageStudio })))
+const StudioShortcut = lazy(() => import('@/pages/studio/StudioShortcut').then(module => ({ default: module.StudioShortcut })))
+const Trends = lazy(() => import('@/pages/Trends').then(module => ({ default: module.Trends })))
+const VideoStudio = lazy(() => import('@/pages/studio/VideoStudio').then(module => ({ default: module.VideoStudio })))
+const Progress = lazy(() => import('@/pages/Progress').then(module => ({ default: module.Progress })))
+const Publish = lazy(() => import('@/pages/Publish').then(module => ({ default: module.Publish })))
 
 /** A data router rather than `BrowserRouter`.
  *
@@ -32,8 +39,12 @@ const router = createBrowserRouter(
   // Every screen sits inside the rail, the console included: leaving a run to
   // change a setting should not mean leaving the machine.
   createRoutesFromElements(
-    <Route element={<Shell />}>
-          <Route path="/chat" element={<Navigate to="/?chat=open" replace />} />
+    <Route element={<Shell />} errorElement={<PageError />}>
+          <Route path="/account" element={<Account />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/calendar" element={<Calendar />} />
+          <Route path="/campaigns" element={<Home />} />
           <Route path="/" element={<Home />} />
           {/* A campaign is a hub with two studios under it, and the studios
               are reachable straight from the rail as well — the chooser
@@ -72,7 +83,7 @@ const router = createBrowserRouter(
 export default function App() {
   return (
     <>
-      <RouterProvider router={router} />
+      <AuthGate><RouterProvider router={router} /></AuthGate>
       {/* Outside the router: toasts are global and need no route context. */}
       <Toaster position="bottom-right" />
     </>

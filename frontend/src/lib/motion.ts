@@ -40,6 +40,9 @@ export const MICRO: Transition = { duration: 0.16, ease: EASE_OUT }
 /** A layer changing depth. Slow enough to read as distance rather than size. */
 export const DEPTH: Transition = { duration: 0.72, ease: EASE_IN_OUT }
 
+/** The strategist and its workspace resize share one short, continuous move. */
+export const STRATEGIST_MORPH: Transition = { duration: 0.42, ease: EASE_OUT }
+
 /** An agent is thinking. An LLM call runs 10–30s; this is what says "alive,
  * not hung". Long and even — a blink would read as an alarm. */
 export const BREATH: Transition = {

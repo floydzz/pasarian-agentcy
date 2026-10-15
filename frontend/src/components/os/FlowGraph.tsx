@@ -136,6 +136,9 @@ export function FlowGraph({
   const liveEdge = busy ? flow.feeds[busy] : undefined
 
   return (
+    <div className="workflow-layout">
+      <CompactFlow flow={flow} stateOf={stateOf} firing={firing} />
+      <div className="workflow-canvas">
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className="h-auto w-full overflow-visible"
@@ -166,7 +169,7 @@ export function FlowGraph({
               initial={{ pathLength: 0, strokeOpacity: 0 }}
               animate={{
                 pathLength: 1,
-                strokeOpacity: live ? 0.75 : 0.13,
+                strokeOpacity: live ? 0.85 : 0.4,
               }}
               transition={{
                 pathLength: { delay: BOOT.graph + index * 0.07, duration: 0.5, ease: EASE_OUT },
@@ -201,6 +204,39 @@ export function FlowGraph({
         />
       ))}
     </svg>
+      </div>
+    </div>
+  )
+}
+
+const STEP_LABEL: Record<string, string> = {
+  planner: 'Planner', 'plan gate': 'Concept approval', copy: 'Copywriter', art: 'Art direction',
+  director: 'Creative review', render: 'Render', QA: 'Quality check', 'asset gate': 'Creative approval',
+  brief: 'Video brief', storyboard: 'Storyboard', 'review gate': 'Video approval',
+}
+const STEP_STATE: Record<NodeState, string> = {
+  idle: 'Standby', running: 'Working', done: 'Complete', failed: 'Needs attention', unknown: 'Check saved progress',
+  blocking: 'Your review', waived: 'Waived', quiet: 'Not active',
+}
+
+/** A readable overview on small panels, including every review and return path. */
+function CompactFlow({ flow, stateOf, firing }: { flow: FlowSpec; stateOf: (id: string) => NodeState; firing: string | null }) {
+  const label = (x: number) => { const node = flow.nodes.find(node => node.x === x); return node ? STEP_LABEL[node.label] ?? node.label : '' }
+  return (
+    <div className="workflow-compact">
+      <ol aria-label="Workflow stages" className="workflow-steps">
+        {flow.nodes.map((node, index) => {
+          const state = stateOf(node.id)
+          const active = state === 'running' || state === 'blocking'
+          return <li key={node.id} className={`min-w-0 rounded-lg border p-3 ${state === 'failed' ? 'border-flag/60 bg-flag/10' : active ? 'border-brand/70 bg-brand/10' : 'border-edge bg-void'}`}>
+            <div className="mb-2 flex items-center justify-between text-xs text-text-3"><span>{String(index + 1).padStart(2, '0')}</span>{index < flow.nodes.length - 1 && <span aria-hidden>→</span>}</div>
+            <p className="break-words text-[.8125rem] font-medium leading-snug">{STEP_LABEL[node.label] ?? node.label}</p>
+            <p className={`mt-2 text-xs ${state === 'failed' ? 'text-flag' : active ? 'text-brand' : 'text-text-3'}`}>{STEP_STATE[state]}</p>
+          </li>
+        })}
+      </ol>
+      {flow.arcs.length > 0 && <div className="mt-3 border-t border-edge pt-3"><p className="mb-2 text-xs font-medium text-text-2">Feedback paths</p><ul className="workflow-feedback">{flow.arcs.map(arc => <li key={arc.id} className={`min-w-0 text-xs leading-relaxed ${firing === arc.fires ? 'text-brand' : 'text-text-3'}`}><span className="text-text-2">{label(arc.from)} → {label(arc.to)}</span><span className="block">{arc.label}</span></li>)}</ul></div>}
+    </div>
   )
 }
 
@@ -268,7 +304,7 @@ function Waypoint({
       : 'var(--text)'
 
   const opacity =
-    hot ? 1 : state === 'done' ? 0.55 : state === 'waived' ? 0.22 : 0.3
+    hot ? 1 : state === 'done' ? 0.85 : state === 'waived' ? 0.55 : 0.65
 
   return (
     <motion.g
@@ -352,11 +388,11 @@ function Waypoint({
         y={Y - 16}
         textAnchor="middle"
         initial={false}
-        animate={{ opacity: hot ? 1 : 0.46 }}
+        animate={{ opacity: hot ? 1 : 0.85 }}
         transition={{ duration: 0.4, ease: EASE_OUT }}
         fill={state === 'blocking' ? 'var(--halt)' : 'var(--text)'}
         style={{
-          font: '400 10.5px var(--font-sans)',
+          font: '400 12.5px var(--font-sans)',
           fontVariationSettings: "'wdth' 112, 'wght' 450",
           letterSpacing: '0.01em',
         }}
@@ -398,7 +434,7 @@ function ReturnArc({
         initial={{ pathLength: 0, strokeOpacity: 0 }}
         animate={{
           pathLength: 1,
-          strokeOpacity: firing ? 0.8 : 0.1,
+          strokeOpacity: firing ? 0.85 : 0.35,
           strokeWidth: firing ? 1.6 : 1,
         }}
         transition={{
@@ -412,10 +448,10 @@ function ReturnArc({
         y={depth + 12}
         textAnchor="middle"
         initial={false}
-        animate={{ opacity: firing ? 1 : 0.26 }}
+        animate={{ opacity: firing ? 1 : 0.75 }}
         transition={{ duration: 0.25, ease: EASE_OUT }}
         fill="var(--text)"
-        style={{ font: '400 9.5px var(--font-mono)', letterSpacing: '0.02em' }}
+        style={{ font: '400 11.5px var(--font-mono)', letterSpacing: '0.02em' }}
       >
         {label}
       </motion.text>

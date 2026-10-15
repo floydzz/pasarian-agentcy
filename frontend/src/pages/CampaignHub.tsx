@@ -1,7 +1,12 @@
+import { useAuth } from '@/lib/auth'
+import { useWorkspaceRefresh } from '@/hooks/useWorkspaceRefresh'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
+import { CampaignWorkflow } from '@/components/CampaignWorkflow'
+import { CampaignResults } from '@/components/CampaignResults'
+import { CalendarCampaignLink } from '@/components/CalendarCampaignLink'
 import { Page } from '@/components/os/Shell'
 import { cn } from '@/lib/utils'
 import { EASE_OUT, STAGGER, STAGGER_CHILD } from '@/lib/motion'
@@ -26,12 +31,16 @@ const STATUS_LINE: Record<Campaign['status'], string> = {
   pending_plan_approval: 'The plan gate is open — concepts need your decision.',
   generating: 'The crew is working.',
   pending_asset_review: 'The asset gate is open — creatives need your decision.',
-  ready_to_publish: 'Approved and ready to export.',
+  ready_to_publish: 'Approved and ready to publish.',
   published: 'Published.',
 }
 
 export function CampaignHub() {
+  const actor = useAuth()
+  const directory = sessionStorage.getItem(`agentcy-directory:${actor.user.id}:${actor.workspace_id}`) ?? '/campaigns'
   const id = Number(useParams().id)
+  const [retry, setRetry] = useState(0)
+  useWorkspaceRefresh(() => setRetry(value => value + 1))
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [concepts, setConcepts] = useState<Concept[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
@@ -52,7 +61,7 @@ export function CampaignHub() {
         setVideos(itsVideos)
       })
       .catch((thrown: ApiError) => toast.error(thrown.message))
-  }, [id])
+  }, [id, retry])
 
   if (!campaign) return <Page><div className="h-40" /></Page>
 
@@ -67,23 +76,23 @@ export function CampaignHub() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE_OUT }}
       >
-        <Link to="/" className="text-xs text-text-3 transition-colors hover:text-foreground">
+        <Link to={directory.startsWith('/campaigns') ? directory : '/campaigns'} className="text-xs text-text-3 transition-colors hover:text-foreground">
           ← Campaigns
         </Link>
         <h1 className="display-tight mt-4 text-[1.75rem] sm:text-[2rem]">{campaign.name}</h1>
-        <p className="copy mt-3 max-w-2xl text-[0.9375rem] leading-relaxed text-text-2">
-          {campaign.brief}
-        </p>
+        <div className="mt-3"><CalendarCampaignLink campaignId={id} /></div>
+        <details className="mt-4 max-w-3xl"><summary className="cursor-pointer text-sm text-text-2">Campaign brief</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-text-2">{campaign.brief}</p></details>
         <p className={cn('mt-3 text-[0.8125rem]', halted ? 'text-halt' : 'text-text-3')}>
           {STATUS_LINE[campaign.status]}
         </p>
       </motion.header>
 
+      <CampaignWorkflow campaign={campaign} />
       <motion.section
         variants={STAGGER}
         initial="hidden"
         animate="shown"
-        className="mt-10 grid gap-4 md:grid-cols-3"
+        className="mt-10 grid gap-4 responsive-cards"
       >
         <StudioCard
           to={`/campaigns/${campaign.id}/image`}
@@ -109,11 +118,11 @@ export function CampaignHub() {
           mark={<VideoMark />}
         />
         <StudioCard
-          to={`/campaigns/${campaign.id}/image`}
+          to={`/campaigns/${campaign.id}/publish`}
           medium="both"
-          title="Both"
-          blurb="Start with the stills — the approved headline and call to action then seed the video's storyboard."
-          stats={['images first', 'then video']}
+          title="Publish"
+          blurb="Preview approved work, prepare your copy and download the campaign package."
+          stats={['preview', 'download']}
           mark={<BothMark />}
         />
       </motion.section>
@@ -124,8 +133,9 @@ export function CampaignHub() {
         transition={{ delay: 0.4, duration: 0.5 }}
         className="mt-8 text-[0.8125rem] text-text-3"
       >
-        Both studios are also in the rail, so you never have to come back through here.
+        Start with concepts, approve the creative, then prepare your publishing package. The strategist is available whenever you need help.
       </motion.p>
+      <CampaignResults key={id} campaignId={id} />
     </Page>
   )
 }
@@ -212,7 +222,7 @@ function BothMark() {
   return (
     <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden>
       <rect x="3" y="7" width="12" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
-      <rect x="9" y="4" width="12" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" opacity="0.5" />
+      <rect x="9" y="4" width="12" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" opacity="0.8" />
     </svg>
   )
 }

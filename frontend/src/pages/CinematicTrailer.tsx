@@ -216,7 +216,7 @@ export function CinematicTrailer({ demo = false }: { demo?: boolean }) {
             type="button"
             disabled={busy}
             onClick={() => act(api.createCinematicTrailer, 'Two-minute trailer storyboard created')}
-            className="rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-100"
           >
             New Agentcy trailer
           </button>
@@ -367,7 +367,7 @@ export function CinematicTrailer({ demo = false }: { demo?: boolean }) {
             </section>
           )}
 
-          <section className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          <section className="mt-6 grid gap-4 responsive-cards">
             {current.shots.map((shot) => (
               <ShotCard
                 key={shot.id}
@@ -414,7 +414,7 @@ function ShotCard({ shot, busy, readOnly, onRegenerate }: { shot: CinematicTrail
       {shot.media_url ? (
         <video controls playsInline preload="metadata" src={shot.media_url} className="aspect-video w-full bg-void object-cover" />
       ) : (
-        <div className="flex aspect-video items-end bg-[radial-gradient(circle_at_50%_20%,rgba(176,140,255,0.16),transparent_55%)] p-4">
+        <div className="flex aspect-video items-end bg-[radial-gradient(circle_at_50%_20%,rgba(198,173,134,0.12),transparent_55%)] p-4">
           <span className="data text-text-3">AI shot {String(shot.position).padStart(2, '0')}</span>
         </div>
       )}
@@ -434,7 +434,7 @@ function ShotCard({ shot, busy, readOnly, onRegenerate }: { shot: CinematicTrail
             type="button"
             disabled={busy}
             onClick={onRegenerate}
-            className="mt-4 rounded-full border border-video/50 px-3 py-1.5 text-[0.6875rem] text-video transition-colors hover:bg-video/10 disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-4 rounded-full border border-video/50 px-3 py-1.5 text-[0.6875rem] text-video transition-colors hover:bg-video/10 disabled:cursor-not-allowed disabled:opacity-100"
           >
             Regenerate take · billed
           </button>
@@ -447,7 +447,7 @@ function ShotCard({ shot, busy, readOnly, onRegenerate }: { shot: CinematicTrail
 function Action({ onClick, busy, disabled = false, tone, children }: { onClick: () => void; busy: boolean; disabled?: boolean; tone?: 'go'; children: React.ReactNode }) {
   return (
     <button type="button" disabled={busy || disabled} onClick={onClick} className={cn(
-      'rounded-full border px-4 py-2 text-[0.75rem] transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+      'rounded-full border px-4 py-2 text-[0.75rem] transition-colors disabled:cursor-not-allowed disabled:opacity-100',
       tone === 'go' ? 'border-go/50 text-go hover:bg-go/10' : 'border-video/50 text-video hover:bg-video/10',
     )}>
       {children}

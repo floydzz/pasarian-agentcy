@@ -47,7 +47,7 @@ export function AssetCard({
       initial={false}
       animate={{
         scale: rejected ? 0.945 : 1,
-        opacity: rejected ? 0.5 : 1,
+        opacity: 1,
         filter: rejected ? 'saturate(0.2)' : 'saturate(1)',
       }}
       transition={SETTLE}
@@ -72,12 +72,12 @@ export function AssetCard({
       {/* Capped rather than left at its full square: the whole point of the
           gate is the three buttons under it, and a card whose actions start
           below the fold is a card nobody acts on. */}
-      <div className="max-h-[52%] w-full shrink-0 overflow-hidden">
+      <div className="w-full shrink-0 overflow-hidden bg-muted">
         <Plate
           src={asset.media_url}
           alt={variant ? `Creative for “${variant.headline}”` : 'Generated creative'}
           frameClassName="w-full"
-          className="aspect-square w-full object-cover"
+          className="aspect-square max-h-[26rem] w-full object-contain"
           latent={redoing}
         />
       </div>
@@ -177,7 +177,7 @@ function Action({
       transition={SETTLE}
       className={cn(
         'display rounded-full border px-3.5 py-1.5 text-[0.75rem] transition-colors duration-200',
-        'disabled:cursor-not-allowed disabled:opacity-40',
+        'disabled:cursor-not-allowed disabled:opacity-100',
         active
           ? tone === 'go'
             ? 'border-go bg-go/15 text-go'

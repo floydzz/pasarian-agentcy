@@ -143,7 +143,7 @@ export function BrandProfile() {
 
       <form onSubmit={save} className="mt-10 max-w-4xl space-y-5 pb-12">
         <Section title="Company">
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 responsive-pair">
             <Field label="Company name" htmlFor="company-name" required>
               <input
                 id="company-name"
@@ -271,7 +271,7 @@ export function BrandProfile() {
             whileHover={!dirty || saving ? undefined : { y: -1 }}
             whileTap={!dirty || saving ? undefined : { scale: 0.985 }}
             transition={MICRO}
-            className="display rounded-full bg-foreground px-5 py-2.5 text-[0.8125rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
+            className="display rounded-full bg-foreground px-5 py-2.5 text-[0.8125rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-100"
           >
             {saving ? 'Saving profile…' : 'Save brand profile'}
           </motion.button>
@@ -329,7 +329,7 @@ function ProductCard({ product, index, removable, onChange, onRemove }: {
           </button>
         )}
       </div>
-      <div className="mt-4 grid gap-5 sm:grid-cols-2">
+      <div className="mt-4 grid gap-5 responsive-pair">
         <Field label="Product name" htmlFor={`${prefix}-name`} required>
           <input id={`${prefix}-name`} value={product.name} onChange={(event) => onChange('name', event.target.value)} placeholder="Rumah Blend" className={inputClass} />
         </Field>
@@ -337,7 +337,7 @@ function ProductCard({ product, index, removable, onChange, onRemove }: {
           <input id={`${prefix}-price`} value={product.price} onChange={(event) => onChange('price', event.target.value)} placeholder="RM42 / 250g" className={inputClass} />
         </Field>
       </div>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      <div className="mt-5 grid gap-5 responsive-pair">
         <Field label="What it is" htmlFor={`${prefix}-description`} required>
           <textarea id={`${prefix}-description`} rows={3} value={product.description} onChange={(event) => onChange('description', event.target.value)} placeholder="A concise, factual description." className={`${inputClass} resize-y`} />
         </Field>

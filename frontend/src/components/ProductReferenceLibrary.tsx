@@ -97,7 +97,7 @@ export function ProductReferenceLibrary({
   }
 
   return (
-    <section className="mb-5 rounded-xl border border-edge bg-[rgba(233,238,247,0.025)] p-4 sm:p-5">
+    <section className="mx-4 mb-5 rounded-xl border border-edge bg-[rgba(233,238,247,0.025)] p-4 sm:mx-8 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="label">Product library</p>
@@ -121,14 +121,14 @@ export function ProductReferenceLibrary({
           type="button"
           disabled={disabled || uploading}
           onClick={() => input.current?.click()}
-          className="display rounded-full border border-edge px-3.5 py-2 text-[0.6875rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+          className="display rounded-full border border-edge px-3.5 py-2 text-[0.6875rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:cursor-not-allowed disabled:opacity-100"
         >
           {uploading ? 'Adding…' : references.length ? 'Add product image' : 'Upload product image'}
         </button>
       </div>
 
       {references.length > 0 && (
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+        <div className="mt-4 flex flex-wrap gap-3 pb-1">
           {references.map((reference) => (
             <article
               key={reference.id}
@@ -161,7 +161,7 @@ export function ProductReferenceLibrary({
                     type="button"
                     disabled={disabled}
                     onClick={() => void remove(reference)}
-                    className="data ml-auto text-[0.5625rem] text-text-3 transition-colors hover:text-flag disabled:opacity-40"
+                    className="data ml-auto text-[0.5625rem] text-text-3 transition-colors hover:text-flag disabled:opacity-100"
                   >
                     ×
                   </button>

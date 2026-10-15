@@ -13,7 +13,8 @@ import type { AgentState } from '@/hooks/useConsole'
  * light hunting for the flaw.
  *
  * They animate only while their agent holds the work. Idle cores are still
- * wireframes, so a glance at the station tells you where the work is without
+ * wireframes with readable contrast; avoid multiplying faint SVG strokes by
+ * a translucent parent color. A glance at the station tells you where the work is without
  * reading a word.
  */
 
@@ -82,7 +83,7 @@ function Dialogue({ live, period }: { live: boolean; period: number }) {
         d="M12 17h31a7 7 0 0 1 7 7v13a7 7 0 0 1-7 7H27l-8 7v-7h-7a7 7 0 0 1-7-7V24a7 7 0 0 1 7-7Z"
         fill="none"
         stroke="currentColor"
-        strokeOpacity="0.35"
+        strokeOpacity="0.75"
         strokeWidth="1.2"
         strokeLinejoin="round"
       />
@@ -94,11 +95,11 @@ function Dialogue({ live, period }: { live: boolean; period: number }) {
           r={2.1}
           fill="currentColor"
           initial={false}
-          animate={live ? { opacity: [0.22, 0.95, 0.22], scale: [0.8, 1.15, 0.8] } : { opacity: 0.35, scale: 1 }}
+          animate={live ? { opacity: [0.22, 0.95, 0.22], scale: [0.8, 1.15, 0.8] } : { opacity: 0.8, scale: 1 }}
           transition={live ? { duration: period, repeat: Infinity, delay: index * 0.22, ease: 'easeInOut' } : { duration: 0.25 }}
         />
       ))}
-      <path d="M22 38h18" stroke="currentColor" strokeOpacity="0.22" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M22 38h18" stroke="currentColor" strokeOpacity="0.65" strokeWidth="1.4" strokeLinecap="round" />
     </g>
   )
 }
@@ -128,12 +129,12 @@ function Radar({ live, period }: { live: boolean; period: number }) {
           r={r}
           fill="none"
           stroke="currentColor"
-          strokeOpacity={0.16}
+          strokeOpacity={0.65}
           strokeWidth={0.75}
         />
       ))}
-      <line x1={C - 27} y1={C} x2={C + 27} y2={C} stroke="currentColor" strokeOpacity={0.1} strokeWidth={0.75} />
-      <line x1={C} y1={C - 27} x2={C} y2={C + 27} stroke="currentColor" strokeOpacity={0.1} strokeWidth={0.75} />
+      <line x1={C - 27} y1={C} x2={C + 27} y2={C} stroke="currentColor" strokeOpacity={0.3} strokeWidth={0.75} />
+      <line x1={C} y1={C - 27} x2={C} y2={C + 27} stroke="currentColor" strokeOpacity={0.3} strokeWidth={0.75} />
 
       {CHUNKS.map((chunk) => {
         const radians = (chunk.angle * Math.PI) / 180
@@ -152,8 +153,8 @@ function Radar({ live, period }: { live: boolean; period: number }) {
             // it can read back out of the DOM. Stating the start keeps the
             // value in motion's own bookkeeping, which is the only place it is
             // reliably there.
-            initial={{ opacity: 0.28, r: 1.5 }}
-            animate={live ? { opacity: [1, 0.18], r: [2.4, 1.5] } : { opacity: 0.28, r: 1.5 }}
+            initial={{ opacity: 0.75, r: 1.5 }}
+            animate={live ? { opacity: [1, 0.18], r: [2.4, 1.5] } : { opacity: 0.75, r: 1.5 }}
             transition={
               live
                 ? {
@@ -227,7 +228,7 @@ function Compositor({ live, period }: { live: boolean; period: number }) {
         rx={2}
         fill="none"
         stroke="currentColor"
-        strokeOpacity={0.14}
+        strokeOpacity={0.65}
         strokeWidth={0.75}
       />
 
@@ -250,7 +251,7 @@ function Compositor({ live, period }: { live: boolean; period: number }) {
               animate={
                 live
                   ? { scaleX: [0, 0, 1, 1], opacity: [0.22, 0.22, 0.92, 0.5] }
-                  : { scaleX: 1, opacity: 0.3 }
+                  : { scaleX: 1, opacity: 0.8 }
               }
               transition={
                 live
@@ -316,14 +317,14 @@ function Frame({ live, period }: { live: boolean; period: number }) {
         `M ${FRAME.x + FRAME.w} ${FRAME.y + FRAME.h - corner} V ${FRAME.y + FRAME.h} H ${FRAME.x + FRAME.w - corner}`,
         `M ${FRAME.x + corner} ${FRAME.y + FRAME.h} H ${FRAME.x} V ${FRAME.y + FRAME.h - corner}`,
       ].map((d) => (
-        <path key={d} d={d} fill="none" stroke="currentColor" strokeOpacity={0.4} strokeWidth={1} />
+        <path key={d} d={d} fill="none" stroke="currentColor" strokeOpacity={0.8} strokeWidth={1} />
       ))}
 
       {THIRD_X.map((x) => (
-        <line key={x} x1={x} y1={FRAME.y + 3} x2={x} y2={FRAME.y + FRAME.h - 3} stroke="currentColor" strokeOpacity={0.1} strokeWidth={0.75} />
+        <line key={x} x1={x} y1={FRAME.y + 3} x2={x} y2={FRAME.y + FRAME.h - 3} stroke="currentColor" strokeOpacity={0.3} strokeWidth={0.75} />
       ))}
       {THIRD_Y.map((y) => (
-        <line key={y} x1={FRAME.x + 3} y1={y} x2={FRAME.x + FRAME.w - 3} y2={y} stroke="currentColor" strokeOpacity={0.1} strokeWidth={0.75} />
+        <line key={y} x1={FRAME.x + 3} y1={y} x2={FRAME.x + FRAME.w - 3} y2={y} stroke="currentColor" strokeOpacity={0.3} strokeWidth={0.75} />
       ))}
 
       {live && (
@@ -386,7 +387,7 @@ function Aperture({
 
   return (
     <g>
-      <circle cx={C} cy={C} r={27} fill="none" stroke="currentColor" strokeOpacity={0.16} strokeWidth={0.75} />
+      <circle cx={C} cy={C} r={27} fill="none" stroke="currentColor" strokeOpacity={0.65} strokeWidth={0.75} />
 
       {/* Blade seams — six, so the hexagon reads as a mechanism. */}
       {Array.from({ length: 6 }, (_, index) => {
@@ -399,7 +400,7 @@ function Aperture({
             x2={C + 27 * Math.cos(radians)}
             y2={C + 27 * Math.sin(radians)}
             stroke="currentColor"
-            strokeOpacity={0.12}
+            strokeOpacity={0.3}
             strokeWidth={0.75}
           />
         )
@@ -418,7 +419,7 @@ function Aperture({
             ? { scale: 0.22, rotate: 0, opacity: 1 }
             : live
               ? { scale: [1, 0.34, 1], rotate: [0, 22, 0] }
-              : { scale: 0.72, rotate: 0, opacity: 0.5 }
+              : { scale: 0.72, rotate: 0, opacity: 0.9 }
         }
         transition={
           live && !shut
@@ -439,7 +440,7 @@ function Aperture({
             ? { scale: 0.35, opacity: 1 }
             : live
               ? { scale: [1, 0.4, 1], opacity: [0.9, 0.45, 0.9] }
-              : { scale: 0.8, opacity: 0.35 }
+              : { scale: 0.8, opacity: 0.75 }
         }
         style={{ transformOrigin: `${C}px ${C}px`, transformBox: 'view-box' }}
         transition={
@@ -455,7 +456,7 @@ function Aperture({
           x1={C - 27}
           x2={C + 27}
           stroke="currentColor"
-          strokeOpacity={0.4}
+          strokeOpacity={0.8}
           strokeWidth={0.75}
           initial={{ y1: C - 24, y2: C - 24, opacity: 0 }}
           animate={{ y1: [C - 24, C + 24], y2: [C - 24, C + 24], opacity: [0, 0.7, 0] }}
@@ -488,7 +489,7 @@ function Plate({ live, period }: { live: boolean; period: number }) {
         height={PLATE.h}
         fill="none"
         stroke="currentColor"
-        strokeOpacity={0.4}
+        strokeOpacity={0.8}
         strokeWidth={1}
         rx={2}
       />
@@ -530,7 +531,7 @@ function Plate({ live, period }: { live: boolean; period: number }) {
         fill="currentColor"
         rx={1}
         initial={false}
-        animate={live ? { width: [0, 26, 26, 0], opacity: [0, 1, 1, 0] } : { width: 26, opacity: 0.35 }}
+        animate={live ? { width: [0, 26, 26, 0], opacity: [0, 1, 1, 0] } : { width: 26, opacity: 0.8 }}
         transition={
           live
             ? { duration: period, repeat: Infinity, ease: 'easeOut', times: [0, 0.62, 0.86, 1] }
@@ -544,7 +545,7 @@ function Plate({ live, period }: { live: boolean; period: number }) {
         fill="currentColor"
         rx={0.875}
         initial={false}
-        animate={live ? { width: [0, 14, 14, 0], opacity: [0, 0.75, 0.75, 0] } : { width: 14, opacity: 0.25 }}
+        animate={live ? { width: [0, 14, 14, 0], opacity: [0, 0.75, 0.75, 0] } : { width: 14, opacity: 0.65 }}
         transition={
           live
             ? { duration: period, repeat: Infinity, ease: 'easeOut', times: [0, 0.7, 0.86, 1] }
@@ -580,7 +581,7 @@ function Rake({
         height={PLATE.h}
         fill="none"
         stroke="currentColor"
-        strokeOpacity={0.28}
+        strokeOpacity={0.8}
         strokeWidth={1}
         rx={2}
       />
@@ -615,7 +616,7 @@ function Rake({
             ? { r: 6, opacity: 1 }
             : live
               ? { r: [3, 6.5, 3], opacity: [0, 0.7, 0] }
-              : { r: 4, opacity: 0.18 }
+              : { r: 4, opacity: 0.75 }
         }
         transition={
           live && !found

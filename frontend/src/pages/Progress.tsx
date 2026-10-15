@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Page } from '@/components/os/Shell'
 import { PageHead } from '@/components/os/Sidebar'
 import { cn } from '@/lib/utils'
+import { JobsPanel } from '@/components/JobsPanel'
 import { api, ApiError } from '@/api/client'
 import type { Campaign, Run } from '@/api/types'
 
@@ -59,14 +60,15 @@ export function Progress() {
         Keep working elsewhere while Agentcy runs. This board refreshes automatically and brings you back to the exact campaign when a decision is due.
       </PageHead>
 
+      <JobsPanel />
       {campaigns === null ? (
         <p className="mt-12 text-sm text-text-3">Checking the workspace…</p>
       ) : (
         <>
-          <section className="mt-10 grid gap-3 sm:grid-cols-3">
+          <section className="mt-10 grid gap-3 responsive-pair">
             <Metric label="Working now" value={active.length} accent="text-video" />
             <Metric label="Needs your decision" value={needsDecision.length} accent="text-halt" />
-            <Metric label="Campaigns" value={campaigns.length} accent="text-foreground" />
+            <Metric label="Recent campaigns (up to 100)" value={campaigns.length} accent="text-foreground" />
           </section>
 
           <section className="mt-12">
@@ -103,7 +105,7 @@ function ProgressRow({ campaign, run }: { campaign: Campaign; run?: Run }) {
   const working = ACTIVE.has(campaign.status)
   const attention = campaign.status.startsWith('pending_')
   return (
-    <li className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+    <li className="grid gap-3 py-4 progress-row">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2.5">
           <p className="display text-[0.9375rem]">{campaign.name}</p>
@@ -112,7 +114,7 @@ function ProgressRow({ campaign, run }: { campaign: Campaign; run?: Run }) {
             {LABEL[campaign.status]}
           </span>
         </div>
-        <p className="mt-1 truncate text-[0.75rem] text-text-3">
+        <p className="mt-1 break-words text-[0.75rem] text-text-3">
           {run ? `${run.kind} · ${run.status} · ${run.summary}` : 'No completed run recorded yet.'}
         </p>
       </div>

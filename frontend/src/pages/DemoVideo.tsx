@@ -166,7 +166,7 @@ export function DemoVideo() {
 
       <motion.div
         className="mt-8"
-        animate={{ scale: awaitingReview ? 0.975 : 1, opacity: awaitingReview ? 0.58 : 1 }}
+        animate={{ scale: awaitingReview ? 0.975 : 1, opacity: 1 }}
         transition={DEPTH}
         style={{ transformOrigin: 'top center' }}
       >
@@ -210,7 +210,7 @@ export function DemoVideo() {
               </button>
             </div>
 
-            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+            <div className="mt-6 grid gap-5 responsive-pair">
               <Field label="Project name" htmlFor="video-name">
                 <input
                   id="video-name"
@@ -396,7 +396,7 @@ function VideoGate({
           form={formId}
           type="submit"
           disabled={running || disabled}
-          className={`display shrink-0 rounded-full px-5 py-2 text-[0.8125rem] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+          className={`display shrink-0 rounded-full px-5 py-2 text-[0.8125rem] transition-colors disabled:cursor-not-allowed disabled:opacity-100 ${
             awaitingReview ? 'bg-halt text-[#1a1206]' : 'bg-foreground text-void'
           }`}
         >
@@ -573,19 +573,19 @@ function ActionButton({
   ...props
 }: React.ComponentProps<'button'> & { primary?: boolean; quiet?: boolean }) {
   const styles = primary
-    ? 'display rounded-full bg-foreground px-4 py-2 text-[0.75rem] text-void disabled:opacity-40'
+    ? 'display rounded-full bg-foreground px-4 py-2 text-[0.75rem] text-void disabled:opacity-100'
     : quiet
-      ? 'px-2 py-2 text-[0.75rem] text-text-3 transition-colors hover:text-foreground disabled:opacity-40'
-      : 'rounded-full border border-edge px-4 py-2 text-[0.75rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:opacity-40'
+      ? 'px-2 py-2 text-[0.75rem] text-text-3 transition-colors hover:text-foreground disabled:opacity-100'
+      : 'rounded-full border border-edge px-4 py-2 text-[0.75rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:opacity-100'
   return <button type="button" className={styles} {...props}>{children}</button>
 }
 
 function StatusBadge({ status }: { status: MarketingVideo['review_status'] }) {
   const label = status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'needs review'
   const color = status === 'approved'
-    ? 'bg-[rgba(108,208,159,0.13)] text-[#a5e7c5]'
+    ? 'bg-go/10 text-go'
     : status === 'rejected'
-      ? 'bg-[rgba(237,125,125,0.13)] text-[#f2b2b2]'
+      ? 'bg-flag/10 text-flag'
       : 'bg-[rgba(233,238,247,0.07)] text-text-2'
   return <span className={`data rounded-full px-2.5 py-1 ${color}`}>{label}</span>
 }

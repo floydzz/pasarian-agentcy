@@ -43,7 +43,7 @@ export function SceneCard({
             type="button"
             onClick={onRemove}
             disabled={busy}
-            className="text-[0.75rem] text-text-3 transition-colors hover:text-foreground disabled:opacity-40"
+            className="text-[0.75rem] text-text-3 transition-colors hover:text-foreground disabled:opacity-100"
           >
             Remove
           </button>
@@ -113,7 +113,7 @@ export function AddSceneCard({ onAdd, disabled }: { onAdd: () => void; disabled:
       type="button"
       onClick={onAdd}
       disabled={disabled}
-      className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-edge-strong text-text-3 transition-colors hover:border-video/60 hover:text-video disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-edge-strong text-text-3 transition-colors hover:border-video/60 hover:text-video disabled:cursor-not-allowed disabled:opacity-100"
     >
       <svg viewBox="0 0 16 16" className="h-5 w-5" aria-hidden>
         <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />

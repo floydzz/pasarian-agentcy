@@ -152,7 +152,7 @@ function Toggle({
           )}
         >
           {label}
-          <span className="data ml-1.5 opacity-60">{count}</span>
+          <span className="data ml-1.5">{count}</span>
         </button>
       ))}
     </div>
@@ -206,7 +206,7 @@ function Gallery({ creatives }: { creatives: Creative[] | null }) {
             </span>
           </div>
 
-          <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="mt-4 grid history-gallery gap-4">
             {made.map((creative) => (
               <li key={creative.id}>
                 <Piece creative={creative} />
@@ -241,11 +241,11 @@ function Piece({ creative }: { creative: Creative }) {
           className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
         />
       </div>
-      <p className="mt-2 truncate text-[0.8125rem] text-text-2 transition-colors group-hover:text-foreground">
+      <p className="mt-2 break-words text-[0.8125rem] text-text-2 transition-colors group-hover:text-foreground">
         {creative.headline}
       </p>
       <p className="mt-0.5 flex items-center gap-2">
-        <span className="data truncate text-text-3">
+        <span className="data min-w-0 break-words text-text-3">
           {creative.concept_theme}
         </span>
       </p>
@@ -284,7 +284,7 @@ function Entry({
 
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <span className="truncate text-[0.875rem] text-text-2 transition-colors group-hover:text-foreground">
+            <span className="break-words text-[0.875rem] text-text-2 transition-colors group-hover:text-foreground">
               {run.campaign_name}
             </span>
             <span className="data text-text-3">{run.kind}</span>
@@ -299,7 +299,7 @@ function Entry({
           </span>
           <span
             className={cn(
-              "mt-1 block truncate text-[0.75rem]",
+              "mt-1 block break-words text-[0.75rem]",
               failed ? "text-flag" : "text-text-3",
             )}
           >

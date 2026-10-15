@@ -179,7 +179,7 @@ function Bay({
 
       <div className="mt-6 sm:pl-[5.25rem]">
         {agent.knobs.length > 0 && (
-          <div className="mb-7 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-7 grid gap-x-8 gap-y-6 responsive-pair">
             {agent.knobs.map((knob) => (
               <Meter
                 key={knob.field}
@@ -224,7 +224,7 @@ function Bay({
             whileHover={!dirty || saving ? undefined : { y: -1 }}
             whileTap={!dirty || saving ? undefined : { scale: 0.985 }}
             transition={MICRO}
-            className="display rounded-full bg-foreground px-4 py-1.5 text-[0.75rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
+            className="display rounded-full bg-foreground px-4 py-1.5 text-[0.75rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-100"
           >
             {saving ? 'Saving…' : 'Save'}
           </motion.button>
@@ -232,7 +232,7 @@ function Bay({
             type="button"
             onClick={reset}
             disabled={agent.is_default || saving}
-            className="text-[0.75rem] text-text-3 transition-colors hover:text-text-2 disabled:cursor-not-allowed disabled:opacity-30"
+            className="text-[0.75rem] text-text-3 transition-colors hover:text-text-2 disabled:cursor-not-allowed disabled:opacity-100"
           >
             Reset to default
           </button>
@@ -302,8 +302,8 @@ function Meter({
                   set
                     ? 'bg-foreground'
                     : under
-                      ? 'bg-[rgba(233,238,247,0.42)]'
-                      : 'bg-[rgba(233,238,247,0.13)] group-hover:bg-[rgba(233,238,247,0.28)]',
+                      ? 'bg-text-3'
+                      : 'bg-text-3/70 group-hover:bg-brand',
                 )}
                 initial={false}
                 animate={{ height: set ? '100%' : under ? '52%' : '30%' }}

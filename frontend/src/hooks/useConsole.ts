@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { streamRun, type AgentName, type RunEvent, type StreamLine } from '@/api/stream'
 
-export type AgentState = 'idle' | 'running' | 'done' | 'failed'
+export type AgentState = 'idle' | 'running' | 'done' | 'failed' | 'unknown'
 
 /** The agents the console watches, in pipeline order. `system` is the graph
  * itself — it narrates routing decisions and does not hold work, so it has no
@@ -41,11 +42,14 @@ export interface LogLine extends RunEvent {
 }
 
 export function useConsole() {
+  const { pathname } = useLocation()
   const [log, setLog] = useState<LogLine[]>([])
   const [agents, setAgents] = useState<Record<AgentName, AgentState>>(IDLE)
   const [running, setRunning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const counter = useRef(0)
+  const watcher = useRef<AbortController | null>(null)
+  useEffect(() => () => watcher.current?.abort(), [pathname])
   // How many of each agent are working right now, and which ones failed at
   // some point in this run. Counted rather than inferred from the last event
   // seen: the backend generates concepts in parallel and renders variants in
@@ -63,6 +67,10 @@ export function useConsole() {
       onResult?: (result: Record<string, unknown>) => void,
       body?: unknown,
     ) => {
+      if (watcher.current && !watcher.current.signal.aborted) return
+      const controller = new AbortController()
+      watcher.current = controller
+      let confirmed = false
       setRunning(label)
       setError(null)
       // Agents reset per run, but the log does not: the point of the log is
@@ -72,6 +80,7 @@ export function useConsole() {
       failed.current = new Set()
 
       const finish = (line: StreamLine) => {
+        if (controller.signal.aborted || watcher.current !== controller) return
         if (line.kind === 'event') {
           // Stamped out here, not inside the updater: two events arriving in
           // one tick would both read the ref after both increments and end up
@@ -96,31 +105,37 @@ export function useConsole() {
         } else if (line.kind === 'error') {
           setError(line.detail)
         } else {
+          confirmed = true
           onResult?.(line)
         }
       }
 
       try {
-        await streamRun(path, finish, body)
+        await streamRun(path, finish, body, controller.signal)
       } catch (thrown) {
+        if (controller.signal.aborted) return
         setError(thrown instanceof Error ? thrown.message : 'The run was cut off.')
       } finally {
+        if (watcher.current === controller) {
         setRunning(null)
-        // Anything still marked running finished when the stream closed.
+        watcher.current = null
+        // A closed connection is not evidence that unfinished agents succeeded.
         setAgents((current) =>
           Object.fromEntries(
             Object.entries(current).map(([agent, state]) => [
               agent,
-              state === 'running' ? 'done' : state,
+              state === 'running' ? confirmed ? 'done' : 'unknown' : state,
             ]),
           ) as Record<AgentName, AgentState>,
         )
+        }
       }
     },
     [],
   )
 
-  return { log, agents, running, error, run, clearError: () => setError(null) }
+  const clearError = useCallback(() => setError(null), [])
+  return { log, agents, running, error, run, clearError }
 }
 
 /** What a lane shows, given how many of that agent are still working and

@@ -1,8 +1,9 @@
+import { useScrollMemory } from '@/hooks/useScrollMemory'
 import type { ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { LogDrawer } from '@/components/os/LogDrawer'
 import { TopBar } from '@/components/os/TopBar'
-import { BOOT, DEPTH, EASE_OUT, rise } from '@/lib/motion'
+import { EASE_OUT } from '@/lib/motion'
 import type { LogLine } from '@/hooks/useConsole'
 import type { Campaign } from '@/api/types'
 
@@ -46,42 +47,29 @@ export function StudioShell({
   children: ReactNode
 }) {
   const still = Boolean(useReducedMotion())
+  const scroll = useScrollMemory()
 
   return (
-    <motion.div
+    <motion.div ref={scroll}
       initial="hidden"
       animate="shown"
       // A plan review can be taller than a laptop viewport. The shell, rather
       // than the browser body, owns that vertical scroll so the rail stays
       // fixed while the decision cards remain reachable below the machine.
-      className="quiet-scroll relative isolate flex h-full flex-col overflow-x-hidden overflow-y-auto bg-void text-foreground"
+      className="studio-workspace quiet-scroll relative isolate flex h-full flex-col overflow-x-hidden overflow-y-auto bg-void text-foreground"
     >
       <Ambience medium={medium} active={running !== null} halted={halted} still={still} />
 
       <TopBar campaign={campaign} running={running} medium={medium} />
 
-      {/* The machine. It steps back when you are needed. */}
-      <motion.div
-        className="relative z-10 shrink-0 px-5 sm:px-8"
-        initial={false}
-        animate={{
-          scale: halted ? 0.955 : 1,
-          opacity: halted ? 0.5 : 1,
-          filter: halted && !still ? 'blur(1.5px)' : 'blur(0px)',
-          marginBottom: halted ? '-3rem' : '0rem',
-        }}
-        transition={DEPTH}
-        style={{ transformOrigin: 'top center' }}
-        // A receded machine is out of reach as well as out of focus, so tabbing
-        // cannot land on a control the interface has visibly put away.
-        inert={halted}
-      >
-        <motion.div variants={rise(BOOT.station)}>{station}</motion.div>
-
-        <div className="mx-auto mt-2 w-full max-w-[52rem]">{graph}</div>
-
-        <div className="flex h-5 items-center justify-center">{caption}</div>
-      </motion.div>
+      <div className="mx-4 my-4 rounded-xl border border-edge bg-rise p-4 sm:mx-8">
+        <p className="text-sm font-medium">{halted ? 'Your review is needed' : running ? 'Your creative team is working' : 'Campaign workspace'}</p>
+        <div className="mt-1 text-xs text-text-2">{caption}</div>
+        <details className="mt-3">
+          <summary className="cursor-pointer text-xs font-medium text-primary">Activity and details</summary>
+          <div className="mt-4 min-w-0"><div aria-label="Campaign workflow diagram">{graph}</div><div className="mt-5 border-t border-edge pt-4"><h3 className="mb-3 text-xs font-medium text-text-2">Creative team</h3>{station}</div></div>
+        </details>
+      </div>
 
       {gate}
 
@@ -120,8 +108,8 @@ export function StageCaption({ text }: { text: string | null }) {
  * with the one warm colour that means a person is needed.
  */
 const MEDIUM_LIGHT: Record<StudioMedium, string> = {
-  image: 'rgba(110,155,255,0.10)',
-  video: 'rgba(176,140,255,0.10)',
+  image: 'rgba(198,173,134,0.04)',
+  video: 'rgba(198,173,134,0.04)',
 }
 
 function Ambience({

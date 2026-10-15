@@ -1,387 +1,60 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { motion, useReducedMotion } from 'motion/react'
-import { useRoomNav } from '@/lib/rooms'
-import { cn } from '@/lib/utils'
-import { EASE_OUT, SETTLE } from '@/lib/motion'
+import { MessageSquare, CalendarDays, Layers, Building2, SlidersHorizontal, TrendingUp, History, Image, Film, Activity, Download, Aperture, ChevronDown, LayoutDashboard, Menu } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { useAuth } from '@/lib/auth'
 import { api } from '@/api/client'
 import type { System } from '@/api/types'
+import { cn } from '@/lib/utils'
+import { finishRoomTransition } from '@/lib/rooms'
 
-/** The rail.
- *
- * Two groups, and the split says something true: the top group is work the
- * machine has done and you look at, the bottom is the machine itself and you
- * set it. A flat list of four would have implied they are the same kind of
- * thing, and reaching for the agents' settings is not the same act as opening
- * a campaign.
- *
- * Marks are drawn from the product's own vocabulary rather than from an icon
- * set — the four dots really are the four agents, the rising steps really are
- * what the trend watchlist measures.
- */
-const GROUPS = [
-  {
-    label: 'Work',
-    items: [
-      { to: '/', label: 'Campaigns', mark: Stack, end: true },
-      // Both studios sit at the top level. A studio belongs to a campaign, but
-      // burying the way in would mean digging through a campaign every time
-      // you want to look at the work you were doing five minutes ago.
-      { to: '/studio/image', label: 'Image studio', mark: Frame, tint: 'text-image' },
-      { to: '/studio/video', label: 'Video studio', mark: Play, tint: 'text-video' },
-      { to: '/progress', label: 'Progress', mark: Pulse },
-      { to: '/publish', label: 'Publish', mark: Tray },
-      { to: '/history', label: 'History', mark: Rings },
-    ],
-  },
-  {
-    label: 'Machine',
-    items: [
-      { to: '/brand', label: 'Brand profile', mark: Brand },
-      { to: '/agents', label: 'Agents', mark: Quad },
-      { to: '/trends', label: 'Trends', mark: Steps },
-    ],
-  },
-] as const
-
-/** Return the rail room for direct campaign routes as well as rail routes.
- *
- * The strategist uses the campaign-specific URLs so the page retains its
- * context. The rail uses the top-level rooms, therefore those URLs need to be
- * translated before the shared active marker can travel to the right entry.
- */
-function roomForPath(pathname: string) {
-  if (
-    pathname === '/studio/image' ||
-    /^\/campaigns\/[^/]+\/image(?:\/|$)/.test(pathname)
-  ) {
-    return '/studio/image'
-  }
-  if (
-    pathname === '/studio/video' ||
-    pathname === '/demo-video' ||
-    pathname.startsWith('/cinematic-trailer') ||
-    /^\/campaigns\/[^/]+\/video(?:\/|$)/.test(pathname)
-  ) {
-    return '/studio/video'
-  }
-  if (
-    pathname === '/publish' ||
-    /^\/campaigns\/[^/]+\/publish(?:\/|$)/.test(pathname)
-  ) {
-    return '/publish'
-  }
-  if (pathname.startsWith('/campaigns/')) return '/'
-  return pathname
-}
+const primary = [
+  { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { to: '/chat', label: 'Chat', icon: MessageSquare },
+  { to: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { to: '/campaigns', label: 'Campaigns', icon: Layers },
+]
+const groups = [
+  { label: 'Work tools', links: [{ to: '/trends', label: 'Trends', icon: TrendingUp }, { to: '/progress', label: 'Progress', icon: Activity }, { to: '/publish', label: 'Publish', icon: Download }, { to: '/history', label: 'Run history', icon: History }] },
+  { label: 'Studios', links: [{ to: '/studio/image', label: 'Image studio', icon: Image }, { to: '/studio/video', label: 'Video studio', icon: Film }] },
+  { label: 'Settings', links: [{ to: '/brand', label: 'Brand', icon: Building2 }, { to: '/agents', label: 'Agent settings', icon: SlidersHorizontal }, { to: '/account', label: 'Account & team', icon: Building2 }] },
+  { label: 'Demos', links: [{ to: '/demo-video', label: 'Product demo', icon: Film }, { to: '/cinematic-trailer/demo', label: 'Cinematic demo', icon: Film }] },
+]
 
 export function Sidebar() {
-  const [system, setSystem] = useState<System | null>(null)
-  const still = useReducedMotion()
-  const roomNav = useRoomNav()
   const { pathname } = useLocation()
-
-  useEffect(() => {
-    api.system().then(setSystem).catch(() => setSystem(null))
-  }, [])
-
-  // A studio is a place inside a campaign, so the rail lights the studio you
-  // are standing in rather than losing your place. This includes guided demo
-  // routes such as `/campaigns/:id/video/demo` and campaign publish.
-  const active = roomForPath(pathname)
-
-  return (
-    <nav
-      aria-label="Sections"
-      className="relative z-30 flex h-full w-16 shrink-0 flex-col border-r border-edge bg-void lg:w-[13.5rem]"
-    >
-      <NavLink
-        to="/"
-        viewTransition
-        onClick={() => roomNav('/')}
-        className="flex h-16 shrink-0 items-center gap-3 px-4 lg:px-5"
-        aria-label="Agentcy home"
-      >
-        <Aperture />
-        <span className="display hidden text-[0.9375rem] lg:block">Agentcy</span>
-      </NavLink>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-2.5 py-2 lg:px-3">
-        {GROUPS.map((group) => (
-          <div key={group.label}>
-            <p className="label mb-1.5 hidden px-2.5 lg:block">{group.label}</p>
-            <ul className="flex flex-col gap-0.5">
-              {group.items.map((item) => {
-                const lit = active === item.to
-                const sharedClass = cn(
-                  'group relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors',
-                  lit
-                    ? 'text-foreground'
-                    : 'text-text-3 hover:bg-[rgba(233,238,247,0.03)] hover:text-text-2',
-                )
-                const contents = (
-                  <>
-                    {/* The lit segment travels between entries rather than
-                        appearing and disappearing, so the rail reads as one
-                        continuous control with a position. */}
-                    {lit && (
-                      <motion.span
-                        layoutId="rail-mark"
-                        transition={still ? { duration: 0 } : SETTLE}
-                        // The rail sits outside `<main>`, so it is never
-                        // captured by a room transition and this mark keeps
-                        // travelling under `motion` while the room changes.
-                        style={{ viewTransitionName: 'none' }}
-                        className="absolute inset-0 -z-10 rounded-lg bg-[rgba(233,238,247,0.06)]"
-                      >
-                        <span className="absolute top-1/2 -left-2.5 h-5 w-px -translate-y-1/2 bg-foreground lg:-left-3" />
-                      </motion.span>
-                    )}
-                    <span className={cn('shrink-0', 'tint' in item && !lit ? item.tint : undefined)}>
-                      <item.mark />
-                    </span>
-                    <span className="hidden text-[0.8125rem] lg:block">
-                      {item.label}
-                    </span>
-                  </>
-                )
-                return (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      viewTransition
-                      onClick={() => roomNav(item.to)}
-                      end={'end' in item ? item.end : false}
-                      // The label is in the DOM at every width for assistive
-                      // tech; the tooltip is for sighted people on the narrow
-                      // rail, where it is the only way to read a mark.
-                      title={item.label}
-                      className={sharedClass}
-                    >
-                      {contents}
-                    </NavLink>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
+  const actor = useAuth()
+  const savedDirectory = sessionStorage.getItem(`agentcy-directory:${actor.user.id}:${actor.workspace_id}`) ?? '/campaigns'
+  const primaryLinks = primary.map(row => row.to === '/campaigns' ? { ...row, to: savedDirectory.startsWith('/campaigns') ? savedDirectory : '/campaigns' } : row)
+  const [system, setSystem] = useState<System | null>(null)
+  const [more, setMore] = useState(() => groups.some(g => g.links.some(l => pathname === l.to)))
+  const [menu, setMenu] = useState(false)
+  useEffect(() => { api.system().then(setSystem).catch(() => undefined) }, [])
+  const openMenu = () => { finishRoomTransition(); setMenu(true) }
+  const closeMenu = () => { finishRoomTransition(); setMenu(false) }
+  const campaignActive = pathname === '/' || pathname.startsWith('/campaigns')
+  const linkClass = (active: boolean) => cn('flex min-h-11 min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors', active ? 'bg-accent font-medium text-foreground' : 'text-text-2 hover:bg-lift')
+  const fullNavigation = <>
+    <div className="space-y-1">{primaryLinks.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={closeMenu} className={({ isActive }) => linkClass(to.startsWith('/campaigns') ? campaignActive : isActive)}><Icon size={18} className="shrink-0" /><span>{label}</span></NavLink>)}</div>
+    {groups.map(group => <section key={group.label} className="mt-5"><h3 className="mb-2 px-3 text-xs text-text-3">{group.label}</h3><div className="space-y-1">{group.links.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={closeMenu} className={({ isActive }) => linkClass(isActive)}><Icon size={17} className="shrink-0" /><span>{label}</span></NavLink>)}</div></section>)}
+  </>
+  return <>
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-edge bg-rise px-4 md:hidden"><NavLink to="/dashboard" onClick={finishRoomTransition} className="flex items-center gap-2 font-semibold" aria-label="Agentcy home"><Aperture size={23} className="text-brand" />agentcy.</NavLink><button type="button" onClick={openMenu} aria-label="Open navigation menu" className="workspace-secondary min-h-9 px-3 py-1.5"><Menu size={17} />Menu</button></header>
+    <nav aria-label="Main navigation" className="z-30 hidden h-full w-20 shrink-0 flex-col border-r border-edge bg-rise md:flex lg:w-[13.5rem]">
+      <NavLink to="/dashboard" onClick={finishRoomTransition} className="flex h-20 shrink-0 items-center justify-center gap-3 px-4 text-foreground lg:justify-start lg:px-5" aria-label="Agentcy home"><Aperture size={26} className="shrink-0 text-brand" /><span className="hidden text-xl font-semibold tracking-tight lg:block">agentcy.</span></NavLink>
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 lg:px-3"><p className="mb-3 hidden px-3 text-xs text-text-3 lg:block">Marketing workspace</p>
+        {primaryLinks.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={finishRoomTransition} title={label} className={({ isActive }) => cn('mb-1 flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[.625rem] lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm', (to.startsWith('/campaigns') ? campaignActive : isActive) ? 'bg-accent font-medium text-foreground' : 'text-text-2 hover:bg-lift')}><Icon size={19} className="shrink-0" /><span>{label}</span></NavLink>)}
+        <button type="button" onClick={openMenu} className="mt-5 flex min-h-11 w-full flex-col items-center justify-center gap-1 text-[.625rem] text-text-2 lg:hidden"><Menu size={17} />All pages</button>
+        <button type="button" aria-expanded={more} onClick={() => setMore(!more)} className="mt-5 hidden min-h-11 w-full items-center justify-between px-3 text-xs text-text-2 lg:flex">Tools & settings<ChevronDown size={14} className={more ? 'rotate-180' : ''} /></button>
+        {more && <div className="hidden pb-3 lg:block">{groups.map(group => <section key={group.label} className="mt-3"><h3 className="mb-1 px-3 text-[.6875rem] text-text-3">{group.label}</h3>{group.links.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={finishRoomTransition} className={({ isActive }) => linkClass(isActive)}><Icon size={17} className="shrink-0" /><span>{label}</span></NavLink>)}</section>)}</div>}
       </div>
-
-      <Footer system={system} />
+      <NavLink to="/account" className="mx-3 my-4 min-w-0 rounded-lg bg-void p-2 text-center text-[.625rem] text-text-2 lg:text-left lg:text-xs"><span className="block truncate">{actor.workspaces.find(row => row.id === actor.workspace_id)?.name}</span><span className="mt-1 block text-text-3">{actor.role} · {system?.scripted_demo || system?.llm_provider === 'demo' ? 'Demo mode' : 'Account'}</span></NavLink>
     </nav>
-  )
+    <nav aria-label="Mobile shortcuts" className="mobile-shortcuts fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-edge bg-rise md:hidden">{primaryLinks.slice(0, 4).map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} onClick={finishRoomTransition} className={({ isActive }) => cn('flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[.6875rem]', (to.startsWith('/campaigns') ? campaignActive : isActive) ? 'font-medium text-brand' : 'text-text-2')}><Icon size={18} /><span>{label}</span></NavLink>)}</nav>
+    <Dialog open={menu} onOpenChange={setMenu}><DialogContent className="left-0 top-0 h-dvh w-[min(90vw,22rem)] max-w-none translate-x-0 translate-y-0 content-start overflow-y-auto rounded-none p-5"><DialogTitle>Navigate your workspace</DialogTitle><DialogDescription>Choose a page or tool.</DialogDescription><nav aria-label="Navigation menu" className="mt-2">{fullNavigation}</nav></DialogContent></Dialog>
+  </>
 }
 
-/** What the machine is currently made of.
- *
- * The provider is on screen at all times on purpose: `demo` writes copy that
- * reads like copy, and a rehearsal must never be mistaken for a live model by
- * whoever is watching. */
-function Footer({ system }: { system: System | null }) {
-  if (!system) return <div className="h-14 shrink-0" />
-
-  const rehearsing = system.llm_provider === 'demo'
-  return (
-    <div className="shrink-0 border-t border-edge px-4 py-3.5 lg:px-5">
-      <div className="flex items-center gap-2.5">
-        <span
-          className={cn(
-            'h-1.5 w-1.5 shrink-0 rounded-full',
-            rehearsing ? 'bg-[rgba(233,238,247,0.3)]' : 'bg-go',
-          )}
-        />
-        <span className="data hidden truncate text-text-2 lg:block">
-          {system.llm_provider}
-        </span>
-      </div>
-      <p className="data mt-1 hidden text-text-3 lg:block">
-        {rehearsing ? 'offline rehearsal' : 'live model'} · {system.geo}
-      </p>
-    </div>
-  )
-}
-
-// -- marks -----------------------------------------------------------------
-
-/** The product's mark: the creative director's aperture, open. */
-function Aperture() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-foreground" aria-hidden>
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <circle
-        cx="12"
-        cy="12"
-        r="3.4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        opacity="0.55"
-      />
-      {[0, 60, 120, 180, 240, 300].map((angle) => (
-        <line
-          key={angle}
-          x1="12"
-          y1="12"
-          x2={12 + 9 * Math.cos((angle * Math.PI) / 180)}
-          y2={12 + 9 * Math.sin((angle * Math.PI) / 180)}
-          stroke="currentColor"
-          strokeWidth="0.9"
-          opacity="0.28"
-        />
-      ))}
-    </svg>
-  )
-}
-
-/** Campaigns: work stacked, the top one in focus. */
-function Stack() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <rect x="2" y="3" width="12" height="3" rx="1" fill="currentColor" />
-      <rect x="2" y="8" width="12" height="3" rx="1" fill="currentColor" opacity="0.5" />
-      <rect x="2" y="13" width="8" height="1.5" rx="0.75" fill="currentColor" opacity="0.28" />
-    </svg>
-  )
-}
-
-/** Progress: one live signal moving through the work. */
-function Pulse() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <path d="M1.5 8h3l1.5-3.5 3 7L10.5 8h4" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-/** Export: a finished piece leaving the tray. */
-function Tray() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <path
-        d="M2.5 9.5v3h11v-3M11 6 8 9 5 6M8 8.5V1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/** History: passes stacked back in time, the oldest faintest. */
-function Rings() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <circle cx="8" cy="8" r="2" fill="currentColor" />
-      <circle cx="8" cy="8" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.55" />
-      <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
-    </svg>
-  )
-}
-
-/** Image studio: a frame with a horizon and a sun in it. */
-function Frame() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <rect x="2" y="3" width="12" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <circle cx="6" cy="6.5" r="1.2" fill="currentColor" />
-      <path d="M3 11.5 6.5 8l2.5 2.5L11 9l2 2.5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-/** Video studio: a vertical frame with the playhead inside it. */
-function Play() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <rect x="3" y="1.5" width="10" height="13" rx="2" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <path d="m6.5 5 4 3-4 3z" fill="currentColor" />
-    </svg>
-  )
-}
-
-/** Agents: the four of them. */
-function Quad() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      {[
-        [5, 5],
-        [11, 5],
-        [5, 11],
-        [11, 11],
-      ].map(([x, y], index) => (
-        <circle
-          key={`${x}-${y}`}
-          cx={x}
-          cy={y}
-          r="2"
-          fill="currentColor"
-          opacity={index === 0 ? 1 : 0.45}
-        />
-      ))}
-    </svg>
-  )
-}
-
-/** Brand profile: a source document with one grounded product mark. */
-function Brand() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <path
-        d="M3 2.5h7l3 3v8H3z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinejoin="round"
-      />
-      <path d="M10 2.5v3h3M5.5 9h5M5.5 11.5h3.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-/** Trends: rising interest, which is the only thing the watchlist measures. */
-function Steps() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" aria-hidden>
-      <path
-        d="M2 12.5 L6 8.5 L9 10.5 L14 4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="14" cy="4" r="1.6" fill="currentColor" />
-    </svg>
-  )
-}
-
-/** Shared by every page that is not the console: a quiet page header. */
-export function PageHead({
-  title,
-  children,
-  action,
-}: {
-  title: string
-  children: React.ReactNode
-  action?: React.ReactNode
-}) {
-  return (
-    <motion.header
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: EASE_OUT }}
-      className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4"
-    >
-      <div className="min-w-0">
-        <h1 className="display-tight text-[1.75rem] sm:text-[2rem]">{title}</h1>
-        <p className="mt-2 max-w-xl text-[0.875rem] leading-relaxed text-text-2">
-          {children}
-        </p>
-      </div>
-      {action}
-    </motion.header>
-  )
+export function PageHead({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return <header className="flex min-w-0 flex-wrap items-start justify-between gap-4"><div className="min-w-0 flex-[1_1_18rem]"><h1 className="display-tight break-words text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-2">{children}</p></div>{action}</header>
 }

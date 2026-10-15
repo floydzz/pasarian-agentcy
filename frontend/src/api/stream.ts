@@ -32,55 +32,15 @@ export async function streamRun(
   path: string,
   onLine: (line: StreamLine) => void,
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`/api${path}`, {
-    method: 'POST',
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+  const { request, waitForJob } = await import('./client')
+  const job = await request<import('./client').Job>('/jobs', {
+    method: 'POST', body: JSON.stringify({ path, payload: body ?? null, request_key: crypto.randomUUID() }), signal,
   })
-
-  if (!response.ok) {
-    // Refusals happen before the stream opens — a 409 gate check, say — so
-    // they arrive as an ordinary body.
-    let detail = `Request failed (${response.status})`
-    try {
-      const body = await response.json()
-      if (typeof body.detail === 'string') detail = body.detail
-    } catch {
-      /* keep the generic message */
-    }
-    onLine({ kind: 'error', detail })
-    return
-  }
-
-  const reader = response.body?.getReader()
-  if (!reader) {
-    onLine({ kind: 'error', detail: 'This browser cannot read a streamed run.' })
-    return
-  }
-
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-
-    // A chunk can split a line, so only whole lines are dispatched and the
-    // remainder stays in the buffer for the next read.
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-    for (const line of lines) dispatch(line, onLine)
-  }
-  dispatch(buffer, onLine)
-}
-
-function dispatch(line: string, onLine: (line: StreamLine) => void) {
-  if (!line.trim()) return
-  try {
-    onLine(JSON.parse(line) as StreamLine)
-  } catch {
-    /* a partial line at the very end of a dropped connection */
-  }
+  const result = await waitForJob(job, update => {
+    for (const event of update.events) onLine(event as unknown as RunEvent)
+  }, signal)
+  if (Array.isArray(result)) throw new Error('The job returned an unexpected result. Review saved progress.')
+  onLine({ kind: 'result', ...result })
 }

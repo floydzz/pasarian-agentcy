@@ -83,7 +83,7 @@ export function CinematicComposerPanel({ campaign, script, scriptedDemo }: {
               type="button"
               disabled={busy}
               onClick={() => void act(() => api.createCinematicTrailer(blueprint(campaign, script)), 'Cinematic clip plan created from your script')}
-              className="shrink-0 rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void disabled:opacity-40"
+              className="shrink-0 rounded-full bg-video px-4 py-2 text-[0.75rem] font-medium text-void disabled:opacity-100"
             >
               Create clip plan
             </button>
@@ -138,7 +138,7 @@ export function CinematicComposerPanel({ campaign, script, scriptedDemo }: {
 
           {current.media_url && <video controls playsInline src={current.media_url} poster={current.poster_url ?? undefined} className="mt-5 aspect-video w-full rounded-xl bg-black object-contain" />}
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-5 grid gap-3 responsive-cards">
             {current.shots.map((shot) => (
               <article key={shot.id} className="overflow-hidden rounded-xl border border-edge bg-rise">
                 {shot.media_url ? <video controls playsInline preload="metadata" src={shot.media_url} className="aspect-video w-full bg-black object-cover" /> : <div className="flex aspect-video items-end bg-video/[0.06] p-3"><span className="data text-text-3">Clip {String(shot.position).padStart(2, '0')}</span></div>}
@@ -154,7 +154,7 @@ export function CinematicComposerPanel({ campaign, script, scriptedDemo }: {
                         () => api.regenerateCinematicTrailerShot(current.id, shot.id),
                         'New take submitted with the saved campaign script',
                       )}
-                      className="mt-3 rounded-full border border-video/50 px-3 py-1.5 text-[0.6875rem] text-video transition-colors hover:bg-video/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="mt-3 rounded-full border border-video/50 px-3 py-1.5 text-[0.6875rem] text-video transition-colors hover:bg-video/10 disabled:cursor-not-allowed disabled:opacity-100"
                     >
                       Regenerate take · billed
                     </button>
@@ -170,7 +170,7 @@ export function CinematicComposerPanel({ campaign, script, scriptedDemo }: {
 }
 
 function Action({ busy, onClick, tone, children }: { busy: boolean; onClick: () => void; tone?: 'go'; children: React.ReactNode }) {
-  return <button type="button" disabled={busy} onClick={onClick} className={cn('rounded-full border px-3.5 py-2 text-[0.75rem] disabled:opacity-40', tone === 'go' ? 'border-go/50 text-go hover:bg-go/10' : 'border-video/50 text-video hover:bg-video/10')}>{children}</button>
+  return <button type="button" disabled={busy} onClick={onClick} className={cn('rounded-full border px-3.5 py-2 text-[0.75rem] disabled:opacity-100', tone === 'go' ? 'border-go/50 text-go hover:bg-go/10' : 'border-video/50 text-video hover:bg-video/10')}>{children}</button>
 }
 
 function blueprint(campaign: Campaign, script: MarketingVideoCreate): CinematicTrailerCreate {

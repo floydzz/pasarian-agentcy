@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { api, ApiError } from '@/api/client'
+import { useAuth } from '@/lib/auth'
+import { api, ApiError, request } from '@/api/client'
 import type { Campaign, ChatMessage, Conversation } from '@/api/types'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { DEPTH, SETTLE, STAGGER, STAGGER_CHILD } from '@/lib/motion'
+import { STRATEGIST_MORPH, SETTLE, STAGGER, STAGGER_CHILD } from '@/lib/motion'
+
+const dockFrame = 'fixed inset-y-3 right-3 z-50 w-[calc(100vw-1.5rem)] max-w-[27rem] sm:inset-y-5 sm:right-5 sm:w-[26rem]'
 
 /** A persistent strategist beside the work, rather than a separate room.
  *
@@ -15,15 +19,34 @@ import { DEPTH, SETTLE, STAGGER, STAGGER_CHILD } from '@/lib/motion'
  * one-use intent. The studio owns the stream and is therefore the truthful
  * place to watch the agents, their graph and their gates work.
  */
-export function MarketingChatDock({ onClose }: { onClose: () => void }) {
+export function MarketingChatDock({ onClose, fullPage = false, morphToLauncher = true }: { onClose: () => void; fullPage?: boolean; morphToLauncher?: boolean }) {
+  const present = useIsPresent()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, search, state: routeState } = useLocation()
+  const requestedThread = Number(new URLSearchParams(search).get("thread")) || null
+  const routeRef = useRef(pathname + search)
+  useEffect(() => { routeRef.current = pathname + search }, [pathname, search])
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const campaignId = campaignFromPath(pathname)
   const [threads, setThreads] = useState<Conversation[]>([])
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [startingNew, setStartingNew] = useState(false)
   const [pageCampaign, setPageCampaign] = useState<Campaign | null>(null)
-  const [draft, setDraft] = useState('')
+  const actor = useAuth()
+  const draftKey = `agentcy-chat-draft:${actor.user.id}:${actor.workspace_id}`
+  const [draft, setDraft] = useState(() => fullPage && typeof routeState?.calendarDraft === 'string' ? routeState.calendarDraft : sessionStorage.getItem(draftKey) ?? '')
+  useEffect(() => { sessionStorage.setItem(draftKey, draft) }, [draft, draftKey])
+  // Calendar briefs enter the composer for review, never the send handler.
+  // Consume the navigation state so browser Back does not restore a sent brief.
+  useEffect(() => {
+    if (fullPage && typeof routeState?.calendarDraft === 'string') navigate(pathname + search, { replace: true, state: null })
+  }, [fullPage, routeState, pathname, search, navigate])
+  const [moreThreads, setMoreThreads] = useState(true)
+  const [historyEnd, setHistoryEnd] = useState<number | null>(null)
+  const [manage, setManage] = useState<'rename' | 'delete' | null>(null)
+  const [threadName, setThreadName] = useState('')
+  const [manageError, setManageError] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [scriptedDemo, setScriptedDemo] = useState(false)
@@ -37,18 +60,20 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
   const refreshThreads = useCallback(async () => {
     const listed = await api.listConversations()
     setThreads(listed)
+    setMoreThreads(listed.length === 30)
     return listed
   }, [])
 
   const selectForPage = useCallback(
     (listed: Conversation[]) => {
+      if (requestedThread !== null && !startingNew) return listed.find(thread => thread.id === requestedThread) ?? null
       if (campaignId !== null) {
         return listed.find((thread) => thread.campaign_id === campaignId) ?? null
       }
       if (startingNew) return null
       return listed.find((thread) => thread.id === conversation?.id) ?? listed[0] ?? null
     },
-    [campaignId, conversation?.id, startingNew],
+    [campaignId, conversation?.id, startingNew, requestedThread],
   )
 
   useEffect(() => {
@@ -56,14 +81,17 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
     setLoading(true)
     refreshThreads()
       .then((listed) => {
-        if (current) setConversation(selectForPage(listed))
+        const selected = selectForPage(listed)
+        if (selected) return api.getConversation(selected.id).then(full => { if (current) setConversation(full) })
+        if (requestedThread !== null && !startingNew) return api.getConversation(requestedThread).then(full => { if (current) setConversation(full) })
+        if (current) setConversation(null)
       })
       .catch((error: ApiError) => toast.error(error.message))
       .finally(() => current && setLoading(false))
     return () => {
       current = false
     }
-  }, [refreshThreads, selectForPage])
+  }, [refreshThreads, selectForPage, requestedThread, startingNew])
 
   useEffect(() => {
     if (campaignId === null) {
@@ -72,7 +100,7 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
     }
     let current = true
     const syncCampaign = () =>
-      api
+      document.hidden ? Promise.resolve() : api
         .getCampaign(campaignId)
         .then((campaign) => current && setPageCampaign(campaign))
         .catch((error: ApiError) => current && toast.error(error.message))
@@ -105,6 +133,7 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
   function startThread() {
     // A blank thread is intent, not a useful record. It becomes durable only
     // when the marketer sends their first request via `activeThread`.
+    if (fullPage) navigate('/chat')
     setStartingNew(true)
     setConversation(null)
     setDraft('')
@@ -135,6 +164,7 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
     const content = (suggested ?? draft).trim()
     if (!content || sending) return
 
+    const submittedFrom = pathname + search
     setSending(true)
     setDraft('')
     // Render the marketer's thought at once. The persisted version from the
@@ -143,12 +173,17 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
     try {
       const active = await activeThread()
       const result = await api.sendConversationMessage(active.id, content)
+      if (!mounted.current || routeRef.current !== submittedFrom) return
       const refreshed = await api.getConversation(active.id)
+      if (!mounted.current || routeRef.current !== submittedFrom) return
       setPendingMessage(null)
       replaceThread(refreshed)
       if (result.campaign) setPageCampaign(result.campaign)
+      if (fullPage && !result.authorized) navigate(`/chat?thread=${active.id}`, { replace: true })
 
-      if (result.authorized === 'cinematic') {
+      if (result.authorized === 'calendar') {
+        navigate(result.calendar_run_id ? `/calendar?run=${result.calendar_run_id}` : '/calendar')
+      } else if (result.authorized === 'cinematic') {
         navigate('/cinematic-trailer/demo')
         toast.success(handoffMessage(result.authorized))
       } else if (result.authorized && result.campaign) {
@@ -171,11 +206,12 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
         toast.success(handoffMessage(result.authorized))
       }
     } catch (error) {
+      if (!mounted.current || routeRef.current !== submittedFrom) return
       setPendingMessage(null)
       toast.error((error as ApiError).message)
       setDraft(content)
     } finally {
-      setSending(false)
+      if (mounted.current) { setSending(false); setPendingMessage(null) }
     }
   }
 
@@ -186,27 +222,32 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
   const title = pageCampaign?.name ?? conversation?.campaign?.name ?? 'Marketing strategist'
   const status = pageCampaign?.status ?? conversation?.campaign?.status
   const selectableThreads = threads.filter(
-    (thread) => thread.campaign !== null || thread.messages.length > 0,
+    (thread) => thread.id === conversation?.id || thread.campaign !== null || (thread.message_count ?? thread.messages.length) > 0,
   )
   const visibleMessages = pendingMessage
     ? [...(conversation?.messages ?? []), pendingMessage]
     : (conversation?.messages ?? [])
 
   return (
-    // `layoutId` is shared with the bubble in the shell, so the strategist
-    // grows out of the control you pressed instead of the control vanishing
-    // while a panel appears somewhere else on screen. One object, two sizes.
+    // Move the complete panel together. The direct child's layout projection
+    // corrects content scaling; retiring content cannot intercept clicks.
+    // Full-page Chat has no shared layout identity.
     <motion.aside
-      layoutId="strategist"
+      layoutId={!fullPage && morphToLauncher ? 'strategist' : undefined}
       aria-label="Marketing strategist"
-      transition={DEPTH}
-      style={{ borderRadius: 16 }}
-      className="fixed inset-y-3 right-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[27rem] flex-col overflow-hidden border border-edge bg-void shadow-2xl sm:inset-y-5 sm:right-5 sm:w-[26rem]"
+      aria-hidden={!present || undefined}
+      inert={!present}
+      transition={STRATEGIST_MORPH}
+      style={{ borderRadius: 16, pointerEvents: present ? 'auto' : 'none' }}
+      className={fullPage ? 'h-full w-full overflow-hidden bg-void' : cn(dockFrame, 'overflow-hidden border border-edge bg-rise shadow-xl')}
     >
-      <header className="flex shrink-0 items-start justify-between gap-3 border-b border-edge px-5 py-4">
-        <div className="min-w-0">
-          <p className="label">Marketing strategist</p>
-          <p className="display mt-1 truncate text-[0.9375rem]">{title}</p>
+      <motion.div layout={fullPage ? false : 'position'} transition={STRATEGIST_MORPH} className="flex h-full w-full flex-col">
+      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-edge px-5 py-4">
+        <div className="min-w-0 flex-[1_1_12rem]">
+          <p className="label">{fullPage ? 'Your marketing workspace' : 'Marketing strategist'}</p>
+          <p className="display mt-1 break-words text-[0.9375rem]">{title}</p>
+          {conversation?.marketing_plan_id && <Link to={`/calendar?plan=${conversation.marketing_plan_id}`} className="mt-2 inline-block text-xs font-medium text-brand">View marketing roadmap →</Link>}
+          {conversation?.calendar_occasion_id && <Link to="/calendar" className="mt-2 inline-block text-xs font-medium text-brand">Calendar occasion selected</Link>}
           <p className="data mt-1 text-text-3">
             {status ? `Context: ${stageLabel(status)}` : 'Ask a question or start a new strategy'}
           </p>
@@ -215,35 +256,40 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={() => void startThread()}
+            disabled={sending}
             className="data rounded-full border border-edge px-2.5 py-1.5 text-text-2 transition-colors hover:border-edge-strong hover:text-foreground"
           >
             New
           </button>
-          <button
+          {fullPage && conversation && <button type="button" disabled={sending} className="text-xs text-text-2" onClick={() => { setThreadName(conversation.title); setManageError(''); setManage('rename') }}>Rename</button>}
+          {fullPage && conversation && <button type="button" disabled={sending} className="text-xs text-text-3" onClick={() => { setManageError(''); setManage('delete') }}>Delete</button>}
+          {!fullPage && <button
             type="button"
             onClick={onClose}
             aria-label="Close marketing chat"
             className="flex h-7 w-7 items-center justify-center rounded-full border border-edge text-text-2 transition-colors hover:border-edge-strong hover:text-foreground"
           >
             ×
-          </button>
+          </button>}
         </div>
       </header>
 
-      {conversation && selectableThreads.length > 1 && (
+      {selectableThreads.length > 0 && (
         <label className="flex shrink-0 items-center gap-2 border-b border-edge px-5 py-2.5">
           <span className="data shrink-0 text-text-3">Thread</span>
-          <select
+          <select disabled={sending}
             value={conversation?.id ?? ''}
             onChange={(event) => {
               const next = selectableThreads.find((thread) => thread.id === Number(event.target.value))
               if (next) {
                 setStartingNew(false)
-                setConversation(next)
+                void api.getConversation(next.id).then(setConversation).catch((error: Error) => toast.error(error.message))
+                if (fullPage) navigate(`/chat?thread=${next.id}`)
               }
             }}
             className="min-w-0 flex-1 bg-transparent text-[0.75rem] text-text-2 outline-none"
           >
+            <option value="" disabled>Select a conversation</option>
             {selectableThreads.map((thread) => (
               <option key={thread.id} value={thread.id} className="bg-void">
                 {threadLabel(thread)}
@@ -253,18 +299,22 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
         </label>
       )}
 
+      {moreThreads && threads.length >= 30 && <button type="button" className="workspace-secondary mx-4 my-2" disabled={loading} onClick={() => { setLoading(true); void api.listConversations(threads.length).then(next => { setThreads(current => [...current, ...next.filter(row => !current.some(existing => existing.id === row.id))]); setMoreThreads(next.length === 30) }).catch(failure => toast.error(failure.message)).finally(() => setLoading(false)) }}>Load more conversations</button>}
       <div className="quiet-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5">
+        {conversation && conversation.messages.length >= 50 && historyEnd !== conversation.id && <button className="workspace-secondary mb-4" type="button" onClick={() => { const before = conversation.messages[0].id; void request<ChatMessage[]>(`/conversations/${conversation.id}/messages?before=${before}`).then(rows => { setHistoryEnd(rows.length === 50 ? null : conversation.id); setConversation(current => current?.id === conversation.id ? { ...current, messages: [...rows, ...current.messages] } : current) }).catch(failure => toast.error(failure.message)) }}>Load earlier messages</button>}
         {loading ? (
           <p className="px-1 text-sm text-text-3">Loading strategy context…</p>
         ) : visibleMessages.length === 0 ? (
-          <div className="px-1 pt-2">
-            <p className="label">Always beside the work</p>
+          <div className="mx-auto max-w-2xl px-1 pt-12">
+            <p className="label">A clear plan starts here</p>
+            <h1 className="display-tight mb-3 text-3xl">What are we planning?</h1>
             <p className="mt-3 text-[0.875rem] leading-relaxed text-text-2">
-              Describe the outcome. I will shape the brief, check it against the brand, and take you to the right studio when there is work to monitor.
+              Turn your products, Malaysian occasions and business goals into a practical marketing plan. Start with an idea or explore the calendar.
             </p>
+            <div className="mt-6 flex flex-wrap gap-2"><Link to="/calendar" className="workspace-button">Explore calendar</Link><button type="button" className="workspace-secondary" onClick={() => setDraft("Help me plan my next 90 days")}>Plan next 90 days</button><button type="button" className="workspace-secondary" onClick={() => setDraft("Build my next year marketing calendar")}>Plan next year</button></div>
           </div>
         ) : (
-          <motion.div variants={STAGGER} initial="hidden" animate="shown" className="space-y-3">
+          <motion.div variants={STAGGER} initial="hidden" animate="shown" className="mx-auto max-w-3xl space-y-5">
             {visibleMessages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
@@ -274,7 +324,7 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
         <div ref={bottom} />
       </div>
 
-      <form onSubmit={submit} className="shrink-0 border-t border-edge bg-[rgba(5,7,11,0.88)] px-4 py-4 backdrop-blur">
+      <form onSubmit={submit} className="shrink-0 border-t border-edge bg-rise px-4 py-4 backdrop-blur">
         {scriptedDemo && (
           <div className="mb-3 px-1">
             <p className="mb-2 text-[0.6875rem] leading-relaxed text-text-3">
@@ -287,7 +337,7 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
                   type="button"
                   disabled={sending}
                   onClick={() => void submit(undefined, reply)}
-                  className="data rounded-full border border-edge px-2.5 py-1.5 text-[0.625rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:opacity-40"
+                  className="data rounded-full border border-edge px-2.5 py-1.5 text-[0.625rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground disabled:opacity-100"
                 >
                   {reply}
                 </button>
@@ -295,20 +345,20 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-xl border border-edge bg-[rgba(233,238,247,0.035)] p-2 transition-colors focus-within:border-edge-strong">
+        <div className="mx-auto max-w-3xl flex items-end gap-2 rounded-xl border border-edge bg-rise p-2 transition-colors focus-within:border-edge-strong">
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={submitOnShortcut}
             rows={2}
             disabled={sending}
-            placeholder="Ask what to do next…"
-            className="min-h-[3rem] flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.8125rem] leading-relaxed text-foreground outline-none placeholder:text-text-3 disabled:opacity-50"
+            aria-label="Message the strategist" placeholder="Ask what to promote, plan an occasion, or create a campaign…"
+            className="min-h-[3rem] flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.8125rem] leading-relaxed text-foreground outline-none placeholder:text-text-3 disabled:opacity-100"
           />
           <button
             type="submit"
             disabled={!draft.trim() || sending}
-            className="display mb-0.5 rounded-lg bg-foreground px-3 py-2 text-[0.6875rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
+            className="display mb-0.5 rounded-lg bg-foreground px-3 py-2 text-[0.6875rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-100"
           >
             {sending ? 'Thinking' : 'Send'}
           </button>
@@ -317,6 +367,8 @@ export function MarketingChatDock({ onClose }: { onClose: () => void }) {
           {scriptedDemo ? 'Scripted demo · zero model tokens · approvals stay with you.' : '⌘/Ctrl + Enter · approval decisions always stay with you.'}
         </p>
       </form>
+      <Dialog open={manage !== null} onOpenChange={open => { if (!open) setManage(null) }}><DialogContent><DialogTitle>{manage === 'delete' ? 'Delete this conversation?' : 'Rename conversation'}</DialogTitle><DialogDescription>{manage === 'delete' ? 'This removes the saved messages. Linked campaigns and calendar plans remain available.' : 'Choose a name that is easy to find later.'}</DialogDescription>{manage === 'rename' && <input aria-label="Conversation name" className="workspace-input" maxLength={255} value={threadName} onChange={e => setThreadName(e.target.value)} />}{manageError && <p role="alert" className="text-sm text-destructive">{manageError}</p>}<div className="flex gap-2"><button className="workspace-secondary" onClick={() => setManage(null)}>Cancel</button><button className="workspace-button" disabled={sending || (manage === 'rename' && !threadName.trim())} onClick={() => { if (!conversation) return; setSending(true); void (async () => { try { if (manage === 'rename') replaceThread(await api.updateConversation(conversation.id, { title: threadName.trim() })); else { await api.deleteConversation(conversation.id); setConversation(null); setStartingNew(true); navigate('/chat'); await refreshThreads() } setManage(null) } catch (error) { setManageError((error as Error).message) } finally { setSending(false) } })() }}>{manage === 'delete' ? 'Delete conversation' : 'Save name'}</button></div></DialogContent></Dialog>
+      </motion.div>
     </motion.aside>
   )
 }
@@ -344,10 +396,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     >
       <div
         className={cn(
-          'max-w-[92%] rounded-xl px-3 py-2.5',
+          'max-w-full min-w-0 break-words rounded-xl px-3 py-2.5',
           user
-            ? 'bg-[rgba(233,238,247,0.12)] text-foreground'
-            : 'border border-edge bg-[rgba(233,238,247,0.035)] text-text-2',
+            ? 'bg-accent text-foreground'
+            : 'border border-edge bg-rise text-text-2',
         )}
       >
         <div className="mb-1 flex items-center gap-1.5">
@@ -358,7 +410,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             </span>
           )}
         </div>
-        <p className="whitespace-pre-wrap text-[0.8125rem] leading-relaxed">{message.content}</p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+        {message.calendar_run_id && <Link className="mt-3 inline-block text-xs font-semibold text-brand underline" to={`/calendar?run=${message.calendar_run_id}`}>Review calendar proposal →</Link>}
       </div>
     </motion.article>
   )
@@ -374,7 +427,7 @@ function Thinking() {
       className="flex justify-start"
       aria-label="Strategist is typing"
     >
-      <div className="flex items-center gap-1.5 rounded-xl border border-edge bg-[rgba(233,238,247,0.035)] px-3.5 py-3">
+      <div className="flex items-center gap-1.5 rounded-xl border border-edge bg-rise px-3.5 py-3">
         {[0, 1, 2].map((dot) => (
           <span
             key={dot}
@@ -427,6 +480,7 @@ function demoNextStep(status?: Campaign['status']) {
 
 function handoffMessage(stage: NonNullable<import('@/api/types').ChatSendResult['authorized']>) {
   return {
+    calendar: 'Opening your calendar proposal.',
     plan: 'Opening Image Studio to monitor the scripted plan.',
     generate: 'Opening Image Studio to monitor the scripted creative crew.',
     render: 'Opening Image Studio to reuse the saved asset library.',

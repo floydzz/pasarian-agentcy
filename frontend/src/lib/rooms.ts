@@ -1,6 +1,11 @@
 import { useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 
+/** A new navigation or panel action takes priority over an old snapshot. */
+export function finishRoomTransition() {
+  document.activeViewTransition?.skipTransition()
+}
+
 /** How deep into the machine a route sits.
  *
  * The third clause of the motion doctrine says that moving between rooms is a

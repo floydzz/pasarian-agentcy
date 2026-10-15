@@ -111,7 +111,7 @@ export function GateShell({
       </AnimatePresence>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3.5 sm:px-8">
-        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+        <div className="flex min-w-0 flex-[1_1_18rem] items-center gap-3.5">
           <Marker halted={halted} still={still} />
           <div className="min-w-0">
             <AnimatePresence mode="wait" initial={false}>
@@ -122,14 +122,14 @@ export function GateShell({
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.28, ease: EASE_OUT }}
                 className={cn(
-                  'display truncate text-sm',
+                  'display break-words text-sm',
                   halted ? 'text-halt' : 'text-text-2',
                 )}
               >
                 {message}
               </motion.p>
             </AnimatePresence>
-            <p className="mt-0.5 truncate text-[0.6875rem] text-text-3">
+            <p className="mt-0.5 text-[0.6875rem] text-text-3">
               {halted
                 ? 'The run is stopped here until you release it.'
                 : 'No gate is open.'}
@@ -137,7 +137,7 @@ export function GateShell({
           </div>
         </div>
 
-        <div className="flex items-center gap-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3">
           {policies}
 
           {secondary && (
@@ -150,8 +150,8 @@ export function GateShell({
               whileTap={secondary.disabled ? undefined : { y: 0, scale: 0.985 }}
               transition={SETTLE}
               className={cn(
-                'display shrink-0 rounded-full border px-4 py-2 text-[0.8125rem] transition-colors duration-300',
-                'disabled:cursor-not-allowed disabled:opacity-40',
+                'display min-w-0 rounded-full border px-4 py-2 text-[0.8125rem] transition-colors duration-300',
+                'disabled:cursor-not-allowed disabled:opacity-100',
                 'border-border text-text-2 hover:border-flag hover:text-flag',
               )}
             >
@@ -169,8 +169,8 @@ export function GateShell({
               whileTap={action.disabled ? undefined : { y: 0, scale: 0.985 }}
               transition={SETTLE}
               className={cn(
-                'display shrink-0 rounded-full px-5 py-2 text-[0.8125rem] transition-colors duration-300',
-                'disabled:cursor-not-allowed disabled:opacity-40',
+                'display min-w-0 rounded-full px-5 py-2 text-[0.8125rem] transition-colors duration-300',
+                'disabled:cursor-not-allowed disabled:opacity-100',
                 halted
                   ? 'bg-halt text-[#1a1206] hover:bg-halt/90'
                   : 'bg-foreground text-void hover:bg-foreground/90',
@@ -228,7 +228,7 @@ export function Policy({
   onCheckedChange: (checked: boolean) => void
 }) {
   return (
-    <div className="hidden items-center gap-2.5 md:flex">
+    <div className="flex min-w-0 items-center gap-2.5">
       <Switch
         id={id}
         checked={checked}
@@ -239,7 +239,7 @@ export function Policy({
       <Label
         htmlFor={id}
         className={cn(
-          'text-[0.6875rem] font-normal whitespace-nowrap transition-colors',
+          'text-[0.6875rem] font-normal leading-snug transition-colors',
           checked ? (accent === 'video' ? 'text-video' : 'text-halt') : 'text-text-3',
         )}
       >

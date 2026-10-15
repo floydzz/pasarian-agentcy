@@ -13,6 +13,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { CampaignWorkflow } from '@/components/CampaignWorkflow'
+import { CampaignResults } from '@/components/CampaignResults'
 import { Page } from '@/components/os/Shell'
 import { Plate } from '@/components/Plate'
 import { PageHead } from '@/components/os/Sidebar'
@@ -122,6 +124,7 @@ export function Publish() {
           : 'Choose an output format, download the right creative, and copy a channel-ready post.'}
       </PageHead>
 
+      {campaign && <CampaignWorkflow campaign={campaign} />}
       <section className="mt-8 rounded-xl border border-edge bg-rise p-4 sm:p-5">
         <p className="label">Choose a channel</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -139,6 +142,7 @@ export function Publish() {
             </button>
           ))}
         </div>
+        <p className="mt-3 text-xs leading-relaxed text-text-3">Preview only. Engagement counts are illustrative; downloading media does not publish it to a social account.</p>
         <p className="data mt-3 text-text-3">{PLATFORMS[platform].format} · {PLATFORMS[platform].ratio}</p>
       </section>
 
@@ -160,6 +164,7 @@ export function Publish() {
           ))}
         </section>
       )}
+      {scoped !== null && <CampaignResults key={scoped} campaignId={scoped} />}
     </Page>
   )
 }
@@ -173,7 +178,7 @@ function PostKit({ piece, campaign, variant, platform, brandName }: {
 }) {
   const spec = PLATFORMS[platform]
   const post = postContent(campaign, variant, piece)
-  const caption = postCopy(platform, post)
+  const caption = postCopy(platform, post, brandName)
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(caption)
@@ -186,12 +191,12 @@ function PostKit({ piece, campaign, variant, platform, brandName }: {
     <article className="overflow-hidden rounded-xl border border-edge bg-rise">
       <div className="flex items-center justify-between gap-3 border-b border-edge px-5 py-3.5">
         <div className="min-w-0">
-          <p className="display truncate text-[0.9375rem]">{piece.label}</p>
-          <p className="data mt-1 text-text-3">{spec.format} · live post preview</p>
+          <p className="display break-words text-[0.9375rem]">{piece.label}</p>
+          <p className="data mt-1 text-text-3">{spec.format} · post preview</p>
         </div>
         <span className="rounded-full border border-edge px-2.5 py-1 text-[0.6875rem] text-text-3">{spec.label}</span>
       </div>
-      <div className="grid min-w-0 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="export-layout grid min-w-0">
         <div className="flex min-h-[33rem] items-center justify-center bg-void/45 p-5 sm:p-7">
           <SocialPostPreview platform={platform} piece={piece} post={post} brandName={brandName} />
         </div>
@@ -224,8 +229,8 @@ function postContent(campaign: Campaign | null, variant: Variant | undefined, pi
   return { headline, body, cta }
 }
 
-function postCopy(platform: Platform, post: PostContent) {
-  const tags = PLATFORMS[platform].tags
+function postCopy(platform: Platform, post: PostContent, brandName: string) {
+  const tags = `#${socialHandle(brandName)}`
   const { headline, body, cta } = post
   const short = `${headline}. ${cta}`
   if (platform === 'x') return `${short.slice(0, 230)}\n\n${tags}`
@@ -240,15 +245,15 @@ function SocialPostPreview({ platform, piece, post, brandName }: {
   post: PostContent
   brandName: string
 }) {
-  const tags = PLATFORMS[platform].tags
+  const tags = `#${socialHandle(brandName)}`
   const handle = socialHandle(brandName)
   const initials = brandName.slice(0, 2).toUpperCase()
   if (platform === 'instagram') {
     return (
       <div className="w-full max-w-[390px] overflow-hidden rounded-[0.45rem] bg-white text-[#181818] shadow-2xl shadow-black/25">
         <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <Avatar initials={initials} tone="from-fuchsia-500 via-amber-400 to-purple-600" />
-          <div className="min-w-0 flex-1 text-[0.68rem] leading-tight"><p className="font-semibold">{handle}</p><p className="text-[#777]">Kuala Lumpur, Malaysia</p></div>
+          <Avatar initials={initials} />
+          <div className="min-w-0 flex-1 text-[0.68rem] leading-tight"><p className="font-semibold">{handle}</p><p className="text-[#69635f]">Kuala Lumpur, Malaysia</p></div>
           <MoreHorizontal size={18} />
         </div>
         <PostMedia piece={piece} className="aspect-[4/5]" />
@@ -256,7 +261,7 @@ function SocialPostPreview({ platform, piece, post, brandName }: {
           <div className="flex items-center gap-3"><SocialIcon icon={Heart} /><SocialIcon icon={MessageCircle} /><SocialIcon icon={Send} /><SocialIcon icon={Bookmark} className="ml-auto" /></div>
           <p className="mt-2 text-[0.68rem] font-semibold">Liked by you and 1,248 others</p>
           <p className="mt-1.5 text-[0.68rem] leading-relaxed"><b>{handle}</b> {post.headline} {post.body} <span className="text-[#3567a9]">{tags}</span></p>
-          <p className="mt-1.5 text-[0.62rem] text-[#888]">View all 18 comments · 2 hours ago</p>
+          <p className="mt-1.5 text-[0.62rem] text-[#69635f]">View all 18 comments · 2 hours ago</p>
         </div>
       </div>
     )
@@ -264,7 +269,7 @@ function SocialPostPreview({ platform, piece, post, brandName }: {
   if (platform === 'facebook') {
     return (
       <div className="w-full max-w-[510px] overflow-hidden rounded-lg bg-white text-[#171717] shadow-2xl shadow-black/25">
-        <div className="flex items-center gap-2.5 px-3.5 pb-2 pt-3.5"><Avatar initials={initials} tone="from-blue-500 to-cyan-400" /><div className="min-w-0 flex-1 text-[0.7rem]"><p className="font-semibold">{brandName}</p><p className="text-[#65676b]">Sponsored · 🌐</p></div><MoreHorizontal size={18} className="text-[#65676b]" /></div>
+        <div className="flex items-center gap-2.5 px-3.5 pb-2 pt-3.5"><Avatar initials={initials} /><div className="min-w-0 flex-1 text-[0.7rem]"><p className="font-semibold">{brandName}</p><p className="text-[#65676b]">Sponsored · 🌐</p></div><MoreHorizontal size={18} className="text-[#65676b]" /></div>
         <p className="px-3.5 pb-3 text-[0.75rem] leading-relaxed">{post.headline}<br /><br />{post.body}<br /><br />{post.cta}</p>
         <PostMedia piece={piece} className="aspect-[4/5]" />
         <div className="px-3.5 py-2.5 text-[0.69rem] text-[#65676b]"><div className="flex justify-between border-b border-[#e5e7eb] pb-2"><span>👍 ❤️  248</span><span>18 comments · 4 shares</span></div><div className="grid grid-cols-3 pt-2 text-center font-semibold"><span>👍 Like</span><span>💬 Comment</span><span>↗ Share</span></div></div>
@@ -274,7 +279,7 @@ function SocialPostPreview({ platform, piece, post, brandName }: {
   if (platform === 'x') {
     return (
       <div className="w-full max-w-[510px] rounded-2xl border border-[#d9d9d9] bg-white p-3.5 text-[#0f1419] shadow-2xl shadow-black/25">
-        <div className="flex gap-2.5"><Avatar initials={initials} tone="from-[#111] to-[#555]" size="large" /><div className="min-w-0 flex-1"><div className="flex items-start gap-1 text-[0.72rem]"><span className="font-bold">{brandName}</span><span className="text-[#536471]">@{handle} · 2h</span><MoreHorizontal size={17} className="ml-auto text-[#536471]" /></div><p className="mt-1 text-[0.77rem] leading-relaxed">{post.headline}. {post.cta} <span className="text-[#1d9bf0]">{tags}</span></p><PostMedia piece={piece} className="mt-3 aspect-video overflow-hidden rounded-2xl border border-[#d9d9d9]" /><div className="mt-3 flex justify-between pr-7 text-[#536471]"><SocialIcon icon={MessageCircle} label="12" /><SocialIcon icon={Repeat2} label="31" /><SocialIcon icon={Heart} label="184" /><SocialIcon icon={Share2} /></div></div></div>
+        <div className="flex gap-2.5"><Avatar initials={initials} size="large" /><div className="min-w-0 flex-1"><div className="flex items-start gap-1 text-[0.72rem]"><span className="font-bold">{brandName}</span><span className="text-[#536471]">@{handle} · 2h</span><MoreHorizontal size={17} className="ml-auto text-[#536471]" /></div><p className="mt-1 text-[0.77rem] leading-relaxed">{post.headline}. {post.cta} <span className="text-[#2469a2]">{tags}</span></p><PostMedia piece={piece} className="mt-3 aspect-video overflow-hidden rounded-2xl border border-[#d9d9d9]" /><div className="mt-3 flex justify-between pr-7 text-[#536471]"><SocialIcon icon={MessageCircle} label="12" /><SocialIcon icon={Repeat2} label="31" /><SocialIcon icon={Heart} label="184" /><SocialIcon icon={Share2} /></div></div></div>
       </div>
     )
   }
@@ -282,22 +287,22 @@ function SocialPostPreview({ platform, piece, post, brandName }: {
     return (
       <div className="w-full max-w-[340px] overflow-hidden rounded-xl bg-white text-[#262626] shadow-2xl shadow-black/25">
         <PostMedia piece={piece} className="aspect-[3/4]" />
-        <div className="p-3"><div className="flex items-center gap-2"><Avatar initials={initials} tone="from-rose-500 to-red-600" /><p className="min-w-0 flex-1 truncate text-[0.68rem] font-semibold">{brandName}</p><span className="text-[0.65rem] text-[#777]">Follow</span></div><p className="mt-3 text-[0.78rem] font-semibold leading-snug">{post.headline}</p><p className="mt-1.5 line-clamp-2 text-[0.69rem] leading-relaxed text-[#555]">{post.body} {post.cta}</p><div className="mt-3 flex items-center justify-between text-[0.65rem] text-[#777]"><span>{tags}</span><span>♡ 286</span></div></div>
+        <div className="p-3"><div className="flex items-center gap-2"><Avatar initials={initials} /><p className="min-w-0 flex-1 truncate text-[0.68rem] font-semibold">{brandName}</p><span className="text-[0.65rem] text-[#69635f]">Follow</span></div><p className="mt-3 text-[0.78rem] font-semibold leading-snug">{post.headline}</p><p className="mt-1.5 line-clamp-2 text-[0.69rem] leading-relaxed text-[#555]">{post.body} {post.cta}</p><div className="mt-3 flex items-center justify-between text-[0.65rem] text-[#69635f]"><span>{tags}</span><span>♡ 286</span></div></div>
       </div>
     )
   }
   if (platform === 'lemon8') {
     return (
       <div className="w-full max-w-[360px] overflow-hidden rounded-xl bg-[#fffaf4] text-[#34291f] shadow-2xl shadow-black/25">
-        <div className="relative"><PostMedia piece={piece} className="aspect-[4/5]" /><div className="absolute inset-x-4 bottom-4 bg-[#fffaf4]/95 p-3 text-center shadow-lg"><p className="font-serif text-[1rem] leading-tight">{post.headline}</p><p className="mt-1 text-[0.59rem] uppercase tracking-[0.18em] text-[#7a6250]">Nail notes by {brandName}</p></div></div><div className="p-3"><div className="flex items-center gap-2"><Avatar initials={initials} tone="from-amber-300 to-orange-400" /><span className="text-[0.67rem] font-semibold">{brandName}</span><span className="ml-auto text-[0.64rem] text-[#7a6250]">♡ 132</span></div><p className="mt-2 line-clamp-2 text-[0.68rem] leading-relaxed text-[#6a5543]">{post.body} {post.cta}</p><p className="mt-2 text-[0.62rem] text-[#a47c58]">{tags}</p></div>
+        <div className="relative"><PostMedia piece={piece} className="aspect-[4/5]" /><div className="absolute inset-x-4 bottom-4 bg-[#fffaf4] p-3 text-center shadow-lg"><p className="font-serif text-[1rem] leading-tight">{post.headline}</p><p className="mt-1 text-[0.59rem] uppercase tracking-[0.18em] text-[#7a6250]">Stories by {brandName}</p></div></div><div className="p-3"><div className="flex items-center gap-2"><Avatar initials={initials} /><span className="text-[0.67rem] font-semibold">{brandName}</span><span className="ml-auto text-[0.64rem] text-[#7a6250]">♡ 132</span></div><p className="mt-2 line-clamp-2 text-[0.68rem] leading-relaxed text-[#6a5543]">{post.body} {post.cta}</p><p className="mt-2 text-[0.62rem] text-[#85603e]">{tags}</p></div>
       </div>
     )
   }
   return (
     <div className="relative w-full max-w-[300px] overflow-hidden rounded-[0.6rem] bg-black text-white shadow-2xl shadow-black/35">
       <PostMedia piece={piece} className="aspect-[9/16]" />
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent px-3 pb-4 pt-20"><p className="text-[0.72rem] font-semibold">@{handle}</p><p className="mt-1 line-clamp-3 text-[0.69rem] leading-relaxed">{post.headline}. {post.cta}<br />{tags}</p><div className="mt-3 flex items-center gap-2 text-[0.63rem]"><Music2 size={13} /><span className="truncate">original sound — {brandName}</span></div></div>
-      <div className="absolute bottom-20 right-2.5 flex flex-col items-center gap-3 text-[0.62rem]"><Avatar initials={initials} tone="from-pink-500 to-fuchsia-600" /><SocialIcon icon={Heart} label="1,248" stacked /><SocialIcon icon={MessageCircle} label="38" stacked /><SocialIcon icon={Bookmark} label="Save" stacked /><SocialIcon icon={Share2} label="Share" stacked /></div>
+      <div className="absolute inset-x-0 bottom-0 bg-black/75 px-3 pb-4 pt-4"><p className="text-[0.72rem] font-semibold">@{handle}</p><p className="mt-1 line-clamp-3 text-[0.69rem] leading-relaxed">{post.headline}. {post.cta}<br />{tags}</p><div className="mt-3 flex items-center gap-2 text-[0.63rem]"><Music2 size={13} /><span className="truncate">original sound — {brandName}</span></div></div>
+      <div className="absolute bottom-20 right-2.5 flex flex-col items-center gap-3 rounded-full bg-black/75 px-2 py-3 text-[0.62rem]"><Avatar initials={initials} /><SocialIcon icon={Heart} label="1,248" stacked /><SocialIcon icon={MessageCircle} label="38" stacked /><SocialIcon icon={Bookmark} label="Save" stacked /><SocialIcon icon={Share2} label="Share" stacked /></div>
     </div>
   )
 }
@@ -311,8 +316,8 @@ function PostMedia({ piece, className }: { piece: Piece; className: string }) {
   )
 }
 
-function Avatar({ initials, tone, size = 'normal' }: { initials: string; tone: string; size?: 'normal' | 'large' }) {
-  return <span className={cn('grid shrink-0 place-items-center rounded-full bg-gradient-to-br font-bold text-white', size === 'large' ? 'h-10 w-10 text-[0.72rem]' : 'h-7 w-7 text-[0.56rem]', tone)}>{initials}</span>
+function Avatar({ initials, size = 'normal' }: { initials: string; size?: 'normal' | 'large' }) {
+  return <span className={cn('grid shrink-0 place-items-center rounded-full bg-[#24221e] font-bold text-[#f1ede5]', size === 'large' ? 'h-10 w-10 text-[0.72rem]' : 'h-7 w-7 text-[0.56rem]')}>{initials}</span>
 }
 
 function SocialIcon({ icon: Icon, label, className, stacked = false }: { icon: LucideIcon; label?: string; className?: string; stacked?: boolean }) {

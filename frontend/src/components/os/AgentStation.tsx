@@ -27,6 +27,7 @@ const STATE_LABEL: Record<AgentState, string> = {
   running: 'working',
   done: 'complete',
   failed: 'sent back',
+  unknown: 'check saved progress',
 }
 
 export function AgentStation({
@@ -39,13 +40,7 @@ export function AgentStation({
   lastDetail: Partial<Record<AgentName, string>>
 }) {
   return (
-    <div
-      className={cn(
-        'mx-auto grid w-full max-w-[52rem] grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3',
-        // The whole crew fits on one row at desktop width, whichever crew it is.
-        crew.length <= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-6',
-      )}
-    >
+    <div className="agent-station" data-count={crew.length}>
       {crew.map((agent, index) => (
         <Station
           key={agent.id}
@@ -121,22 +116,23 @@ function Station({
         )}
       </AnimatePresence>
 
-      <div className="relative flex flex-col items-center px-3 pt-4 pb-3">
+      <div className="agent-bay-header relative px-3 pt-3 pb-2">
         <div
           className={cn(
-            'h-[4.5rem] w-[4.5rem] transition-colors duration-500',
-            live && 'text-[#e9eef7]',
-            state === 'done' && 'text-[rgba(233,238,247,0.5)]',
+            'h-10 w-10 shrink-0 transition-colors duration-500',
+            live && 'text-brand',
+            state === 'done' && 'text-foreground',
             state === 'failed' && 'text-flag',
-            state === 'idle' && 'text-[rgba(233,238,247,0.26)]',
+            state === 'idle' && 'text-text-2',
           )}
         >
           <AgentCore agent={agent} state={state} />
         </div>
 
+        <div className="min-w-0">
         <h3
           className={cn(
-            'display mt-3 text-center text-[0.8125rem] transition-colors duration-500',
+            'display break-words text-[0.8125rem] leading-snug transition-colors duration-500',
             live || state === 'failed' ? 'text-foreground' : 'text-text-2',
           )}
         >
@@ -153,11 +149,12 @@ function Station({
         >
           {STATE_LABEL[state]}
         </p>
+        </div>
       </div>
 
       {/* What it is doing, in its own words. Falls back to the job description
           so a standby bay still says what the agent is for. */}
-      <p className="relative line-clamp-2 min-h-[2.25rem] border-t border-edge px-3 py-2 text-center text-[0.6875rem] leading-snug text-text-3">
+      <p className="relative min-h-[2.25rem] border-t border-edge px-3 py-2 text-[0.6875rem] leading-snug text-text-3">
         {detail ?? role}
       </p>
     </motion.article>

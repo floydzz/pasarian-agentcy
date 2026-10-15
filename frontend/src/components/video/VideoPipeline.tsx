@@ -1,4 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { FlowGraph, VIDEO_FLOW } from '@/components/os/FlowGraph'
 import { AgentCore } from '@/components/agents/AgentCore'
 import { cn } from '@/lib/utils'
 import { EASE_OUT, SETTLE } from '@/lib/motion'
@@ -21,6 +22,7 @@ const STATE_LABEL: Record<AgentState, string> = {
   idle: 'standby',
   running: 'working',
   done: 'complete',
+  unknown: 'check saved progress',
   failed: 'needs attention',
 }
 
@@ -63,8 +65,8 @@ export function VideoPipeline({
         ))}
       </div>
 
-      <div className="relative mx-auto mt-3 max-w-[52rem]">
-        <VideoFlow agents={agents} awaitingReview={awaitingReview} />
+      <div aria-label="Video workflow diagram" className="relative mt-4 min-w-0">
+        <FlowGraph flow={VIDEO_FLOW} agents={agents} gates={{ review_gate: awaitingReview ? 'blocking' : 'quiet' }} lastVerdict={null} />
       </div>
     </section>
   )
@@ -139,10 +141,10 @@ function AgentBay({
         <div
           className={cn(
             'h-14 w-14 transition-colors duration-500 sm:h-[4.25rem] sm:w-[4.25rem]',
-            live && 'text-foreground',
-            state === 'done' && 'text-[rgba(233,238,247,0.5)]',
+            live && 'text-brand',
+            state === 'done' && 'text-foreground',
             state === 'failed' && 'text-flag',
-            state === 'idle' && 'text-[rgba(233,238,247,0.26)]',
+            state === 'idle' && 'text-text-2',
           )}
         >
           <AgentCore agent={agent} state={state} />
@@ -158,75 +160,5 @@ function AgentBay({
         {detail ?? role}
       </p>
     </motion.article>
-  )
-}
-
-function VideoFlow({
-  agents,
-  awaitingReview,
-}: {
-  agents: Record<AgentName, AgentState>
-  awaitingReview: boolean
-}) {
-  const still = Boolean(useReducedMotion())
-  const nodes = [
-    { id: 'planner', label: 'brief', x: 50 },
-    { id: 'visual_planner', label: 'storyboard', x: 205 },
-    { id: 'renderer', label: 'render', x: 390 },
-    { id: 'vision_qa', label: 'QA', x: 545 },
-    { id: 'review', label: 'review', x: 700, gate: true },
-  ] as const
-  const active = nodes.findIndex((node) => node.id !== 'review' && agents[node.id] === 'running')
-
-  return (
-    <svg viewBox="0 0 750 94" className="h-auto w-full overflow-visible" role="img" aria-label="Video flow from brief through storyboard, render, quality assurance and review">
-      <defs>
-        <filter id="video-bloom" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" /></filter>
-      </defs>
-      {nodes.slice(0, -1).map((node, index) => {
-        const next = nodes[index + 1]
-        const live = active === index
-        const pathId = `video-flow-${index}`
-        return (
-          <g key={node.id}>
-            <motion.path
-              id={pathId}
-              d={`M ${node.x + 14} 42 H ${next.x - 14}`}
-              fill="none"
-              stroke="var(--text)"
-              initial={{ pathLength: 0, strokeOpacity: 0 }}
-              animate={{ pathLength: 1, strokeOpacity: live ? 0.8 : 0.14 }}
-              transition={{ pathLength: { delay: index * 0.08, duration: 0.45, ease: EASE_OUT }, strokeOpacity: { duration: 0.35 } }}
-            />
-            {live && !still && <FlowPulse path={pathId} />}
-          </g>
-        )
-      })}
-      {nodes.map((node) => {
-        const state = node.id === 'review' ? (awaitingReview ? 'review' : 'idle') : agents[node.id]
-        const live = state === 'running' || state === 'review'
-        const colour = state === 'review' ? 'var(--halt)' : state === 'failed' ? 'var(--flag)' : 'var(--text)'
-        return (
-          <g key={node.id}>
-            {live && !still && <motion.circle cx={node.x} cy="42" r="14" fill={colour} filter="url(#video-bloom)" animate={{ opacity: [0.18, 0.42, 0.18] }} transition={{ duration: 2.4, repeat: Infinity }} />}
-            {'gate' in node && node.gate ? (
-              <motion.path d={`M ${node.x} 33 L ${node.x + 9} 42 L ${node.x} 51 L ${node.x - 9} 42 Z`} fill={colour} stroke={colour} strokeWidth="1.3" animate={{ fillOpacity: state === 'review' ? 1 : 0, strokeOpacity: live ? 1 : 0.34 }} />
-            ) : (
-              <><motion.circle cx={node.x} cy="42" r="6" fill="none" stroke={colour} strokeWidth="1.2" animate={{ strokeOpacity: live ? 1 : state === 'done' ? 0.55 : 0.3 }} /><motion.circle cx={node.x} cy="42" r="2.4" fill={colour} animate={{ opacity: state === 'idle' ? 0 : live ? 1 : 0.55 }} /></>
-            )}
-            <text x={node.x} y="21" textAnchor="middle" fill={state === 'review' ? 'var(--halt)' : 'var(--text)'} style={{ font: '400 10.5px var(--font-sans)', fontVariationSettings: "'wdth' 112, 'wght' 450" }} opacity={live ? 1 : 0.5}>{node.label}</text>
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
-
-function FlowPulse({ path }: { path: string }) {
-  return (
-    <>
-      <circle r="8" fill="var(--text)" opacity="0.18" filter="url(#video-bloom)"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href={`#${path}`} /></animateMotion></circle>
-      <circle r="2.4" fill="var(--text)"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href={`#${path}`} /></animateMotion></circle>
-    </>
   )
 }

@@ -1,3 +1,4 @@
+import { CalendarCampaignLink } from '@/components/CalendarCampaignLink'
 import { Link } from 'react-router-dom'
 import { motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
@@ -8,25 +9,19 @@ import type { Campaign } from '@/api/types'
 const STATUS_LABEL: Record<Campaign['status'], string> = {
   draft: 'draft',
   planning: 'planning',
-  pending_plan_approval: 'halted at the plan gate',
+  pending_plan_approval: 'Review concepts',
   generating: 'generating',
-  pending_asset_review: 'halted at the asset gate',
+  pending_asset_review: 'Review creatives',
   ready_to_publish: 'ready',
   published: 'published',
 }
 
 const MEDIUM = {
-  image: { label: 'Image studio', accent: 'bg-image', text: 'text-image' },
-  video: { label: 'Video studio', accent: 'bg-video', text: 'text-video' },
+  image: { label: 'Image studio', text: 'text-image' },
+  video: { label: 'Video studio', text: 'text-video' },
 } as const
 
-/** The header floats: no fill, no bottom rule, no chrome.
- *
- * The instrument should look like it is suspended in the dark rather than
- * assembled out of panels, so nothing here draws a box. The one thing it does
- * draw is a short rule in the studio's colour, because two studios that look
- * identical would leave a person one glance short of knowing which room they
- * are standing in. */
+/** Keep the campaign title, timing and live state readable at every panel width. */
 export function TopBar({
   campaign,
   running,
@@ -45,13 +40,13 @@ export function TopBar({
   return (
     <motion.header
       variants={rise(BOOT.chrome)}
-      className="relative z-20 flex shrink-0 items-center gap-4 px-5 py-4 sm:px-8"
+      className="studio-topbar relative z-20 shrink-0"
     >
       <Link
         to={up}
         viewTransition
         onClick={() => roomNav(up)}
-        className="group flex shrink-0 items-center gap-2 text-text-3 transition-colors hover:text-foreground"
+        className="studio-back group flex w-fit items-center gap-2 text-text-3 transition-colors hover:text-foreground"
       >
         <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden>
           <path
@@ -65,30 +60,17 @@ export function TopBar({
         <span className="text-xs">Campaign</span>
       </Link>
 
-      {/* The two studios are one machine. Letting the rule travel and change
-          colour between them says so; redrawing it would not. */}
-      <span
-        aria-hidden
-        style={{ viewTransitionName: 'studio-accent' }}
-        className={cn('h-4 w-px shrink-0 rounded-full', studio.accent)}
-      />
-
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <h1
           style={{ viewTransitionName: `campaign-${campaign.id}` }}
-          className="display truncate text-[0.9375rem] text-foreground sm:text-base"
+          className="display break-words text-base leading-snug text-foreground sm:text-lg"
         >
           {campaign.name}
         </h1>
         <p className={cn('text-[0.6875rem]', studio.text)}>{studio.label}</p>
       </div>
 
-      {campaign.source_event && (
-        <span className="data hidden shrink-0 text-text-3 sm:block">
-          calendar · {campaign.source_event}
-        </span>
-      )}
-
+      <div className="flex flex-wrap items-center justify-end gap-3">
       <span
         className={cn(
           'data shrink-0 transition-colors duration-500',
@@ -122,6 +104,9 @@ export function TopBar({
           {running ?? 'idle'}
         </span>
       </span>
+      </div>
+      {campaign.source_event && <div className="studio-calendar-context flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1"><p className="text-xs text-text-3">{campaign.source_event}</p><CalendarCampaignLink campaignId={campaign.id} /></div>}
+
     </motion.header>
   )
 }

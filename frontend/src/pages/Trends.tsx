@@ -88,7 +88,7 @@ export function Trends() {
             whileHover={scraping ? undefined : { y: -1 }}
             whileTap={scraping ? undefined : { scale: 0.985 }}
             transition={MICRO}
-            className="display shrink-0 rounded-full bg-foreground px-5 py-2 text-[0.8125rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
+            className="display shrink-0 rounded-full bg-foreground px-5 py-2 text-[0.8125rem] text-void transition-opacity disabled:cursor-not-allowed disabled:opacity-100"
           >
             {scraping === 'all'
               ? 'Pulling…'
@@ -96,9 +96,7 @@ export function Trends() {
           </motion.button>
         }
       >
-        Keywords the scraper watches. What it finds is chunked into the trend
-        corpus, where the planner reads it as inspiration — never as a fact
-        about your product.
+        Track topics your audience cares about and bring useful signals into your campaign planning.
       </PageHead>
 
       {status && !status.live && <Rehearsal />}
@@ -187,7 +185,7 @@ function Watch({
       transition={still ? { duration: 0 } : SETTLE}
       className={cn(
         'glass rounded-xl px-5 py-4 transition-opacity sm:px-6',
-        !source.enabled && 'opacity-45',
+        !source.enabled && 'border-dashed',
       )}
     >
       <div className="flex flex-wrap items-start gap-x-5 gap-y-3">
@@ -196,6 +194,7 @@ function Watch({
             <h2 className="display text-[0.9375rem]">{source.keyword}</h2>
             <span className="data text-text-3">{source.geo}</span>
             <Freshness source={source} />
+            {!source.enabled && <span className="text-xs text-text-2">Paused</span>}
           </div>
           {source.note && (
             <p className="mt-1.5 text-[0.75rem] leading-relaxed text-text-3">
@@ -214,7 +213,7 @@ function Watch({
             type="button"
             onClick={onScrape}
             disabled={busy}
-            className="text-[0.75rem] text-text-3 transition-colors hover:text-foreground disabled:opacity-40"
+            className="text-[0.75rem] text-text-3 transition-colors hover:text-foreground disabled:opacity-100"
           >
             {busy ? 'Pulling…' : 'Pull'}
           </button>
@@ -284,7 +283,7 @@ function Signal({
       </span>
       <span
         className={cn(
-          'min-w-0 flex-1 truncate text-[0.8125rem]',
+          'min-w-0 flex-1 break-words text-[0.8125rem]',
           signal.rising ? 'text-foreground' : 'text-text-2',
         )}
       >
@@ -336,7 +335,7 @@ function AddKeyword({ onAdd }: { onAdd: (keyword: string, note: string) => void 
 
   return (
     <form onSubmit={submit} className="mt-4 flex flex-wrap items-end gap-3">
-      <div className="min-w-[12rem] flex-1">
+      <div className="min-w-0 flex-[1_1_16rem]">
         <label htmlFor="keyword" className="label block">
           Watch another keyword
         </label>
@@ -348,7 +347,7 @@ function AddKeyword({ onAdd }: { onAdd: (keyword: string, note: string) => void 
           className="mt-2 w-full rounded-lg border border-edge bg-[rgba(233,238,247,0.03)] px-3.5 py-2.5 text-sm text-foreground transition-colors outline-none placeholder:text-text-3 focus:border-edge-strong focus:bg-[rgba(233,238,247,0.06)]"
         />
       </div>
-      <div className="min-w-[12rem] flex-[1.4]">
+      <div className="min-w-0 flex-[1.4_1_16rem]">
         <label htmlFor="why" className="label block">
           Why you’re watching it
         </label>
@@ -366,7 +365,7 @@ function AddKeyword({ onAdd }: { onAdd: (keyword: string, note: string) => void 
         whileHover={keyword.trim() ? { y: -1 } : undefined}
         whileTap={keyword.trim() ? { scale: 0.985 } : undefined}
         transition={MICRO}
-        className="display rounded-full border border-edge-strong px-4 py-2.5 text-[0.8125rem] text-foreground transition-colors hover:bg-[rgba(233,238,247,0.06)] disabled:cursor-not-allowed disabled:opacity-35"
+        className="display rounded-full border border-edge-strong px-4 py-2.5 text-[0.8125rem] text-foreground transition-colors hover:bg-[rgba(233,238,247,0.06)] disabled:cursor-not-allowed disabled:opacity-100"
       >
         Add
       </motion.button>
@@ -384,7 +383,7 @@ function Corpus({ status }: { status: TrendStatus }) {
     <section className="mt-16 border-t border-edge pt-10">
       <h2 className="display text-sm">What the planner reads</h2>
 
-      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      <div className="mt-5 grid gap-5 responsive-pair">
         <Corpora
           title="Trend corpus"
           chunks={status.trend_chunks}
@@ -402,10 +401,10 @@ function Corpus({ status }: { status: TrendStatus }) {
           {status.documents.map((document) => (
             <li
               key={document.source}
-              className="flex items-baseline gap-4 py-2.5"
+              className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-2.5"
             >
-              <span className="data shrink-0 text-text-3">{document.source}</span>
-              <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-text-2">
+              <span className="data min-w-0 break-words text-text-3">{document.source}</span>
+              <span className="min-w-0 flex-1 break-words text-[0.8125rem] text-text-2">
                 {document.heading}
               </span>
               <span className="data shrink-0 text-text-3">

@@ -41,6 +41,8 @@ export interface ProductReference {
 
 export type ChatRole = 'user' | 'assistant' | 'system'
 export type ChatAction =
+  | 'view_calendar'
+  | 'plan_calendar'
   | 'create_campaign'
   | 'run_plan'
   | 'run_generate'
@@ -57,25 +59,32 @@ export interface ChatMessage {
   conversation_id: number
   role: ChatRole
   content: string
+  calendar_run_id?: number | null
   action: ChatAction | null
   created_at: string
   updated_at: string
 }
 
 export interface Conversation {
+  marketing_plan_id: number | null
+  marketing_plan_item_id: number | null
+  calendar_occasion_id: number | null
+  calendar_business_event_id: number | null
   id: number
   title: string
   campaign_id: number | null
   campaign: Campaign | null
+  message_count?: number
   messages: ChatMessage[]
   created_at: string
   updated_at: string
 }
 
 export interface ChatSendResult {
+  calendar_run_id?: number | null
   message: ChatMessage
   campaign: Campaign | null
-  authorized: 'plan' | 'generate' | 'render' | 'image' | 'video' | 'cinematic' | 'publish' | null
+  authorized: 'plan' | 'generate' | 'render' | 'image' | 'video' | 'cinematic' | 'publish' | 'calendar' | null
 }
 
 export interface Concept {

@@ -46,7 +46,7 @@ export function ConceptCard({
       initial={false}
       animate={{
         scale: rejected ? 0.945 : 1,
-        opacity: rejected ? 0.5 : 1,
+        opacity: 1,
         filter: rejected ? 'saturate(0.2)' : 'saturate(1)',
       }}
       transition={SETTLE}
@@ -165,7 +165,7 @@ function Action({
       whileTap={disabled ? undefined : { y: 0, scale: 0.98 }}
       transition={MICRO}
       className={cn(
-        'rounded-full px-4 py-1.5 text-[0.8125rem] transition-colors disabled:cursor-not-allowed disabled:opacity-35',
+        'rounded-full px-4 py-1.5 text-[0.8125rem] transition-colors disabled:cursor-not-allowed disabled:opacity-100',
         tone === 'approve' && 'bg-foreground text-background hover:bg-foreground/90',
         tone === 'quiet' && 'border border-border text-text-2 hover:text-foreground',
         tone === 'reject' && 'text-text-3 hover:text-flag',

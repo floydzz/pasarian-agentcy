@@ -1,31 +1,19 @@
+@import "@fontsource-variable/geist";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Agentcy — a weightless instrument.
-
-   One rule governs colour: the machine is achromatic. Agents, edges, graphs
-   and telemetry are made of white light at varying intensity and nothing
-   else. Amber is the only warm value in the product and it appears in exactly
-   one situation — a human decision is required. So a warm pixel anywhere on
-   screen always means the same thing: you.
-
-   Two cool hues were added when the product grew a second medium: `--image`
-   and `--video`. They are the exception that proves the rule rather than a
-   breach of it. They never report a state — only which studio you are in, or
-   which studio a card would take you to — and being cool, they cannot be
-   mistaken at a glance for the one warm thing that means you.
-   ───────────────────────────────────────────────────────────────────────── */
+/* Graphite surfaces, ivory actions and a restrained champagne brand accent. */
 
 @theme inline {
-    --font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif;
-    --font-heading: 'Archivo', ui-sans-serif, system-ui, sans-serif;
-    --font-copy: 'Newsreader', ui-serif, Georgia, serif;
+    --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-heading: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-copy: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
+    --color-brand: var(--brand);
     --color-void: var(--void);
     --color-rise: var(--rise);
     --color-lift: var(--lift);
@@ -81,81 +69,55 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* The instrument is dark at every level; there is no light mode for the
-   machine. `.on-paper` below is the one exception, and it is not a theme —
-   it is a material. */
 :root {
-    /* Ground. Blue-black rather than neutral black: neutral black on an OLED
-       reads as a hole in the screen, this reads as depth. */
-    --void: #05070b;
-    --rise: #0d1119;
-    --lift: #171d28;
-
-    /* Hairlines are light at low alpha, never a grey hex. This is the whole
-       difference between a surface that reads as glass and one that reads as
-       a box with a border. */
-    --edge: rgba(233, 238, 247, 0.12);
-    --edge-strong: rgba(233, 238, 247, 0.26);
-
-    --text: #e9eef7;
-    --text-2: rgba(233, 238, 247, 0.72);
-    --text-3: rgba(233, 238, 247, 0.5);
-
-    /* The only hue the machine is allowed. A human is needed. */
-    --halt: #ffbe6a;
-    /* Rare: the director could not get there in two passes. */
-    --flag: #ff8e7b;
-    /* Rare: a decision has been made and the path is open. */
-    --go: #93ddba;
-
-    /* The two mediums. These name a *medium*, never a state — a card, a rail
-       entry, an accent rule. Both are cool and both sit far from amber, so
-       nothing here can be mistaken for "a person is needed". */
-    --image: #6e9bff;
-    --video: #b08cff;
-
+    color-scheme: dark;
+    --brand: #c6ad86;
+    --void: #18191b;
+    --rise: #202123;
+    --lift: #292a2d;
+    --edge: #353639;
+    --edge-strong: #77766f;
+    --text: #e7e4de;
+    --text-2: #bcb9b3;
+    --text-3: #a3a09a;
+    --halt: #c9b58e;
+    --flag: #d6a09a;
+    --go: #aab7c7;
+    --image: #c7b89f;
+    --video: #b8b4ad;
     --background: var(--void);
     --foreground: var(--text);
-    --paper: #ffffff;
+    --paper: #202123;
     --card: var(--rise);
     --card-foreground: var(--text);
-    --popover: var(--lift);
+    --popover: var(--rise);
     --popover-foreground: var(--text);
-    --primary: var(--text);
-    --primary-foreground: var(--void);
+    --primary: #e4ded4;
+    --primary-foreground: #24221e;
     --secondary: var(--lift);
     --secondary-foreground: var(--text);
     --muted: var(--lift);
     --muted-foreground: var(--text-2);
-    --accent: var(--lift);
-    --accent-foreground: var(--text);
+    --accent: #2e2e30;
+    --accent-foreground: #e7e4de;
     --destructive: var(--flag);
     --border: var(--edge);
     --input: var(--edge-strong);
-    --ring: rgba(233, 238, 247, 0.35);
-
-    --chart-1: var(--text);
+    --ring: #c6ad86;
+    --chart-1: var(--primary);
     --chart-2: var(--go);
     --chart-3: var(--halt);
     --chart-4: var(--text-2);
     --chart-5: var(--flag);
-
-    --radius: 0.5rem;
-
+    --radius: 0.75rem;
     --sidebar: var(--rise);
     --sidebar-foreground: var(--text);
-    --sidebar-primary: var(--text);
-    --sidebar-primary-foreground: var(--void);
-    --sidebar-accent: var(--lift);
-    --sidebar-accent-foreground: var(--text);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--primary);
     --sidebar-border: var(--edge);
-    --sidebar-ring: rgba(233, 238, 247, 0.35);
-}
-
-/* `.dark` is kept as an alias so shadcn's dark: variants stay coherent — the
-   instrument is already dark, so it changes nothing. */
-.dark {
-    color-scheme: dark;
+    --sidebar-ring: var(--ring);
 }
 
 @layer base {
@@ -176,15 +138,13 @@
 @layer base {
   /* ── Type roles ──────────────────────────────────────────────────────── */
 
-  /* The display voice. Archivo pushed wide on its variable width axis and
-     tracked tight — the proportions of instrument lettering rather than of a
-     web heading. Only campaign names, section titles and large numbers. */
+  /* A restrained hierarchy for campaign names, page titles and key numbers. */
   .display {
-    font-variation-settings: 'wdth' 118, 'wght' 500;
+    font-weight: 500;
     letter-spacing: -0.022em;
     }
   .display-tight {
-    font-variation-settings: 'wdth' 112, 'wght' 600;
+    font-weight: 600;
     letter-spacing: -0.03em;
     }
 
@@ -220,30 +180,37 @@
      surface wherever it appears, so the thing the crew made can never
      dissolve into the instrument that made it. */
   .on-paper {
-    --background: #ffffff;
-    --foreground: #0d1015;
-    --paper: #ffffff;
-    --card: #ffffff;
-    --card-foreground: #0d1015;
-    --muted: #f4f5f7;
-    --muted-foreground: #6a7079;
-    --accent: #f4f5f7;
-    --accent-foreground: #0d1015;
-    --primary: #0d1015;
-    --primary-foreground: #ffffff;
-    --secondary: #f4f5f7;
-    --secondary-foreground: #0d1015;
-    --border: rgba(13, 16, 21, 0.1);
-    --input: rgba(13, 16, 21, 0.16);
-    --text: #0d1015;
-    --text-2: rgba(13, 16, 21, 0.6);
-    --text-3: rgba(13, 16, 21, 0.4);
-    --halt: #b4740f;
-    --go: #157a4e;
-    --flag: #b5372a;
-    --image: #2d5bd0;
-    --video: #6f45c8;
-    --ring: rgba(13, 16, 21, 0.3);
+    color-scheme: light;
+    --background: #f1ede5;
+    --foreground: #24221e;
+    --void: #f1ede5;
+    --rise: #f1ede5;
+    --lift: #e4dfd5;
+    --paper: #f1ede5;
+    --card: #f1ede5;
+    --card-foreground: #24221e;
+    --muted: #e4dfd5;
+    --muted-foreground: #625b52;
+    --accent: #e4dfd5;
+    --accent-foreground: #24221e;
+    --primary: #24221e;
+    --primary-foreground: #f1ede5;
+    --secondary: #e4dfd5;
+    --secondary-foreground: #24221e;
+    --border: #b8afa1;
+    --input: #82796b;
+    --edge: #b8afa1;
+    --edge-strong: #82796b;
+    --text: #24221e;
+    --text-2: #514c45;
+    --text-3: #625b52;
+    --brand: #725936;
+    --halt: #785b27;
+    --go: #3c5068;
+    --flag: #92362e;
+    --image: #725936;
+    --video: #64605a;
+    --ring: #725936;
     color: var(--foreground);
     }
 
@@ -275,10 +242,9 @@
     background: transparent;
     }
 
-  /* A scroll region that admits there is more below, instead of guillotining
-     a line of type at its bottom edge. */
+  /* Scrolling copy stays readable through its last visible line. */
   .fade-b {
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 1rem), transparent);
+    mask-image: none;
     }
 
   /* The filmstrip of work. Cards snap so a decision is always centred on the
@@ -322,6 +288,9 @@
 }
 
 @layer base {
+  /* Leave navigation and floating controls interactive during room snapshots. */
+  :root { view-transition-name: none; }
+  ::view-transition { pointer-events: none; }
   /* ── Rooms ─────────────────────────────────────────────────────────────
 
      The third clause of the doctrine: moving between rooms is a camera move,
@@ -444,7 +413,7 @@
      front of you; the rest of the strip is visibly context. This is the same
      claim the snap points already make, made continuously. */
   @keyframes centre-focus {
-    0%, 100% { opacity: 0.32; transform: scale(0.93); }
+    0%, 100% { opacity: 1; transform: scale(0.93); }
     50% { opacity: 1; transform: scale(1); }
     }
 
@@ -474,4 +443,147 @@
   /* Reduced motion is handled by the global block above, which collapses
      every animation-duration in the document — including the view
      transitions and the scroll-driven animations declared here. */
+}
+
+/* Workspace controls share one interaction vocabulary. */
+:where(button, a, input, textarea, select):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled) { cursor: pointer; }
+.workspace-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.5rem; padding: .625rem 1rem; border-radius: .625rem; background: var(--primary); color: var(--primary-foreground); font-size: .8125rem; font-weight: 550; transition: background .18s; }
+.workspace-button:hover { background: #f0e9df; }
+.workspace-button:disabled { cursor: not-allowed; }
+.workspace-secondary { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.5rem; padding: .625rem .875rem; border: 1px solid var(--edge); border-radius: .625rem; background: var(--rise); color: var(--text); font-size: .8125rem; }
+.workspace-secondary:hover { background: var(--lift); }
+.workspace-input { width: 100%; border: 1px solid var(--edge-strong); border-radius: .625rem; padding: .65rem .75rem; background: var(--rise); color: var(--text); font-size: .875rem; }
+.workspace-label { display: grid; gap: .4rem; font-size: .8125rem; color: var(--text-2); }
+.skip-link { position: fixed; top: -5rem; left: 1rem; z-index: 100; background: var(--primary); color: var(--primary-foreground); padding: .75rem 1rem; border-radius: .5rem; }
+.skip-link:focus { top: 1rem; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+/* Calendar dates remain readable on a small laptop and on touch screens. */
+.calendar-surface { --fc-border-color: var(--edge); --fc-today-bg-color: #302d27; --fc-neutral-bg-color: var(--void); --fc-page-bg-color: var(--rise); --fc-list-event-hover-bg-color: var(--lift); --fc-small-font-size: .72rem; }
+.calendar-surface .fc { font-size: .8125rem; }
+.calendar-surface .fc-theme-standard td, .calendar-surface .fc-theme-standard th { border-color: var(--edge); }
+.calendar-surface .fc .fc-scrollgrid { border-radius: .5rem; }
+.calendar-surface .fc .fc-col-header-cell-cushion { padding: .75rem .25rem; font-weight: 500; color: var(--text-2); }
+.calendar-surface .fc .fc-daygrid-day-number { padding: .65rem; font-variant-numeric: tabular-nums; font-size: .8125rem; }
+.calendar-surface .fc .fc-daygrid-day-frame { min-height: 110px; }
+.calendar-surface .fc .fc-day-other .fc-daygrid-day-top { opacity: 1; color: var(--text-3); }
+.calendar-surface .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { font-weight: 700; color: var(--brand); }
+.calendar-surface .fc .fc-event { padding: 3px 5px; border-radius: 4px; cursor: pointer; margin: 2px 3px; }
+.calendar-surface .fc .fc-event-title { font-weight: 500; font-size: .6875rem; }
+.calendar-surface .fc .fc-multimonth { border: 0; }
+.calendar-surface .fc .fc-multimonth-title { padding: 1.25rem 0; font-size: 1rem; font-weight: 600; }
+.calendar-surface .fc .fc-daygrid-more-link { font-size: .6875rem; color: var(--brand); }
+.calendar-surface .fc .fc-popover { background: var(--rise); border: 1px solid var(--edge); box-shadow: 0 12px 32px #00000040; }
+@media (max-width: 640px) {
+  .calendar-surface .fc .fc-daygrid-day-frame { min-height: 76px; }
+  .calendar-surface .fc .fc-daygrid-day-number { padding: .4rem; font-size: .6875rem; }
+  .calendar-surface .fc .fc-event { margin: 2px 1px; padding: 2px; }
+  .calendar-surface .fc .fc-event-title { font-size: .5625rem; }
+  .calendar-surface .fc { font-size: .6875rem; }
+}
+
+.calendar-nav-control, .calendar-today-control { display: inline-flex; justify-content: center; align-items: center; height: 2.5rem; border: 1px solid var(--edge); border-radius: .625rem; background: var(--rise); color: var(--text); font-size: .75rem; }
+.calendar-nav-control { width: 2.25rem; }
+.calendar-today-control { padding: 0 .65rem; }
+input[type="checkbox"] { accent-color: var(--brand); }
+
+/* Navigation stays neutral; the thin brand marker carries selection. */
+nav[aria-label="Main navigation"] a[aria-current="page"]:not([aria-label="Agentcy home"]) { box-shadow: inset 2px 0 var(--brand); }
+
+/* Disabled means unavailable, not unreadable. Keep labels at full contrast. */
+:where(button, input, textarea, select):disabled { opacity: 1; color: var(--text-3); background-color: var(--lift); border-color: var(--edge-strong); cursor: not-allowed; }
+:where(input, textarea)::placeholder { opacity: 1; }
+
+/* Studio layouts respond to the available workspace, including an open chat dock. */
+.studio-workspace { container: studio / inline-size; }
+.work-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); align-items: stretch; gap: 1.5rem; }
+.work-grid-item { display: flex; min-width: 0; min-height: 16rem; }
+.work-grid-item > * { width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.workflow-layout { container: workflow / inline-size; min-width: 0; }
+.workflow-canvas { display: none; }
+.workflow-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .625rem; }
+.workflow-feedback { display: grid; gap: .75rem; }
+.agent-station { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.agent-bay-header { display: flex; flex-direction: column; align-items: flex-start; gap: .625rem; }
+.studio-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .75rem 1rem; padding: 1rem; }
+.studio-back, .studio-calendar-context { grid-column: 1 / -1; }
+.studio-calendar-context { border-top: 1px solid var(--edge); padding-top: .625rem; }
+@container workflow (min-width: 32rem) { .workflow-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container workflow (min-width: 40rem) { .workflow-feedback { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container workflow (min-width: 54rem) { .workflow-steps { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+@container workflow (min-width: 60rem) { .workflow-compact { display: none; } .workflow-canvas { display: block; } }
+@container studio (min-width: 32rem) { .agent-station[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); } .agent-bay-header { flex-direction: row; align-items: center; } }
+@container studio (min-width: 44rem) { .agent-station[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container studio (min-width: 48rem) { .studio-topbar { grid-template-columns: auto minmax(0, 1fr) auto; padding: 1rem 2rem; } .studio-back { grid-column: auto; } .studio-calendar-context { grid-column: 2 / -1; } }
+@container studio (min-width: 64rem) { .agent-station[data-count="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+/* The app frame gives phones a full-width page and keeps secondary tools labelled. */
+.mobile-shortcuts { height: calc(4rem + env(safe-area-inset-bottom)); padding: .25rem .5rem calc(.25rem + env(safe-area-inset-bottom)); }
+.page-content { container: page / inline-size; min-width: 0; overflow-wrap: anywhere; }
+.responsive-pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
+.responsive-cards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+.history-gallery { grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+.dashboard-metrics, .dashboard-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.dashboard-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+.dashboard-actions { grid-template-columns: minmax(0, 1fr); }
+@container page (min-width: 40rem) { .dashboard-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dashboard-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 44rem) { .campaign-row, .progress-row { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } .campaign-actions { justify-content: flex-end; } }
+@container page (min-width: 58rem) { .export-layout { grid-template-columns: minmax(0, 1fr) 18rem; } }
+@media (max-width: 767px) { .skip-link:focus { top: .5rem; } .work-grid { padding-bottom: 5rem; } }
+
+.workspace-secondary[aria-pressed="true"] { background: var(--accent); border-color: var(--edge-strong); color: var(--text); }
+
+/* Planning overview shares the calendar palette and adapts to its actual page width. */
+.overview-page-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.overview-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1.5rem; margin-top: 1.25rem; padding: .5rem 0 1rem; border-top: 1px solid var(--edge); }
+.planning-overview { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.overview-month, .overview-planning-details { min-width: 0; border: 1px solid var(--edge); border-radius: .875rem; background: var(--rise); padding: 1rem; }
+.overview-calendar-heading, .overview-calendar-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+.overview-calendar-toolbar { margin: 1rem 0; }
+.overview-month .fc .fc-daygrid-day-frame { min-height: 3.25rem; }
+.overview-month .fc .fc-col-header-cell-cushion { padding: .5rem .1rem; font-size: .6875rem; }
+.overview-month .fc .fc-daygrid-day-number { padding: 0; }
+.overview-date-button { display: flex; align-items: center; justify-content: center; min-width: 2rem; min-height: 2rem; margin: .125rem; border-radius: 50%; font-size: .75rem; color: inherit; }
+.overview-month .fc .fc-day-today .overview-date-button { background: var(--brand); color: var(--void); font-weight: 600; }
+.overview-month .fc td.overview-selected-day { background: var(--accent); box-shadow: inset 0 0 0 1px var(--brand); }
+.overview-month .fc .fc-event { padding: 0; margin: .125rem .0625rem; }
+.overview-event-button { display: flex; align-items: center; width: 100%; min-width: 0; min-height: 1.125rem; padding: .125rem .2rem; color: inherit; text-align: left; }
+.overview-event-title { display: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .6875rem; line-height: 1.4; }
+.overview-event-dot { width: .3125rem; height: .3125rem; flex-shrink: 0; margin: 0 auto; border-radius: 50%; background: currentColor; }
+.overview-date-markers, .overview-mobile-hint { display: none; }
+.overview-calendar-legend { display: flex; flex-wrap: wrap; gap: .5rem .875rem; margin-top: .875rem; font-size: .6875rem; color: var(--text-2); }
+.overview-calendar-legend span { display: inline-flex; align-items: center; gap: .375rem; }
+.overview-calendar-legend i { display: block; width: .3125rem; height: .3125rem; border-radius: 50%; }
+.overview-month .fc .fc-daygrid-more-link { display: inline-flex; align-items: center; min-height: 1.5rem; font-size: .6875rem; }
+.overview-planning-details .workspace-button, .overview-planning-details .workspace-secondary { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+@container page (max-width: 31.999rem) {
+  .overview-month .fc .fc-daygrid-day-events { display: none; }
+  .overview-date-button { flex-direction: column; min-height: 3rem; gap: .125rem; }
+  .overview-date-number { display: flex; align-items: center; justify-content: center; min-height: 1.5rem; min-width: 1.5rem; }
+  .overview-date-markers { display: flex; align-items: center; justify-content: center; gap: .125rem; min-height: .75rem; }
+  .overview-date-markers i { display: block; width: .25rem; height: .25rem; flex-shrink: 0; border-radius: 50%; }
+  .overview-date-markers span { margin-left: .125rem; font-size: .6875rem; font-variant-numeric: tabular-nums; }
+  .overview-month .fc .fc-day-today .overview-date-button { background: transparent; color: inherit; }
+  .overview-month .fc .fc-day-today .overview-date-number { border-radius: 50%; background: var(--brand); color: var(--void); }
+  .overview-wide-hint { display: none; }
+  .overview-mobile-hint { display: inline; }
+}
+@container page (min-width: 32rem) {
+  .overview-month, .overview-planning-details { padding: 1.25rem; }
+  .overview-month .fc .fc-daygrid-day-frame { min-height: 4.5rem; }
+  .overview-event-title { display: block; }
+  .overview-event-dot { display: none; }
+}
+@container page (min-width: 44rem) {
+  .planning-overview { grid-template-columns: minmax(0, 1.65fr) minmax(15rem, 1fr); }
+  .overview-month { padding: 1rem; }
+  .overview-month .fc .fc-daygrid-day-frame { min-height: 4.25rem; }
+  .overview-planning-details { padding: 1.25rem; }
+}
+@media (pointer: coarse) {
+  .overview-date-button { min-height: 2.75rem; min-width: 2rem; margin: 0; }
+  .overview-calendar-toolbar button { min-height: 2.75rem; }
+  .overview-month .fc .fc-daygrid-more-link { min-height: 2.25rem; }
 }

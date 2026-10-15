@@ -36,46 +36,108 @@ import type {
  * replaced with something vaguer. */
 export class ApiError extends Error {
   status: number
-
-  constructor(message: string, status: number) {
+  code: string
+  requestId: string
+  fields: { field: string; message: string }[]
+  retryable: boolean
+  constructor(message: string, status: number, code = 'request_failed', requestId = '', fields: { field: string; message: string }[] = [], retryable = false) {
     super(message)
     this.name = 'ApiError'
-    this.status = status
+    this.status = status; this.code = code; this.requestId = requestId; this.fields = fields; this.retryable = retryable
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response
-  try {
-    response = await fetch(`/api${path}`, {
-      headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
-      ...init,
-    })
-  } catch {
-    throw new ApiError('Cannot reach the backend. Is uvicorn running?', 0)
-  }
-
-  if (!response.ok) {
-    throw new ApiError(await explain(response), response.status)
-  }
-  // A 204 has no body to parse, and a delete that "failed" only because
-  // there was nothing to read would be an unpleasant lie.
-  if (response.status === 204) return undefined as T
-  return response.json() as Promise<T>
+let csrfToken = ''
+const cache = new Map<string, { at: number; value: unknown }>()
+const pending = new Map<string, Promise<unknown>>()
+let generation = 0
+export function invalidateData() {
+  generation += 1
+  cache.clear()
+  window.dispatchEvent(new Event('workspace-data-changed'))
 }
+export function setSessionToken(token: string) {
+  csrfToken = token
+  pending.clear()
+  invalidateData()
+}
+export function sessionHeaders() { return { 'X-CSRF-Token': csrfToken } }
 
-async function explain(response: Response): Promise<string> {
-  try {
-    const body = await response.json()
-    if (typeof body.detail === 'string') return body.detail
-    // FastAPI validation errors arrive as a list of field problems.
-    if (Array.isArray(body.detail)) {
-      return body.detail.map((d: { msg: string }) => d.msg).join('; ')
+export type Job = { id: string; path: string; status: 'queued' | 'running' | 'succeeded' | 'failed' | 'interrupted' | 'cancelled'; events: Record<string, unknown>[]; cursor: number; result: Record<string, unknown> | unknown[] | null; error: string | null; updated_at: string }
+
+export async function waitForJob(job: Job, onUpdate?: (job: Job) => void, signal?: AbortSignal): Promise<Record<string, unknown> | unknown[]> {
+  let cursor = 0
+  let reconnects = 0
+  for (;;) {
+    if (signal?.aborted) throw new DOMException('Stopped watching this job', 'AbortError')
+    let latest: Job
+    try {
+      latest = await request<Job>(`/jobs/${job.id}?after=${cursor}`, { signal })
+      reconnects = 0
+    } catch (failure) {
+      if (signal?.aborted || !(failure instanceof ApiError) || !failure.retryable || reconnects >= 10) throw failure
+      reconnects += 1
+      await new Promise(resolve => window.setTimeout(resolve, Math.min(1000 * reconnects, 5000)))
+      continue
     }
-  } catch {
-    /* fall through to the generic message */
+    if (signal?.aborted) throw new DOMException('Stopped watching this job', 'AbortError')
+    cursor = latest.cursor
+    onUpdate?.(latest)
+    if (['succeeded', 'failed', 'interrupted', 'cancelled'].includes(latest.status)) {
+      invalidateData()
+      if (latest.status === 'succeeded' && latest.result !== null) return latest.result
+      throw new ApiError(latest.error || 'The job did not complete. Open Progress to review and retry it.', 409, latest.status)
+    }
+    await new Promise<void>((resolve, reject) => {
+      const stop = () => { window.clearTimeout(timer); reject(new DOMException('Stopped watching this job', 'AbortError')) }
+      const timer = window.setTimeout(() => { signal?.removeEventListener('abort', stop); resolve() }, 1000)
+      signal?.addEventListener('abort', stop, { once: true })
+    })
   }
-  return `Request failed (${response.status})`
+}
+
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? 'GET'
+  const reusable = method === 'GET' && !init?.signal && !path.startsWith('/auth/') && !path.startsWith('/jobs')
+  const hit = reusable ? cache.get(path) : undefined
+  if (hit && Date.now() - hit.at < 5000) return structuredClone(hit.value) as T
+  const existing = reusable ? pending.get(path) : undefined
+  if (existing) return structuredClone(await existing) as T
+  const version = generation
+  const fetchRequest = async () => {
+    let response: Response
+    try {
+      response = await fetch(`/api${path}`, {
+        ...init, credentials: 'same-origin',
+        headers: { ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...sessionHeaders(), ...init?.headers },
+        signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
+      })
+    } catch (error) {
+      if (init?.signal?.aborted) throw error
+      throw new ApiError('We could not connect. Check your connection and try again. Existing work is saved.', 0, 'connection_failed', '', [], true)
+    }
+    if (!response.ok) {
+      let body: { detail?: string | { msg: string }[]; code?: string; request_id?: string; fields?: { field: string; message: string }[]; retryable?: boolean } = {}
+      try { body = await response.json() } catch { /* keep the safe fallback */ }
+      if (response.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('authentication-required'))
+      throw new ApiError(typeof body.detail === 'string' ? body.detail : Array.isArray(body.detail) ? body.detail.map(d => d.msg).join('; ') : `The request could not complete (${response.status}).`, response.status, body.code, body.request_id, body.fields, body.retryable)
+    }
+    if (response.status === 204) { if (method !== 'GET') invalidateData(); return undefined as T }
+    let value
+    try { value = await response.json() } catch { throw new ApiError('The service returned incomplete data. Check saved progress before trying again.', 502, 'incomplete_response', response.headers.get('X-Request-ID') ?? '', [], true) }
+    if (method !== 'GET') invalidateData()
+    if (value.__job__) return await waitForJob(value.__job__, undefined, init?.signal ?? undefined) as T
+    if (reusable && version === generation) cache.set(path, { at: Date.now(), value: structuredClone(value) })
+    return value as T
+  }
+  const operation = fetchRequest().catch(async failure => {
+    if (method !== 'GET' || !(failure instanceof ApiError) || !failure.retryable || init?.signal?.aborted || version !== generation) throw failure
+    await new Promise(resolve => window.setTimeout(resolve, 300))
+    if (init?.signal?.aborted || version !== generation) throw failure
+    return fetchRequest()
+  })
+  if (reusable) pending.set(path, operation)
+  try { return await operation } finally { if (reusable && pending.get(path) === operation) pending.delete(path) }
 }
 
 const post = <T>(path: string, body?: unknown) =>
@@ -98,7 +160,9 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  listCampaigns: () => request<Campaign[]>('/campaigns'),
+  listCampaigns: () => request<Campaign[]>('/campaigns?limit=100'),
+
+  campaignDirectory: (query: string, status: string, offset: number, signal?: AbortSignal) => request<{ items: Campaign[]; total: number; offset: number; limit: number }>(`/campaign-directory?q=${encodeURIComponent(query)}&status=${encodeURIComponent(status)}&offset=${offset}&limit=20`, { signal }),
 
   getCampaign: (id: number) => request<Campaign>(`/campaigns/${id}`),
 
@@ -126,11 +190,11 @@ export const api = {
 
   // -- marketing chat -----------------------------------------------------
 
-  listConversations: () => request<Conversation[]>('/conversations'),
+  listConversations: (offset = 0) => request<Conversation[]>(`/conversations?summary=true&limit=30&offset=${offset}`),
 
   // Send `{}` for the default title as well. The API can then distinguish a
   // deliberate default thread from a missing request body.
-  createConversation: (payload: { title?: string } = {}) =>
+  createConversation: (payload: { title?: string; campaign_id?: number; marketing_plan_id?: number; marketing_plan_item_id?: number; calendar_occasion_id?: number; calendar_business_event_id?: number } = {}) =>
     post<Conversation>('/conversations', payload),
 
   getConversation: (id: number) => request<Conversation>(`/conversations/${id}`),

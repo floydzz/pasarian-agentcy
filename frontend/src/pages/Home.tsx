@@ -1,12 +1,14 @@
+import { useAuth } from '@/lib/auth'
+import { useWorkspaceRefresh } from '@/hooks/useWorkspaceRefresh'
 import { useEffect, useState } from 'react'
-import { Link, useViewTransitionState } from 'react-router-dom'
+import { Link, useSearchParams, useViewTransitionState } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { toast } from 'sonner'
 import { Page } from '@/components/os/Shell'
 import { PageHead } from '@/components/os/Sidebar'
 import { cn } from '@/lib/utils'
 import { useRoomNav } from '@/lib/rooms'
-import { api, ApiError } from '@/api/client'
+import { campaignFlow } from '@/lib/campaignFlow'
+import { api } from '@/api/client'
 import type { Campaign } from '@/api/types'
 
 /** The campaign directory is deliberately a directory, not another dashboard.
@@ -24,48 +26,44 @@ const STATUS: Record<Campaign['status'], string> = {
 }
 
 export function Home() {
-  const [campaigns, setCampaigns] = useState<Campaign[] | null>(null)
-
+  const actor = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => { sessionStorage.setItem(`agentcy-directory:${actor.user.id}:${actor.workspace_id}`, `/campaigns${searchParams.size ? '?' + searchParams.toString() : ''}`) }, [searchParams, actor.user.id, actor.workspace_id])
+  const query = searchParams.get('q') ?? ''
+  const filter = searchParams.get('filter') ?? 'all'
+  const offset = Math.max(0, Number(searchParams.get('offset')) || 0)
+  const [page, setPage] = useState<{ items: Campaign[]; total: number; limit: number } | null>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [retry, setRetry] = useState(0)
+  useWorkspaceRefresh(() => setRetry(value => value + 1))
+  function change(values: Record<string, string>) {
+    const next = new URLSearchParams(searchParams)
+    for (const [key, value] of Object.entries(values)) { if (!value || value === 'all' || value === '0') next.delete(key); else next.set(key, value) }
+    setSearchParams(next, { replace: true })
+  }
   useEffect(() => {
-    api.listCampaigns().then(setCampaigns).catch((error: ApiError) => {
-      setCampaigns([])
-      toast.error(error.message)
-    })
-  }, [])
-
-  return (
-    <Page>
-      <PageHead
-        title="Campaigns"
-        action={
-          <Link
-            to="/?chat=open"
-            className="rounded-full bg-foreground px-4 py-2 text-[0.75rem] text-void transition-opacity hover:opacity-90"
-          >
-            Start with the strategist
-          </Link>
-        }
-      >
-        Every brief you have built. Open its production console or take its approved work to Publish.
-      </PageHead>
-
-      {campaigns === null ? (
-        <p className="mt-12 text-sm text-text-3">Loading campaigns…</p>
-      ) : campaigns.length === 0 ? (
-        <Empty />
-      ) : (
-        <ul className="mt-10 divide-y divide-edge border-y border-edge">
-          {campaigns.map((campaign, index) => (
-            <CampaignRow key={campaign.id} campaign={campaign} index={index} />
-          ))}
-        </ul>
-      )}
-    </Page>
-  )
+    const controller = new AbortController()
+    setLoading(true); setError('')
+    const timer = window.setTimeout(() => {
+      api.campaignDirectory(query, filter, offset, controller.signal).then(setPage).catch((failure: Error) => { if (!controller.signal.aborted) setError(failure.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    }, 200)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [query, filter, offset, retry])
+  return <Page>
+    <PageHead title="Campaigns" action={<Link to="/chat" className="workspace-button">New campaign</Link>}>Your marketing work, from the first idea to approved creative.</PageHead>
+    <div className="mt-7 space-y-3"><label className="block max-w-xl"><span className="sr-only">Search campaigns</span><input type="search" maxLength={200} className="workspace-input" placeholder="Search name, occasion or brief" value={query} onChange={event => change({ q: event.target.value, offset: '0' })} /></label><div className="flex flex-wrap gap-2" aria-label="Campaign filters">{[['all', 'All'], ['review', 'Needs review'], ['working', 'In progress'], ['ready', 'Ready'], ['draft', 'Drafts']].map(([id, label]) => <button key={id} type="button" aria-pressed={filter === id} className={filter === id ? 'workspace-secondary bg-accent font-medium' : 'workspace-secondary text-text-3'} onClick={() => change({ filter: id, offset: '0' })}>{label}</button>)}</div></div>
+    {error ? <div role="alert" className="mt-8 rounded-xl border border-halt/40 p-5 text-sm"><p>{error}</p><button className="workspace-secondary mt-3" onClick={() => setRetry(value => value + 1)}>Retry loading campaigns</button></div> : loading ? <p role="status" className="mt-10 text-sm text-text-3">Loading campaigns…</p> : page && page.total === 0 && !query && filter === 'all' ? <Empty /> : <>
+      <p className="mt-6 text-xs text-text-3">{page?.total ?? 0} campaigns{query || filter !== 'all' ? ' match your filters' : ' in your workspace'}</p>
+      {page?.items.length ? <ul className="mt-3 divide-y divide-edge border-y border-edge">{page.items.map((campaign, index) => <CampaignRow key={campaign.id} campaign={campaign} index={index} />)}</ul> : <p className="py-8 text-sm text-text-3">No campaigns match. Try another search or choose All.</p>}
+      {page && (page.total > page.limit || offset > 0) && <nav aria-label="Campaign pagination" className="mt-5 flex flex-wrap items-center gap-3"><button className="workspace-secondary" disabled={!offset} onClick={() => change({ offset: String(Math.max(0, offset - page.limit)) })}>Previous</button><span className="text-xs text-text-3">{Math.min(offset + 1, page.total)}–{Math.min(offset + page.limit, page.total)} of {page.total}</span><button className="workspace-secondary" disabled={offset + page.limit >= page.total} onClick={() => change({ offset: String(offset + page.limit) })}>Next page</button></nav>}
+    </>}
+  </Page>
 }
 
 export function CampaignRow({ campaign, index }: { campaign: Campaign; index: number }) {
   const needsYou = campaign.status.startsWith('pending_')
+  const flow = campaignFlow(campaign)
   const roomNav = useRoomNav()
   const toImage = `/campaigns/${campaign.id}/image`
   const toVideo = `/campaigns/${campaign.id}/video`
@@ -84,7 +82,7 @@ export function CampaignRow({ campaign, index }: { campaign: Campaign; index: nu
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.035, 0.24), duration: 0.35 }}
-      className="grid gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-8"
+      className="grid gap-4 py-5 campaign-row"
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -105,7 +103,9 @@ export function CampaignRow({ campaign, index }: { campaign: Campaign; index: nu
           Updated {new Date(campaign.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2 sm:justify-end">
+      <div className="campaign-actions flex flex-wrap gap-2">
+        <Link to={flow.to} className="workspace-button">{flow.action}</Link>
+        <details className="relative"><summary className="workspace-secondary">More</summary><div className="absolute right-0 z-20 mt-2 grid w-40 gap-2 rounded-xl border border-edge bg-rise p-3 shadow-sm">
         <Link to={toImage} viewTransition onClick={() => roomNav(toImage)} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-text-2 transition-colors hover:border-image/60 hover:text-image">
           Image console
         </Link>
@@ -115,6 +115,7 @@ export function CampaignRow({ campaign, index }: { campaign: Campaign; index: nu
         <Link to={toPublish} viewTransition onClick={() => roomNav(toPublish)} className="rounded-full border border-edge px-3 py-1.5 text-[0.75rem] text-text-2 transition-colors hover:border-edge-strong hover:text-foreground">
           Publish
         </Link>
+        </div></details>
       </div>
     </motion.li>
   )
@@ -125,9 +126,9 @@ function Empty() {
     <section className="mt-12 max-w-xl rounded-xl border border-dashed border-edge-strong px-6 py-10">
       <p className="display text-[0.9375rem]">Your campaign directory is empty.</p>
       <p className="mt-2 text-[0.8125rem] leading-relaxed text-text-3">
-        Open the strategist bubble, describe what you want to market, and it will turn the conversation into a campaign when you approve the brief.
+        Open Chat, describe what you want to market, and it will turn the conversation into a campaign when you approve the brief.
       </p>
-      <Link to="/?chat=open" className="mt-5 inline-block text-[0.8125rem] text-foreground underline underline-offset-4">
+      <Link to="/chat" className="mt-5 inline-block text-[0.8125rem] text-foreground underline underline-offset-4">
         Open strategist
       </Link>
     </section>

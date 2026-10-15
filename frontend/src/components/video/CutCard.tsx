@@ -98,7 +98,7 @@ function Action({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'rounded-full border px-3 py-1.5 text-[0.75rem] transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        'rounded-full border px-3 py-1.5 text-[0.75rem] transition-colors disabled:cursor-not-allowed disabled:opacity-100',
         tone === 'go'
           ? 'border-go/40 text-go hover:bg-go/10'
           : tone === 'flag'
