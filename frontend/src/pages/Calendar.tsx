@@ -1,3 +1,4 @@
+import { CalendarEntryDetails } from '@/components/CalendarEntryDetails'
 import { useScrollMemory } from '@/hooks/useScrollMemory'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -30,6 +31,9 @@ export function Calendar() {
   const loadedRange = useRef('')
   const requestedState = useRef(stateParam)
   const calendar = useRef<FullCalendar>(null)
+  const dateDetails = useRef<HTMLElement>(null)
+  const revealDate = useRef('')
+  const [detailRequest, setDetailRequest] = useState(0)
   const initialLocation = useRef({ plan: params.get("plan"), item: params.get("item") })
   const [refreshKey, setRefreshKey] = useState(0)
   const running = useRef(new Set<number>())
@@ -121,7 +125,17 @@ export function Calendar() {
   function selectDate(value: string) {
     setSelectedDate(value); setSelected(null); setItem(null); setParams(plan ? { plan: String(plan.id) } : {})
     if (calendar.current?.getApi().view.type === 'multiMonthYear') { calendar.current.getApi().changeView('dayGridMonth', value); setView('dayGridMonth') }
+    revealDate.current = value; setDetailRequest(request => request + 1)
   }
+  useEffect(() => {
+    if (!detailRequest || revealDate.current !== selectedDate || params.get('date') || params.get('entry') || itemParam) return
+    const frame = requestAnimationFrame(() => {
+      revealDate.current = ''
+      dateDetails.current?.focus({ preventScroll: true })
+      dateDetails.current?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [selectedDate, params, itemParam, detailRequest])
   function datesChanged(arg: DatesSetArg) { setTitle(arg.view.title); setYear(arg.view.currentStart.getFullYear()); setRange({ start: arg.startStr.slice(0, 10), end: shiftDay(arg.endStr.slice(0, 10), -1) }) }
   async function askStrategist() {
     await act(async () => {
@@ -214,7 +228,7 @@ export function Calendar() {
 
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           <section className="rounded-2xl border border-edge bg-rise p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-medium">Your roadmaps</h3><button className="text-xs font-medium text-primary" onClick={() => { setPlan(null); setMode('plan') }}>Create manually</button></div><p className="mt-1 text-xs text-text-3">Review a year of ideas, then produce one campaign at a time.</p><div className="mt-4 space-y-2">{plans.filter(p => p.status !== 'archived').length === 0 ? <p className="py-3 text-sm text-text-3">Start with an AI proposal or create your first plan.</p> : plans.filter(p => p.status !== 'archived').map(p => <button className={`flex w-full items-center justify-between rounded-lg p-3 text-left text-sm ${plan?.id === p.id ? 'bg-accent text-primary' : 'bg-void text-text-2'}`} key={p.id} onClick={() => { setItem(null); setSelected(null); setParams({ plan: String(p.id) }); calendar.current?.getApi().gotoDate(p.start_date) }}><span>{p.name}<span className="mt-1 block text-[.6875rem] text-text-3">{labelDate(p.start_date)} – {labelDate(p.end_date)}</span></span><ArrowRight size={15} /></button>)}</div>{plan && <div className="mt-4 border-t border-edge pt-4"><div className="flex flex-wrap gap-3"><button className="text-xs font-medium text-primary" onClick={() => { setItem(null); setMode('item') }}>Add campaign idea</button><button className="text-xs text-text-2" onClick={() => setMode('plan')}>Edit roadmap</button><button className="text-xs text-text-2" onClick={() => void askStrategist()}>Discuss plan</button></div><ul className="mt-3 divide-y divide-edge">{plan.items?.map(i => <li key={i.id}><button className="flex w-full justify-between gap-3 py-3 text-left text-xs" onClick={() => setParams({ item: String(i.id) })}><span>{i.title}</span><span className="shrink-0 text-text-3">{i.campaign_start}</span></button></li>)}</ul></div>}<details className="mt-4 border-t border-edge pt-3"><summary className="cursor-pointer text-xs text-primary">Recent planning requests</summary><div className="mt-2 space-y-1">{runHistory.length === 0 && <p className="py-2 text-xs text-text-3">No planning requests yet.</p>}{runHistory.slice(0, 8).map(r => <button className="flex w-full justify-between gap-3 rounded-lg p-2 text-left text-xs hover:bg-void" key={r.id} onClick={() => setParams({ run: String(r.id) })}><span>{r.period}</span><span className="shrink-0 text-text-3">{r.accepted ? 'Saved' : r.status === 'succeeded' ? 'Ready to review' : r.status}</span></button>)}</div></details></section>
-          <section className="rounded-2xl border border-edge bg-rise p-5"><h3 className="font-medium">{labelDate(selectedDate)}</h3><div className="mt-3 space-y-2">{visibleDates.length === 0 ? <p className="text-sm text-text-3">A clear day. Add an event or leave room between campaigns.</p> : visibleDates.map(e => <button className="flex w-full items-center gap-3 rounded-lg bg-void p-3 text-left text-sm" key={e.id} onClick={() => selectEntry(e)}><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: kinds[e.kind].color }} /><span>{e.title}<span className="mt-1 block text-[.6875rem] text-text-3">{kinds[e.kind].label}</span></span></button>)}</div><button className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary" onClick={() => { setSelected(null); setMode('event') }}><Plus size={13} />Add event on this date</button></section>
+          <section ref={dateDetails} tabIndex={-1} aria-label="Selected date activities" className="rounded-2xl border border-edge bg-rise p-5"><h3 className="font-medium">{labelDate(selectedDate)}</h3><div className="mt-3 space-y-2">{visibleDates.length === 0 ? <p className="text-sm text-text-3">A clear day. Add an event or leave room between campaigns.</p> : visibleDates.map(e => <article key={e.id} className="border-t border-edge py-4"><button className="flex min-h-11 w-full items-center gap-3 text-left text-base font-medium leading-relaxed" onClick={() => selectEntry(e)}><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: kinds[e.kind].color }} /><span><span>{e.title}</span><span className="mt-1 block text-[.6875rem] text-text-3">{kinds[e.kind].label}</span></span></button><div className="mt-3"><CalendarEntryDetails entry={e} states={data?.states} /></div></article>)}</div><button className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary" onClick={() => { setSelected(null); setMode('event') }}><Plus size={13} />Add event on this date</button></section>
         </div>
       </div>
 
