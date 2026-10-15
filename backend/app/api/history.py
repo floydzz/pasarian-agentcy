@@ -96,6 +96,14 @@ class RunLog:
         error: str | None = None,
         **counts: int,
     ) -> None:
+        from app.workspace import active_job
+        if active_job.get():
+            if error:
+                log.error("agent run failed job_id=%s error_type=%s", active_job.get(), self.kind)
+                error = "This run failed. Review its saved job activity before retrying."
+                summary = error
+            from app.agents.events import public_event
+            self.events = [public_event(event) for event in self.events]
         elapsed = (utcnow() - self.started).total_seconds()
         row = Run(
             campaign_id=self.campaign_id,

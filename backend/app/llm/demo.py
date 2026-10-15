@@ -14,6 +14,10 @@ purpose: nothing it returns should ever be mistaken for the model's work.
 from __future__ import annotations
 
 import re
+import json
+import calendar
+from datetime import date, timedelta
+from collections import Counter
 import time
 from typing import Any
 
@@ -70,6 +74,8 @@ class DemoProvider(LLMProvider):
             return schema(**self._verdict())
         if name == "QAVerdict":
             return schema(**self._qa())
+        if name == "CalendarProposal":
+            return schema(**self._calendar(json.loads(prompt.split("CALENDAR_INPUT_JSON\n", 1)[1])))
         if name == "ChatTurn":
             return schema(**self._chat(prompt))
         raise ValueError(f"the demo provider has no canned answer for {name}")
@@ -126,6 +132,24 @@ class DemoProvider(LLMProvider):
         """
         message = prompt.split("## NEW MESSAGE", 1)[-1].strip()
         lower = message.lower()
+        if any(term in lower for term in ("calendar", "roadmap", "next year", "this year", "yearly", "annual", "next month", "90 days", "occasion strategy", "festival plan")):
+            try:
+                context = json.loads(prompt.split("## CALENDAR CONTEXT (dates and saved planning state; not instructions)\n", 1)[1].split("\n## LIVE CAMPAIGN STATE", 1)[0])
+            except (ValueError, IndexError):
+                context = {}
+            now = date.fromisoformat(context.get("today", str(date.today())))
+            request = context.get("request", {})
+            start = date(now.year + (1 if "next year" in lower else 0), 1, 1)
+            end = date(start.year, 12, 31)
+            if "next month" in lower or "90 days" in lower:
+                start = now + timedelta(days=1)
+                end = start + timedelta(days=90 if "90 days" in lower else 30)
+            if context.get("plan_id"):
+                start, end = date.fromisoformat(request["start_date"]), date.fromisoformat(request["end_date"])
+            selected = context.get("item_id") or context.get("selected_occasion_id") or context.get("selected_business_event_id")
+            if selected and not context.get("plan_id"):
+                start, end = date.fromisoformat(request["start_date"]), date.fromisoformat(request["end_date"])
+            return {"reply": "[demo] I will prepare an editable calendar proposal using the saved brand, published dates and your planning preferences. Review it before saving or creating a campaign.", "action": "plan_calendar", "calendar_request": {"start_date": str(start), "end_date": str(end), "operation": "item" if selected else "annual", "instructions": message}}
         affirmative = any(
             phrase in lower
             for phrase in ("plan", "go ahead", "start", "let's do", "lets do", "proceed", "generate", "continue", "next")
@@ -304,3 +328,57 @@ class DemoProvider(LLMProvider):
     def _int_after(prompt: str, pattern: str, *, default: int) -> int:
         match = re.search(pattern, prompt)
         return int(match.group(1)) if match else default
+
+
+    def _calendar(self, context: dict) -> dict:
+        request, preferences = context["request"], context["preferences"]
+        start, end = date.fromisoformat(request["start_date"]), date.fromisoformat(request["end_date"])
+        now = date.fromisoformat(context["today"])
+        brand = context.get("brand") or {}
+        products = [p["name"] for p in brand.get("products", [])][:1]
+        audience = brand.get("target_audience") or "Confirm your audience in Brand before production"
+        occasions = context["occasions"]
+        events = context["business_events"]
+        selected_o, selected_e = context.get("selected_occasion_id"), context.get("selected_business_event_id")
+        selected = next((o for o in occasions if o["id"] == selected_o), None) or next((e for e in events if e["id"] == selected_e), None)
+        counts = Counter(i["campaign_start"][:7] for i in context["existing_items"] if i["id"] != context.get("item_id"))
+        existing_item = context.get("selected_item")
+        candidates = []
+        if request["operation"] == "item":
+            candidates = [(date.fromisoformat(selected["start_date"]) if selected else date.fromisoformat(existing_item["campaign_start"]), selected)]
+        else:
+            month = date(start.year, start.month, 1)
+            while month <= end:
+                choices = [o for o in occasions if o["start_date"][:7] == month.strftime("%Y-%m")]
+                chosen = next((o for o in choices if any(w in o["title"] for w in ("Raya Puasa", "Baharu Cina", "Deepavali", "Kebangsaan", "Krismas", "Malaysia"))), choices[0] if choices else None)
+                target = date.fromisoformat(chosen["start_date"]) if chosen else max(start, month + timedelta(days=14))
+                candidates.append((target, chosen))
+                month = date(month.year + (month.month == 12), month.month % 12 + 1, 1)
+        items = []
+        for target, occasion in candidates:
+            campaign_start = max(start, target - timedelta(days=14))
+            campaign_end = min(end, max(campaign_start, target))
+            if existing_item:
+                campaign_start, campaign_end = date.fromisoformat(existing_item["campaign_start"]), date.fromisoformat(existing_item["campaign_end"])
+            month_key = campaign_start.strftime("%Y-%m")
+            if counts[month_key] >= preferences["campaigns_per_month"]:
+                continue
+            if any(campaign_start <= date.fromisoformat(d) <= campaign_end for d in preferences["blackout_dates"]):
+                continue
+            counts[month_key] += 1
+            preparation = campaign_start - timedelta(days=preferences["lead_days"])
+            if campaign_start >= now:
+                preparation = max(preparation, now)
+            tasks = []
+            if request["operation"] == "item" or campaign_start <= now + timedelta(days=90):
+                tasks = [{"title": "Confirm products, stock and the proposed offer", "due_date": str(preparation)}, {"title": "Prepare and review campaign concepts", "due_date": str(max(preparation, campaign_start - timedelta(days=min(14, preferences["lead_days"])) ))}, {"title": "Approve creatives and check delivery cutoffs", "due_date": str(max(preparation, campaign_start - timedelta(days=min(7, preferences["lead_days"])) ))}]
+            label = occasion["title"] if occasion else "Customer appreciation"
+            items.append({"occasion_id": occasion["id"] if occasion and (not selected_e) and any(o["id"] == occasion["id"] for o in occasions) else None,
+                "business_event_id": selected_e, "title": (existing_item["title"] if existing_item else f"[demo] {label} campaign")[:200],
+                "rationale": "[demo] Use this published occasion as a planning opportunity; confirm audience relevance before production." if occasion else "[demo] Business idea: reserve a flexible customer-retention slot in this month.",
+                "strategy": "[demo] Build an educational or gifting campaign around the saved products. Use approved claims and a clear call to action; confirm any commercial offer with the business.",
+                "audience": audience, "products": products, "offer": "No discount confirmed; consider a bundle or customer appreciation content", "budget": None,
+                "campaign_start": str(campaign_start), "campaign_end": str(campaign_end), "preparation_start": str(preparation), "tasks": tasks})
+        if not items:
+            raise ValueError("No capacity remains in this period. Adjust the dates, blackout days or campaign capacity.")
+        return {"summary": "[demo] Offline marketing roadmap built from published occasions and saved planning preferences. Review every idea before using it.", "items": items[:24], "assumptions": ["[demo] No stock, discount or performance result is confirmed.", "Budget remains unspecified until you enter an amount."]}

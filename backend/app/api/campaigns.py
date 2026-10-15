@@ -7,7 +7,7 @@ changes happen here and only here, one step at a time.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -44,8 +44,8 @@ def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)) -> C
 
 
 @router.get("/campaigns", response_model=list[CampaignRead])
-def list_campaigns(db: Session = Depends(get_db)) -> list[Campaign]:
-    return list(db.scalars(select(Campaign).order_by(Campaign.id.desc())))
+def list_campaigns(limit: int = Query(default=100, ge=1, le=200), offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)) -> list[Campaign]:
+    return list(db.scalars(select(Campaign).order_by(Campaign.id.desc()).offset(offset).limit(limit)))
 
 
 @router.get("/campaigns/{campaign_id}", response_model=CampaignRead)
@@ -73,7 +73,7 @@ def plan_campaign(
     _require_status(campaign, CampaignStatus.DRAFT, action="planning")
 
     campaign.status = CampaignStatus.PLANNING
-    db.flush()
+    db.commit()
 
     record = RunLog(campaign, PLAN)
     try:

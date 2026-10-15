@@ -34,6 +34,12 @@ class LLMProvider(ABC):
     is what keeps running dry mid-run.
     """
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if "structured" in cls.__dict__:
+            from app.telemetry import instrument
+            cls.structured = instrument(cls.structured)
+
     #: OpenAI-compatible providers override this with their gateway URL.
     base_url: str | None = None
 

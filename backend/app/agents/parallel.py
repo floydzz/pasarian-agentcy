@@ -27,6 +27,7 @@ pass already known to be broken.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from contextvars import copy_context
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TypeVar
 
@@ -51,7 +52,7 @@ def in_parallel(
     width = max(1, min(lanes, len(jobs)))
 
     with ThreadPoolExecutor(max_workers=width) as pool:
-        futures: list[Future] = [pool.submit(work, job) for job in jobs]
+        futures: list[Future] = [pool.submit(copy_context().run, work, job) for job in jobs]
 
         done: list[tuple[int, R]] = []
         failure: Exception | None = None

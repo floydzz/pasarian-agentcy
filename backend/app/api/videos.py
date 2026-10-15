@@ -145,7 +145,7 @@ def render_video(
     studio: VideoStudio = Depends(get_video_studio),
 ) -> MarketingVideo:
     if payload.product_reference_id is not None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "select product images from a campaign video studio")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "select product images from a campaign video studio")
     rendered = _render(studio, payload)
     row = _row(payload, rendered)
     db.add(row)
@@ -163,7 +163,7 @@ def render_video_stream(
     """Render the exact same video, narrating each agent to the console."""
 
     if payload.product_reference_id is not None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "select product images from a campaign video studio")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "select product images from a campaign video studio")
 
     def work(sink) -> RenderedMarketingVideo:
         return _render(studio, payload, sink=sink)
@@ -449,7 +449,7 @@ def _campaign_product(
         return primary_product_image(db, campaign_id, studio.storage)
     reference = db.get(ProductReference, reference_id)
     if reference is None or reference.campaign_id != campaign_id:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "product image does not belong to this campaign")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "product image does not belong to this campaign")
     try:
         return reference.media_url, studio.storage.read(reference.media_url)
     except (ValueError, OSError):

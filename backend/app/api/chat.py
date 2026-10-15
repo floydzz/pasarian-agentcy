@@ -8,9 +8,12 @@ approval gate and never starts rendering.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from sqlalchemy import select, func
+from uuid import uuid4
+from datetime import date, timedelta
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy.orm import Session, selectinload, noload
 
 from app.agents.chat import ChatAction, ConversationTurn, MarketingChat
 from app.api.deps import Tuning, get_campaign_or_404, get_marketing_chat, get_tuning
@@ -54,15 +57,19 @@ def _conversation_read(conversation: Conversation) -> ConversationRead:
     # SQLAlchemy does not promise relationship order without an explicit query.
     # Reading it in id order makes every API response and context window stable.
     conversation.messages.sort(key=lambda message: message.id)
-    return ConversationRead.model_validate(conversation)
+    result = ConversationRead.model_validate(conversation)
+    result.message_count = len(conversation.messages)
+    return result
 
 
 @router.get("/conversations", response_model=list[ConversationRead])
-def list_conversations(db: Session = Depends(get_db)) -> list[ConversationRead]:
-    conversations = list(
-        db.scalars(_conversation_query().order_by(Conversation.updated_at.desc(), Conversation.id.desc()))
-    )
-    return [_conversation_read(conversation) for conversation in conversations]
+def list_conversations(summary: bool = False, limit: int = Query(default=30, ge=1, le=100), offset: int = Query(default=0, ge=0), db: Session = Depends(get_db)):
+    query = select(Conversation).options(selectinload(Conversation.campaign), noload(Conversation.messages) if summary else selectinload(Conversation.messages)).order_by(Conversation.updated_at.desc(), Conversation.id.desc()).offset(offset).limit(limit)
+    rows = list(db.scalars(query))
+    if not summary:
+        return [_conversation_read(row) for row in rows]
+    counts = dict(db.execute(select(ChatMessage.conversation_id, func.count(ChatMessage.id)).where(ChatMessage.conversation_id.in_([row.id for row in rows])).group_by(ChatMessage.conversation_id)).all()) if rows else {}
+    return [{**_conversation_read(row).model_dump(), "message_count": counts.get(row.id, 0)} for row in rows]
 
 
 @router.post("/conversations", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
@@ -70,7 +77,11 @@ def create_conversation(
     payload: ConversationCreate = Body(default_factory=ConversationCreate),
     db: Session = Depends(get_db),
 ) -> ConversationRead:
-    conversation = Conversation(title=payload.title)
+    if payload.campaign_id:
+        get_campaign_or_404(db, payload.campaign_id)
+    context = payload.model_dump(exclude={"title", "campaign_id"})
+    context = _validate_calendar_context(db, context, payload.campaign_id)
+    conversation = Conversation(title=payload.title, campaign_id=payload.campaign_id, **context)
     db.add(conversation)
     db.commit()
     return _conversation_read(_read_conversation(db, conversation.id))
@@ -80,7 +91,20 @@ def create_conversation(
 def get_conversation(
     conversation_id: int, db: Session = Depends(get_db)
 ) -> ConversationRead:
-    return _conversation_read(_read_conversation(db, conversation_id))
+    from sqlalchemy.orm.attributes import set_committed_value
+    row = db.scalar(select(Conversation).where(Conversation.id == conversation_id).options(selectinload(Conversation.campaign), noload(Conversation.messages)))
+    if row is None:
+        raise HTTPException(404, "Conversation not found")
+    messages = list(db.scalars(select(ChatMessage).where(ChatMessage.conversation_id == row.id).order_by(ChatMessage.id.desc()).limit(50)))
+    set_committed_value(row, "messages", list(reversed(messages)))
+    return _conversation_read(row)
+
+
+@router.get("/conversations/{conversation_id}/messages")
+def earlier_messages(conversation_id: int, before: int = Query(ge=1), db: Session = Depends(get_db)):
+    if db.get(Conversation, conversation_id) is None:
+        raise HTTPException(404, "Conversation not found")
+    return [_message_read(row) for row in reversed(list(db.scalars(select(ChatMessage).where(ChatMessage.conversation_id == conversation_id, ChatMessage.id < before).order_by(ChatMessage.id.desc()).limit(50))))]
 
 
 @router.patch("/conversations/{conversation_id}", response_model=ConversationRead)
@@ -97,6 +121,12 @@ def update_conversation(
             conversation.campaign = None
         else:
             conversation.campaign = get_campaign_or_404(db, payload.campaign_id)
+    for field in ("marketing_plan_id", "marketing_plan_item_id", "calendar_occasion_id", "calendar_business_event_id"):
+        if field in payload.model_fields_set:
+            setattr(conversation, field, getattr(payload, field))
+    context = _validate_calendar_context(db, {field: getattr(conversation, field) for field in ("marketing_plan_id", "marketing_plan_item_id", "calendar_occasion_id", "calendar_business_event_id")}, conversation.campaign_id)
+    for field, value in context.items():
+        setattr(conversation, field, value)
     db.commit()
     return _conversation_read(_read_conversation(db, conversation_id))
 
@@ -154,6 +184,7 @@ def send_message(
             if campaign
             else [],
             campaign_progress=progress,
+            calendar_context=_calendar_context(db, conversation),
         )
     except Exception as error:
         # The user's request is still durable. A vendor refusal should read as
@@ -182,9 +213,48 @@ def send_message(
     db.add(assistant_message)
     db.flush()
 
-    authorized = _execute_action(
-        db, conversation, turn.action, turn.draft, message=payload.content
-    )
+    calendar_run_id = None
+    if turn.action is ChatAction.PLAN_CALENDAR:
+        from app.calendar_schemas import RunRequest
+        from app.api.calendar import create_run
+        if turn.calendar_request is None:
+            _system(db, conversation, "Choose a planning period before preparing the calendar proposal.")
+            authorized = "calendar"
+        else:
+            intent = turn.calendar_request
+            try:
+                request = RunRequest(
+                    **intent.model_dump(), request_key=str(uuid4()),
+                    states=_calendar_context(db, conversation).get("preferences", {}).get("states", []),
+                    plan_id=conversation.marketing_plan_id, item_id=conversation.marketing_plan_item_id,
+                    occasion_id=conversation.calendar_occasion_id if not conversation.marketing_plan_item_id else None,
+                    business_event_id=conversation.calendar_business_event_id if not conversation.marketing_plan_item_id else None,
+                )
+                run = create_run(db, request)
+                calendar_run_id = run.id
+                assistant_message.calendar_run_id = run.id
+                authorized = "calendar"
+            except (HTTPException, ValueError) as error:
+                _system(db, conversation, getattr(error, "detail", str(error)))
+                authorized = "calendar"
+    elif turn.action is ChatAction.VIEW_CALENDAR:
+        authorized = "calendar"
+    elif turn.action is ChatAction.CREATE_CAMPAIGN and conversation.marketing_plan_item_id:
+        from app.marketing_calendar import campaign_for_item, record
+        from app.models import MarketingPlanItem
+        item = record(db, MarketingPlanItem, conversation.marketing_plan_item_id)
+        try:
+            result = campaign_for_item(db, item.id, item.version)
+            conversation.campaign_id = result["campaign_id"]
+            _system(db, conversation, "The calendar campaign is ready as a draft. Review its brief before planning concepts.")
+        except HTTPException as error:
+            _system(db, conversation, error.detail)
+        authorized = None
+    elif turn.action is ChatAction.CREATE_CAMPAIGN and conversation.marketing_plan_id and not conversation.campaign_id:
+        _system(db, conversation, "Choose an item in this roadmap to create its campaign. Your annual strategy stays separate from production conversations.")
+        authorized = "calendar"
+    else:
+        authorized = _execute_action(db, conversation, turn.action, turn.draft, message=payload.content)
     db.commit()
     db.refresh(assistant_message)
     # `conversation.campaign` may have changed during creation, and the return
@@ -194,6 +264,7 @@ def send_message(
         message=_message_read(assistant_message),
         campaign=CampaignRead.model_validate(campaign) if campaign else None,
         authorized=authorized,
+        calendar_run_id=calendar_run_id,
     )
 
 
@@ -361,3 +432,46 @@ def _wrong_stage(campaign: Campaign, action: str) -> str:
     if campaign.status is CampaignStatus.PENDING_ASSET_REVIEW:
         return "The asset gate is waiting for a human decision. I will not move past it."
     return f"This campaign is {campaign.status}, so it is not ready to {action} yet."
+
+
+def _validate_calendar_context(db, context, campaign_id=None):
+    from app.marketing_calendar import validate_context, record
+    from app.models import CalendarOccasion, BusinessEvent
+    plan, item = validate_context(db, context.get("marketing_plan_id"), context.get("marketing_plan_item_id"), campaign_id)
+    if item:
+        if context.get("calendar_occasion_id") or context.get("calendar_business_event_id"):
+            raise HTTPException(422, "An existing plan item already defines its occasion")
+        context["marketing_plan_id"] = plan.id
+    if context.get("calendar_occasion_id") and context.get("calendar_business_event_id"):
+        raise HTTPException(422, "Select one occasion or business event")
+    if context.get("calendar_occasion_id"):
+        record(db, CalendarOccasion, context["calendar_occasion_id"])
+    if context.get("calendar_business_event_id"):
+        record(db, BusinessEvent, context["calendar_business_event_id"])
+    return context
+
+
+def _calendar_context(db, conversation):
+    from app.calendar_schemas import RunRequest
+    from app.marketing_calendar import run_context, record, today
+    from app.models import MarketingPlan, CalendarOccasion, BusinessEvent
+    now = today()
+    start, end = now, now + timedelta(days=90)
+    states = []
+    if conversation.marketing_plan_id:
+        plan = record(db, MarketingPlan, conversation.marketing_plan_id)
+        start, end = plan.start_date, plan.end_date
+    for model, identity in ((CalendarOccasion, conversation.calendar_occasion_id), (BusinessEvent, conversation.calendar_business_event_id)):
+        if identity and not conversation.marketing_plan_id:
+            selected = record(db, model, identity)
+            if model is CalendarOccasion:
+                from app.marketing_calendar import get_preferences
+                preferred = get_preferences(db).states
+                states = [s for s in preferred if s in selected.states] or selected.states[:1]
+            start, end = date(selected.start_date.year, 1, 1), date(selected.start_date.year, 12, 31)
+    try:
+        context = run_context(db, RunRequest(states=states, start_date=start, end_date=end, plan_id=conversation.marketing_plan_id, item_id=conversation.marketing_plan_item_id, occasion_id=conversation.calendar_occasion_id if not conversation.marketing_plan_item_id else None, business_event_id=conversation.calendar_business_event_id if not conversation.marketing_plan_item_id else None, request_key="chat-context"))
+        context["today"] = str(now)
+        return jsonable_encoder(context)
+    except HTTPException as error:
+        return {"today": str(now), "context_error": error.detail}

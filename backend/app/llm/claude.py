@@ -53,10 +53,12 @@ class ClaudeProvider(LLMProvider):
 
     def structured(self, *, system: str, prompt: str, schema: type[T],
                    images: list[bytes] | None = None) -> T:
-        client = anthropic.Anthropic(api_key=self.api_key)
+        client = anthropic.Anthropic(api_key=self.api_key, max_retries=0)
         response = client.messages.parse(
             **self.build_request(
                 system=system, prompt=prompt, schema=schema, images=images
             )
         )
+        from app.telemetry import record_response
+        record_response(response, self.model)
         return response.parsed_output

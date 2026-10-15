@@ -147,7 +147,9 @@ class TestPlanning:
         response = client.post(f"/api/campaigns/{created['id']}/plan")
 
         assert response.status_code == 502
-        assert "grounded" in response.json()["detail"]
+        assert response.json()["code"] == "request_failed"
+        assert response.json()["request_id"]
+        assert response.json()["retryable"] is True
         assert client.get(f"/api/campaigns/{created['id']}").json()["status"] == (
             CampaignStatus.DRAFT
         )

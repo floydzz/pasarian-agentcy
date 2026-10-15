@@ -52,6 +52,7 @@ def render(
 
     record = RunLog(campaign, RENDER)
     reusable = _reusable_media(db, campaign.id, storage, needed=len(todo))
+    db.commit()  # Do not hold a read snapshot or lease lock over provider calls.
     produced, failure = _run_studio(
         studio, todo, sink=record.capture, reusable=reusable, storage=storage
     )
@@ -90,6 +91,7 @@ def render_streaming(
 
     record = RunLog(campaign, RENDER)
     reusable = _reusable_media(db, campaign.id, storage, needed=len(todo))
+    db.commit()  # Do not hold a read snapshot or lease lock over provider calls.
 
     def work(sink) -> list[RenderedAsset]:
         report = record.tee(sink)
@@ -99,7 +101,7 @@ def render_streaming(
         if failure is not None:
             # Said on the stream rather than raised: whatever finished is kept
             # and the next run picks up the variants that did not.
-            report(AgentEvent("system", "failed", str(failure)))
+            report(AgentEvent("system", "failed", str(failure), {"terminal_failure": True}))
         return produced
 
     def finish(produced: list[RenderedAsset]) -> dict:
@@ -236,9 +238,18 @@ def _run_studio(
     if reusable and storage is not None:
         return _reuse_assets(todo, reusable, storage=storage, sink=sink), None
 
+    def render_one(spec):
+        result = studio.run(spec, sink=sink)
+        from app.workspace import active_job, active_worker, workspace_id
+        if active_job.get():
+            from app.db import SessionLocal
+            with SessionLocal(info={"workspace_id": workspace_id(), "job_id": active_job.get(), "worker_id": active_worker.get()}) as checkpoint:
+                _persist(checkpoint, [result])
+                checkpoint.commit()
+        return result
     produced, failure = in_parallel(
         todo,
-        lambda spec: studio.run(spec, sink=sink),
+        render_one,
         lanes=get_settings().render_lanes,
     )
     return [asset for _, asset in produced], failure
@@ -365,18 +376,15 @@ def _spec(variant: Variant, *, product_image: bytes | None = None) -> VariantSpe
 
 
 def _persist(db: Session, produced: list[RenderedAsset]) -> list[Asset]:
-    rows = [
-        Asset(
-            variant_id=asset.variant_id,
-            media_url=asset.media_url,
-            qa_status=asset.qa_status,
-            qa_notes=asset.qa_notes,
-            review_status="pending",
-        )
-        for asset in produced
-    ]
-    db.add_all(rows)
-    db.flush()
+    rows = []
+    for asset in produced:
+        db.scalar(select(Variant).where(Variant.id == asset.variant_id).with_for_update())
+        existing = db.scalar(select(Asset).where(Asset.variant_id == asset.variant_id).order_by(Asset.id.desc()).limit(1).with_for_update())
+        if existing:
+            rows.append(existing)
+            continue
+        row = Asset(variant_id=asset.variant_id, media_url=asset.media_url, qa_status=asset.qa_status, qa_notes=asset.qa_notes, review_status="pending")
+        db.add(row); db.flush(); rows.append(row)
     return rows
 
 

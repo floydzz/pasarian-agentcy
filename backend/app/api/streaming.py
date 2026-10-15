@@ -10,6 +10,7 @@ the whole length of a model call — exactly the stretch a monitor exists to sho
 from __future__ import annotations
 
 import json
+from contextvars import copy_context
 import queue
 import threading
 from collections.abc import Callable, Iterator
@@ -51,7 +52,7 @@ def event_stream(
         finally:
             events.put(_DONE)
 
-    thread = threading.Thread(target=worker, daemon=True)
+    thread = threading.Thread(target=copy_context().run, args=(worker,), daemon=True)
     thread.start()
 
     seq = 0

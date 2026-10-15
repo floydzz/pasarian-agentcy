@@ -90,8 +90,8 @@ class VisionQA:
             return QAVerdict(
                 status="flagged",
                 notes=(
-                    "This asset could not be checked automatically "
-                    f"({error}). Please review it yourself."
+                    "This asset could not be checked automatically. "
+                    "Please review it yourself. Provider details are available to the operator in the job logs."
                 ),
             )
 

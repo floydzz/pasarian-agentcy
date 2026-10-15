@@ -88,13 +88,14 @@ class _ChromaEmbedder(EmbeddingFunction):
 
 
 class KnowledgeStore:
-    def __init__(self, *, path: Path | str, embedder: Embedder) -> None:
-        self._client = chromadb.PersistentClient(path=str(path))
+    def __init__(self, *, path: Path | str, embedder: Embedder, workspace_id: int = 1, host: str = "", port: int = 8000) -> None:
+        self._namespace = "" if workspace_id == 1 else f"w{workspace_id}_"
+        self._client = chromadb.HttpClient(host=host, port=port) if host else chromadb.PersistentClient(path=str(path))
         self._embedding_function = _ChromaEmbedder(embedder)
 
     def _collection(self, name: str):
         return self._client.get_or_create_collection(
-            name=name,
+            name=self._namespace + name,
             embedding_function=self._embedding_function,
             metadata={"hnsw:space": "cosine"},
         )
@@ -123,7 +124,7 @@ class KnowledgeStore:
         # Ensure the collection exists first so deleting it is portable across
         # Chroma versions, including an entirely new workspace.
         self._collection(COMPANY_KB)
-        self._client.delete_collection(COMPANY_KB)
+        self._client.delete_collection(self._namespace + COMPANY_KB)
         return self.ingest_company_kb(markdown, source=source, max_chars=max_chars)
 
     def _ingest(
@@ -182,7 +183,7 @@ class KnowledgeStore:
             if width is not None and width != current
         ]
         for name in cleared:
-            self._client.delete_collection(name)
+            self._client.delete_collection(self._namespace + name)
             # Recreated immediately so `count()` and `sources()` answer for an
             # empty corpus rather than raising at the next caller.
             self._collection(name)
@@ -206,6 +207,8 @@ class KnowledgeStore:
             result = collection.query(query_texts=[query], n_results=min(k, available))
         except Exception as error:
             raise self._stale(collection_name, error) from error
+        from app.telemetry import evidence
+        evidence.set([*evidence.get(), *[{"chunk_id": identity, "source": meta.get("source"), "heading": meta.get("heading"), "text": document[:4000]} for identity, meta, document in zip(result["ids"][0], result["metadatas"][0], result["documents"][0])]][-40:])
         return [
             Retrieved(
                 chunk_id=chunk_id,

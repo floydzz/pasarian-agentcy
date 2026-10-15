@@ -100,3 +100,13 @@ def test_the_prompt_asks_about_product_fidelity_only_when_locked():
 
     assert "second attached image" in provider.calls[0]["prompt"].lower()
     assert "second attached image" not in provider.calls[1]["prompt"].lower()
+
+
+def test_provider_failure_details_do_not_reach_public_qa_notes():
+    class Broken:
+        def structured(self, **kwargs):
+            raise RuntimeError("private-provider-response sk-secret-example")
+    verdict = VisionQA(provider=Broken()).review(PNG, headline="h", cta="c", brief=BRIEF)
+    assert verdict.status == "flagged"
+    assert "private-provider-response" not in verdict.notes
+    assert "sk-secret-example" not in verdict.notes

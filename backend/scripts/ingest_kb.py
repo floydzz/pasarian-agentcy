@@ -46,7 +46,7 @@ def main(argv: list[str]) -> int:
             "and re-embedded below"
         )
 
-    with SessionLocal() as db:
+    with SessionLocal(info={"workspace_id": 1}) as db:
         profile = db.scalar(select(BrandProfile).order_by(BrandProfile.id).limit(1))
 
     # A saved profile is authoritative even if a prior image left the bundled

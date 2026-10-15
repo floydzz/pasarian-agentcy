@@ -2,23 +2,28 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Date,
+    Float,
+    Index,
     Enum,
     ForeignKey,
     Integer,
     String,
     Text,
     func,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
 from .domain import CampaignStatus, ConceptStatus
+from .workspace import WorkspaceOwned
 
 
 class TimestampMixin:
@@ -30,7 +35,7 @@ class TimestampMixin:
     )
 
 
-class Campaign(TimestampMixin, Base):
+class Campaign(WorkspaceOwned, TimestampMixin, Base):
     __tablename__ = "campaigns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -71,7 +76,7 @@ class Campaign(TimestampMixin, Base):
     )
 
 
-class ProductReference(TimestampMixin, Base):
+class ProductReference(WorkspaceOwned, TimestampMixin, Base):
     """A real product image a campaign may keep intact in its creative."""
 
     __tablename__ = "product_references"
@@ -88,7 +93,7 @@ class ProductReference(TimestampMixin, Base):
     campaign: Mapped[Campaign] = relationship(back_populates="product_references")
 
 
-class Concept(TimestampMixin, Base):
+class Concept(WorkspaceOwned, TimestampMixin, Base):
     __tablename__ = "concepts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -117,7 +122,7 @@ class Concept(TimestampMixin, Base):
     )
 
 
-class Variant(TimestampMixin, Base):
+class Variant(WorkspaceOwned, TimestampMixin, Base):
     __tablename__ = "variants"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -144,7 +149,7 @@ class Variant(TimestampMixin, Base):
     )
 
 
-class Asset(TimestampMixin, Base):
+class Asset(WorkspaceOwned, TimestampMixin, Base):
     __tablename__ = "assets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -163,7 +168,7 @@ class Asset(TimestampMixin, Base):
     variant: Mapped[Variant] = relationship(back_populates="assets")
 
 
-class AgentSetting(TimestampMixin, Base):
+class AgentSetting(WorkspaceOwned, TimestampMixin, Base):
     """How one agent is tuned, kept out of the environment on purpose.
 
     These are creative-direction knobs, not deployment config: how many concepts
@@ -176,7 +181,8 @@ class AgentSetting(TimestampMixin, Base):
     __tablename__ = "agent_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    agent: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    __table_args__ = (UniqueConstraint("workspace_id", "agent", name="uq_workspace_agent"),)
+    agent: Mapped[str] = mapped_column(String(32), nullable=False)
 
     #: Appended to the agent's system prompt as a standing house rule. Additive
     #: only — it cannot delete the grounding rules the prompt already states.
@@ -196,7 +202,7 @@ class AgentSetting(TimestampMixin, Base):
     context_turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
-class Conversation(TimestampMixin, Base):
+class Conversation(WorkspaceOwned, TimestampMixin, Base):
     """A named, durable conversation with the marketing strategist.
 
     A thread starts unbound. Once the strategist has enough of a brief to
@@ -212,6 +218,11 @@ class Conversation(TimestampMixin, Base):
         ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
+    calendar_occasion_id: Mapped[int | None] = mapped_column(ForeignKey("calendar_occasions.id", ondelete="SET NULL"), nullable=True, index=True)
+    calendar_business_event_id: Mapped[int | None] = mapped_column(ForeignKey("business_events.id", ondelete="SET NULL"), nullable=True, index=True)
+    marketing_plan_id: Mapped[int | None] = mapped_column(ForeignKey("marketing_plans.id", ondelete="SET NULL"), nullable=True, index=True)
+    marketing_plan_item_id: Mapped[int | None] = mapped_column(ForeignKey("marketing_plan_items.id", ondelete="SET NULL"), nullable=True, index=True)
+
     campaign: Mapped[Campaign | None] = relationship(back_populates="conversations")
     messages: Mapped[list["ChatMessage"]] = relationship(
         back_populates="conversation",
@@ -220,7 +231,7 @@ class Conversation(TimestampMixin, Base):
     )
 
 
-class ChatMessage(TimestampMixin, Base):
+class ChatMessage(WorkspaceOwned, TimestampMixin, Base):
     """One user, strategist, or machine line inside a conversation."""
 
     __tablename__ = "chat_messages"
@@ -237,11 +248,12 @@ class ChatMessage(TimestampMixin, Base):
     #: The action the strategist proposed, if any. This is an audit trail;
     #: the executor still validates current campaign state before it acts.
     action: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    calendar_run_id: Mapped[int | None] = mapped_column(ForeignKey("calendar_runs.id", ondelete="SET NULL"), nullable=True)
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
 
-class BrandProfile(TimestampMixin, Base):
+class BrandProfile(WorkspaceOwned, TimestampMixin, Base):
     """The single workspace's source of truth about its company.
 
     Authentication and organisations are deliberately not in this MVP, so one
@@ -263,7 +275,7 @@ class BrandProfile(TimestampMixin, Base):
     restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class DemoVideo(TimestampMixin, Base):
+class DemoVideo(WorkspaceOwned, TimestampMixin, Base):
     """One rendered Agentcy product-explainer waiting for, or past, review.
 
     This stays separate from customer campaign assets.  Its subject is Agentcy
@@ -289,7 +301,7 @@ class DemoVideo(TimestampMixin, Base):
     )
 
 
-class MarketingVideo(TimestampMixin, Base):
+class MarketingVideo(WorkspaceOwned, TimestampMixin, Base):
     """A configurable marketing video made from a persisted storyboard.
 
     `DemoVideo` preserves the initial fixed Agentcy film. New work belongs in
@@ -333,7 +345,7 @@ class MarketingVideo(TimestampMixin, Base):
     )
 
 
-class CinematicTrailer(TimestampMixin, Base):
+class CinematicTrailer(WorkspaceOwned, TimestampMixin, Base):
     """A long-form, AI-shot product film.
 
     Shot jobs live in their own table rather than a JSON blob: each external
@@ -379,7 +391,7 @@ class CinematicTrailer(TimestampMixin, Base):
     )
 
 
-class CinematicTrailerShot(TimestampMixin, Base):
+class CinematicTrailerShot(WorkspaceOwned, TimestampMixin, Base):
     """One vendor task and its persisted AI clip inside a trailer."""
 
     __tablename__ = "cinematic_trailer_shots"
@@ -409,7 +421,7 @@ class CinematicTrailerShot(TimestampMixin, Base):
     trailer: Mapped[CinematicTrailer] = relationship(back_populates="shots")
 
 
-class Run(TimestampMixin, Base):
+class Run(WorkspaceOwned, TimestampMixin, Base):
     """One completed pass of an agent or the crew, kept for the record.
 
     History outlives its campaign: `campaign_id` releases to NULL on delete and
@@ -451,7 +463,7 @@ class Run(TimestampMixin, Base):
     provider: Mapped[str] = mapped_column(String(40), default="", nullable=False)
 
 
-class TrendSource(TimestampMixin, Base):
+class TrendSource(WorkspaceOwned, TimestampMixin, Base):
     """A keyword the trend scraper watches, and what it last found.
 
     The watchlist is the only steering a human has over what the planner treats
@@ -476,3 +488,213 @@ class TrendSource(TimestampMixin, Base):
     #: The signals themselves, so the watchlist can show what it is feeding the
     #: planner without a second round trip to Google.
     last_signals: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+
+
+class CalendarOccasion(TimestampMixin, Base):
+    __tablename__ = "calendar_occasions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_key: Mapped[str] = mapped_column(String(160), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str] = mapped_column(String(24))
+    start_date: Mapped[date] = mapped_column(Date, index=True)
+    end_date: Mapped[date] = mapped_column(Date, index=True)
+    states: Mapped[list] = mapped_column(JSON)
+    source_url: Mapped[str] = mapped_column(String(1000))
+    source_revision: Mapped[str] = mapped_column(String(80))
+    verified_at: Mapped[str] = mapped_column(String(40))
+    publication_status: Mapped[str] = mapped_column(String(24), default="confirmed")
+    observed_for: Mapped[str | None] = mapped_column(String(160), nullable=True)
+
+
+class BusinessEvent(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "business_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    start_date: Mapped[date] = mapped_column(Date, index=True)
+    end_date: Mapped[date] = mapped_column(Date, index=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class MarketingPreference(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "marketing_preferences"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class MarketingPlan(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "marketing_plans"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    start_date: Mapped[date] = mapped_column(Date, index=True)
+    end_date: Mapped[date] = mapped_column(Date)
+    goals: Mapped[str] = mapped_column(Text, default="")
+    constraints: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(24), default="draft")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class MarketingPlanItem(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "marketing_plan_items"
+    __table_args__ = (Index("ix_plan_item_start", "plan_id", "campaign_start"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("marketing_plans.id", ondelete="CASCADE"))
+    occasion_id: Mapped[int | None] = mapped_column(ForeignKey("calendar_occasions.id", ondelete="SET NULL"), nullable=True)
+    business_event_id: Mapped[int | None] = mapped_column(ForeignKey("business_events.id", ondelete="SET NULL"), nullable=True)
+    title: Mapped[str] = mapped_column(String(200))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    strategy: Mapped[str] = mapped_column(Text, default="")
+    audience: Mapped[str] = mapped_column(Text, default="")
+    products: Mapped[list] = mapped_column(JSON, default=list)
+    offer: Mapped[str] = mapped_column(Text, default="")
+    budget: Mapped[float | None] = mapped_column(Float, nullable=True)
+    campaign_start: Mapped[date] = mapped_column(Date)
+    campaign_end: Mapped[date] = mapped_column(Date)
+    preparation_start: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(24), default="proposed")
+    campaign_id: Mapped[int | None] = mapped_column(ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, unique=True)
+    source_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    campaign_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class MarketingTask(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "marketing_tasks"
+    __table_args__ = (Index("ix_task_status_due", "status", "due_date"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("marketing_plan_items.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    due_date: Mapped[date] = mapped_column(Date)
+    offset_days: Mapped[int] = mapped_column(Integer, default=0)
+    manual_date: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(16), default="todo")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class CalendarRun(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "calendar_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    __table_args__ = (UniqueConstraint("workspace_id", "request_key", name="uq_workspace_calendar_key"),)
+    request_key: Mapped[str] = mapped_column(String(80))
+    input: Mapped[dict] = mapped_column(JSON)
+    proposal: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    events: Mapped[list] = mapped_column(JSON, default=list)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    elapsed_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    usage: Mapped[dict] = mapped_column(JSON, default=dict)
+    accepted_plan_id: Mapped[int | None] = mapped_column(ForeignKey("marketing_plans.id", ondelete="SET NULL"), nullable=True)
+    accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Workspace(TimestampMixin, Base):
+    __tablename__ = "workspaces"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    token_limit_per_job: Mapped[int] = mapped_column(Integer, default=250000)
+    call_limit_per_job: Mapped[int] = mapped_column(Integer, default=100)
+    max_llm_cost_per_job: Mapped[float | None] = mapped_column(Float, nullable=True)
+    llm_prices: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class User(TimestampMixin, Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    name: Mapped[str] = mapped_column(String(120))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    disabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Membership(TimestampMixin, Base):
+    __tablename__ = "memberships"
+    __table_args__ = (UniqueConstraint("user_id", "workspace_id", name="uq_membership"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"))
+    role: Mapped[str] = mapped_column(String(16), default="editor")
+
+
+class LoginSession(TimestampMixin, Base):
+    __tablename__ = "login_sessions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"))
+    csrf: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    last_seen: Mapped[datetime] = mapped_column(DateTime)
+
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    reset_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class Job(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "jobs"
+    __table_args__ = (UniqueConstraint("workspace_id", "request_key", name="uq_job_request"),
+                      UniqueConstraint("workspace_id", "active_key", name="uq_job_active"),
+                      Index("ix_jobs_claim", "status", "created_at", "id"), Index("ix_jobs_lease", "status", "lease_until"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    path: Mapped[str] = mapped_column(String(255))
+    payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    request_key: Mapped[str] = mapped_column(String(80))
+    active_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="queued", index=True)
+    events: Mapped[list] = mapped_column(JSON, default=list)
+    result: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    worker_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AICall(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "ai_calls"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True)
+    provider: Mapped[str] = mapped_column(String(80))
+    model: Mapped[str] = mapped_column(String(120))
+    prompt_version: Mapped[str] = mapped_column(String(64))
+    schema_name: Mapped[str] = mapped_column(String(100))
+    request_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(24))
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    evidence: Mapped[list] = mapped_column(JSON, default=list)
+    attempts: Mapped[int] = mapped_column(Integer, default=1)
+    estimated_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+class CampaignResult(WorkspaceOwned, TimestampMixin, Base):
+    __tablename__ = "campaign_results"
+    __table_args__ = (UniqueConstraint("workspace_id", "campaign_id", "channel", "period_start", "period_end", name="uq_result_period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), index=True)
+    channel: Mapped[str] = mapped_column(String(40))
+    period_start: Mapped[date] = mapped_column(Date)
+    period_end: Mapped[date] = mapped_column(Date)
+    spend: Mapped[float] = mapped_column(Float, default=0)
+    revenue: Mapped[float] = mapped_column(Float, default=0)
+    impressions: Mapped[int] = mapped_column(Integer, default=0)
+    engagements: Mapped[int] = mapped_column(Integer, default=0)
+    leads: Mapped[int] = mapped_column(Integer, default=0)
+    sales: Mapped[int] = mapped_column(Integer, default=0)
+    currency: Mapped[str] = mapped_column(String(3), default="MYR")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class WorkerHeartbeat(Base):
+    __tablename__ = "worker_heartbeats"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, index=True)

@@ -254,7 +254,9 @@ class TestGenerationFailure:
         response = client.post(f"/api/campaigns/{campaign['id']}/generate")
 
         assert response.status_code == 502
-        assert "copywriter" in response.json()["detail"]
+        assert response.json()["code"] == "request_failed"
+        assert response.json()["request_id"]
+        assert response.json()["retryable"] is True
 
     def test_a_failed_run_leaves_the_campaign_where_a_retry_can_reach_it(
         self, client, campaign, crew

@@ -79,6 +79,7 @@ def generate(
 
     todo, skipped = _pending(campaign)
     record = RunLog(campaign, GENERATE)
+    db.commit()  # Release the snapshot/connection before provider work and checkpoints.
 
     produced, failure = _run_crew(crew, todo, sink=record.capture)
 
@@ -121,6 +122,7 @@ def generate_streaming(
         )
 
     record = RunLog(campaign, GENERATE)
+    db.commit()  # Release the snapshot/connection before provider work and checkpoints.
 
     def work(sink) -> list[tuple[int, CrewResult]]:
         report = record.tee(sink)
@@ -128,7 +130,7 @@ def generate_streaming(
         if failure is not None:
             # Said on the stream rather than raised: whatever finished is kept
             # and the next run picks up the concepts that did not.
-            report(AgentEvent("system", "failed", str(failure)))
+            report(AgentEvent("system", "failed", str(failure), {"terminal_failure": True}))
         return produced
 
     def finish(produced: list[tuple[int, CrewResult]]) -> dict:
@@ -168,9 +170,18 @@ def _run_crew(
     and the console counts work in flight per agent rather than tracking the
     last event it saw, so a lane stays lit until the last of them is done.
     """
+    def run_one(job):
+        result = crew.run(job[1], sink=sink)
+        from app.workspace import active_job, active_worker, workspace_id
+        if active_job.get():
+            from app.db import SessionLocal
+            with SessionLocal(info={"workspace_id": workspace_id(), "job_id": active_job.get(), "worker_id": active_worker.get()}) as checkpoint:
+                _persist(checkpoint, [(job[0], result)])
+                checkpoint.commit()
+        return result
     done, failure = in_parallel(
         todo,
-        lambda job: crew.run(job[1], sink=sink),
+        run_one,
         lanes=get_settings().crew_lanes,
     )
     return [(todo[index][0], result) for index, result in done], failure
@@ -195,23 +206,19 @@ def _pending(campaign: Campaign) -> tuple[list[tuple[int, object]], int]:
 
 
 def _persist(db: Session, produced: list[tuple[int, CrewResult]]) -> list[Variant]:
-    rows = [
-        Variant(
-            concept_id=concept_id,
-            hook_type=variant.hook_type,
-            headline=variant.headline,
-            body=variant.body,
-            cta=variant.cta,
-            visual_brief=variant.visual_brief.model_dump(),
-            director_status=variant.director_status,
-            director_notes=variant.director_notes,
-            revision_count=result.revisions,
-        )
-        for concept_id, result in produced
-        for variant in result.variants
-    ]
-    db.add_all(rows)
-    db.flush()
+    from sqlalchemy import select
+    rows = []
+    for concept_id, result in produced:
+        # The concept lock fences checkpoint/finalization retries.
+        db.scalar(select(Concept).where(Concept.id == concept_id).with_for_update())
+        existing = list(db.scalars(select(Variant).where(Variant.concept_id == concept_id).order_by(Variant.id).with_for_update()))
+        if existing:
+            rows.extend(existing)
+            continue
+        created = [Variant(concept_id=concept_id, hook_type=variant.hook_type, headline=variant.headline,
+            body=variant.body, cta=variant.cta, visual_brief=variant.visual_brief.model_dump(),
+            director_status=variant.director_status, director_notes=variant.director_notes, revision_count=result.revisions) for variant in result.variants]
+        db.add_all(created); db.flush(); rows.extend(created)
     return rows
 
 

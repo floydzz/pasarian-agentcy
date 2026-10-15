@@ -327,6 +327,15 @@ def test_the_brief_falls_back_to_the_campaign_when_nothing_is_approved(client):
     assert "festive gift set" in brief["storyboard"][1]["body"]
 
 
+def test_long_campaign_brief_fits_editable_video_fields_without_changing_the_campaign(client):
+    original = 'Annual marketing strategy with product, timing, budget and preparation context. ' * 30
+    campaign = client.post('/api/campaigns', json={'name': 'A long annual marketing campaign', 'brief': original}).json()
+    response = client.get(f"/api/campaigns/{campaign['id']}/video-brief")
+    assert response.status_code == 200
+    assert all(len(scene['body']) <= 700 for scene in response.json()['storyboard'])
+    assert client.get(f"/api/campaigns/{campaign['id']}").json()['brief'] == campaign['brief']
+
+
 def test_the_brief_leads_with_the_approved_variant(client, session):
     from app.domain import ConceptStatus
     from app.models import Concept, Variant

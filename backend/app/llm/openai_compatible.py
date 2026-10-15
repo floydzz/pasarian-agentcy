@@ -56,7 +56,7 @@ class OpenAICompatibleProvider(LLMProvider):
 
     def _client(self) -> OpenAI:
         """Overridden in tests to avoid reaching the network."""
-        return OpenAI(api_key=self.api_key, base_url=self.base_url)
+        return OpenAI(api_key=self.api_key, base_url=self.base_url, max_retries=0)
 
     def structured(self, *, system: str, prompt: str, schema: type[T],
                    images: list[bytes] | None = None) -> T:
@@ -66,6 +66,8 @@ class OpenAICompatibleProvider(LLMProvider):
                 system=system, prompt=prompt, schema=schema, images=images
             )
         )
+        from app.telemetry import record_response
+        record_response(completion, self.model)
         return completion.choices[0].message.parsed
 
 
@@ -188,12 +190,26 @@ class QwenProvider(OpenAICompatibleProvider):
         # wrapped array before this class ever sees it.
         request["response_format"] = type_to_response_format_param(schema)
         completion = self._client().chat.completions.create(**request)
+        from app.telemetry import record_response
+        record_response(completion, model)
         return self._coerce(completion.choices[0].message.content, schema)
 
     def structured(self, *, system: str, prompt: str, schema: type[T],
                    images: list[bytes] | None = None) -> T:
         refusal: BaseException | None = None
-        for model in self._live_models():
+        for attempt, model in enumerate(self._live_models(), 1):
+            from app.telemetry import provider_response, meter
+            current = meter.get()
+            if attempt > 1 and current:
+                with current.lock:
+                    if current.calls >= current.max_calls:
+                        raise RuntimeError("Workspace AI call limit reached")
+                    if current.max_cost is not None and model not in current.prices:
+                        raise RuntimeError("Pricing is missing for the fallback model")
+                    if current.max_cost is not None:
+                        raise RuntimeError("Automatic model fallback is disabled when a spend limit is configured; retry with the selected model and its price")
+                    current.calls += 1
+            provider_response.set({"attempts": attempt})
             try:
                 return self._call(
                     model, system=system, prompt=prompt, schema=schema, images=images

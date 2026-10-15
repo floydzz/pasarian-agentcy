@@ -1,0 +1,178 @@
+[
+  {
+    "source_key": "my-school-2026-A-0",
+    "title": "School term 1 break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2026-03-20",
+    "end_date": "2026-03-28",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2026-A-1",
+    "title": "School mid-year break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2026-05-22",
+    "end_date": "2026-06-06",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2026-A-2",
+    "title": "School term 2 break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2026-08-28",
+    "end_date": "2026-09-05",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2026-A-3",
+    "title": "School year-end break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2026-12-04",
+    "end_date": "2026-12-31",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2026-B-0",
+    "title": "School term 1 break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2026-03-21",
+    "end_date": "2026-03-29",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2026-B-1",
+    "title": "School mid-year break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2026-05-23",
+    "end_date": "2026-06-07",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2026-B-2",
+    "title": "School term 2 break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2026-08-29",
+    "end_date": "2026-09-06",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2026-B-3",
+    "title": "School year-end break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2026-12-05",
+    "end_date": "2026-12-31",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%202026.pdf",
+    "source_revision": "KPM-academic-2026",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  }
+]

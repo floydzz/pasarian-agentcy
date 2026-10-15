@@ -50,3 +50,15 @@ EventSink = Callable[[AgentEvent], None]
 def emit(sink: EventSink | None, event: AgentEvent) -> None:
     if sink is not None:
         sink(event)
+
+
+def public_event(event: dict) -> dict:
+    """Keep review feedback; do not expose unstructured provider failures."""
+    if event.get("phase") != "failed":
+        return event
+    data = event.get("data", {})
+    reviewed = any(key in data for key in ("verdict", "qa_status", "status", "passed"))
+    exhausted = str(event.get("detail", "")).startswith(("Revision budget spent", "Redo budget spent"))
+    if not reviewed and not exhausted:
+        return {**event, "detail": "This step failed. Review saved output before retrying.", "data": {}}
+    return event

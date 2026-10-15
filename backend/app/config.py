@@ -23,6 +23,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    session_secure: bool = False
+    session_hours: int = 168
+    session_idle_hours: int = 12
+    public_origin: str = ""
+    bootstrap_token_path: str = "data/.bootstrap-token"
+    auth_login_limit: int = 5
+    job_lease_seconds: int = 90
+    job_poll_seconds: float = 1.0
+
     database_url: str
 
     llm_provider: LLMProviderName = "claude"
@@ -73,6 +82,8 @@ class Settings(BaseSettings):
     qwen_embedding_model: str = "text-embedding-v3"
     demo_embedding_model: str = "demo-offline"
 
+    chroma_host: str = ""
+    chroma_port: int = 8000
     chroma_path: str = ".chroma"
 
     #: Defaults to the offline provider for the same reason `llm_provider`
@@ -219,6 +230,11 @@ class Settings(BaseSettings):
             return bool(self.active_video_key)
         except ValueError:
             return False
+
+    @property
+    def bootstrap_file_path(self) -> Path:
+        path = Path(self.bootstrap_token_path)
+        return path if path.is_absolute() else REPO_ROOT / "backend" / path
 
     @property
     def assets_dir(self) -> Path:

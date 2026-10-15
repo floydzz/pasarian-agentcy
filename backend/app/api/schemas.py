@@ -110,8 +110,16 @@ class ProductReferenceRead(BaseModel):
 # -- marketing chat -------------------------------------------------------
 
 
-class ConversationCreate(BaseModel):
+class CalendarConversationContext(BaseModel):
+    marketing_plan_id: int | None = Field(default=None, ge=1)
+    marketing_plan_item_id: int | None = Field(default=None, ge=1)
+    calendar_occasion_id: int | None = Field(default=None, ge=1)
+    calendar_business_event_id: int | None = Field(default=None, ge=1)
+
+
+class ConversationCreate(CalendarConversationContext):
     title: str = Field(default="New strategy", min_length=1, max_length=255)
+    campaign_id: int | None = Field(default=None, ge=1)
 
     @field_validator("title")
     @classmethod
@@ -122,7 +130,7 @@ class ConversationCreate(BaseModel):
         return value
 
 
-class ConversationPatch(BaseModel):
+class ConversationPatch(CalendarConversationContext):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     #: Setting this to null deliberately detaches a thread. Omitted means
     #: leave its current campaign alone.
@@ -159,13 +167,14 @@ class ChatMessageRead(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: str
     action: ChatAction | None
+    calendar_run_id: int | None = None
     created_at: datetime
     updated_at: datetime
 
     _stamp = field_serializer("created_at", "updated_at")(staticmethod(_utc))
 
 
-class ConversationRead(BaseModel):
+class ConversationRead(CalendarConversationContext):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -173,6 +182,7 @@ class ConversationRead(BaseModel):
     campaign_id: int | None
     campaign: CampaignRead | None
     messages: list[ChatMessageRead] = Field(default_factory=list)
+    message_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -183,9 +193,10 @@ class ChatSendRead(BaseModel):
     """The response to a user message, including any safe stream handoff."""
 
     message: ChatMessageRead
+    calendar_run_id: int | None = None
     campaign: CampaignRead | None
     authorized: Literal[
-        "plan", "generate", "render", "image", "video", "cinematic", "publish"
+        "plan", "generate", "render", "image", "video", "cinematic", "publish", "calendar"
     ] | None = None
 
 
@@ -645,6 +656,10 @@ class CinematicTrailerShotRead(BaseModel):
     remote_task_id: str | None
     provider_status: CinematicShotStatus
     provider_error: str | None
+
+    @field_serializer("provider_error")
+    def _public_provider_error(self, value):
+        return "The video provider could not complete this shot. Review its saved job activity before retrying." if value else None
     media_url: str | None
 
 

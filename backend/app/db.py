@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import get_settings
+
+
+SCHEMA_REVISION = "20261015_workspaces"
 
 
 class Base(DeclarativeBase):
@@ -27,7 +30,8 @@ SessionLocal = sessionmaker(bind=engine, future=True, expire_on_commit=False)
 
 def get_db() -> Iterator[Session]:
     """FastAPI dependency — one session per request."""
-    db = SessionLocal()
+    from .workspace import workspace_id, active_job, active_worker
+    db = SessionLocal(info={"workspace_id": workspace_id(), "job_id": active_job.get(), "worker_id": active_worker.get()})
     try:
         yield db
     finally:
@@ -37,35 +41,27 @@ def get_db() -> Iterator[Session]:
 def create_all() -> None:
     from . import models  # noqa: F401 — registers the mappers
 
-    Base.metadata.create_all(engine)
-    _add_missing_columns()
-
-
-#: Columns added to tables that already exist in the wild. `create_all` only
-#: creates whole tables, and the project has no migration tool, so a column
-#: added to a shipped table has to be reconciled here or every existing
-#: developer database silently keeps the old shape.
-_LATE_COLUMNS: tuple[tuple[str, str, str], ...] = (
-    ("marketing_videos", "campaign_id", "INTEGER NULL"),
-    ("marketing_videos", "use_broll", "BOOLEAN NOT NULL DEFAULT 0"),
-    ("cinematic_trailer_shots", "product_surface", "VARCHAR(32) NOT NULL DEFAULT 'none'"),
-    ("cinematic_trailers", "application_capture_url", "VARCHAR(1000) NULL"),
-    ("cinematic_trailers", "soundtrack_url", "VARCHAR(1000) NULL"),
-    ("cinematic_trailers", "product_reference_url", "VARCHAR(1000) NULL"),
-    ("cinematic_trailers", "campaign_id", "INTEGER NULL"),
-    ("marketing_videos", "product_reference_url", "VARCHAR(1000) NULL"),
-    ("agent_settings", "context_turns", "INTEGER NULL"),
-)
-
-
-def _add_missing_columns() -> None:
-    inspector = inspect(engine)
-    tables = set(inspector.get_table_names())
-    with engine.begin() as connection:
-        for table, column, ddl in _LATE_COLUMNS:
-            if table not in tables:
-                continue
-            existing = {c["name"] for c in inspector.get_columns(table)}
-            if column in existing:
-                continue
-            connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+    # The baseline bootstrap supports both fresh and existing installations.
+    # Alembic reconciles additive columns/constraints and tracks applied versions.
+    from alembic import command
+    from alembic.config import Config
+    from pathlib import Path
+    config = Config()
+    config.set_main_option("script_location", str(Path(__file__).resolve().parents[1] / "migrations"))
+    with engine.connect() as connection:
+        from sqlalchemy import text
+        mysql = connection.dialect.name == "mysql"
+        if mysql and connection.scalar(text("SELECT GET_LOCK('agentcy_schema_upgrade', 60)")) != 1:
+            raise RuntimeError("Another schema upgrade is still running")
+        try:
+            Base.metadata.create_all(connection)
+            connection.commit()
+            config.attributes["connection"] = connection
+            command.upgrade(config, "head")
+            connection.commit()
+        finally:
+            if connection.in_transaction():
+                connection.rollback()
+            if mysql:
+                connection.execute(text("SELECT RELEASE_LOCK('agentcy_schema_upgrade')"))
+                connection.commit()

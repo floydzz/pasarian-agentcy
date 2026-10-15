@@ -78,7 +78,7 @@ COPY history-work.png /app/history-work.png
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
-    && mkdir -p /data/chroma /data/assets \
+    && mkdir -p /data/chroma /data/assets /data/state \
     && useradd --create-home --uid 10001 agentcy \
     && chown -R agentcy:agentcy /data /app
 

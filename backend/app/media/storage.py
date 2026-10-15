@@ -21,7 +21,11 @@ class AssetStorage:
 
     def save(self, data: bytes, *, suffix: str = ".png") -> str:
         self.root.mkdir(parents=True, exist_ok=True)
-        name = f"{uuid.uuid4().hex}{suffix}"
+        from app.workspace import principal
+        actor = principal.get()
+        prefix = f"w/{actor.workspace_id}/" if actor else ""
+        name = f"{prefix}{uuid.uuid4().hex}{suffix}"
+        (self.root / name).parent.mkdir(parents=True, exist_ok=True)
         (self.root / name).write_bytes(data)
         return f"{MEDIA_PREFIX}/{name}"
 
@@ -29,12 +33,15 @@ class AssetStorage:
         if not media_url.startswith(f"{MEDIA_PREFIX}/"):
             raise ValueError(f"not a media url: {media_url!r}")
 
+        from app.workspace import principal, require_media_scope
         name = media_url[len(MEDIA_PREFIX) + 1:]
         candidate = (self.root / name).resolve()
         # A stored url is generated, never user-supplied — but it reaches the
         # filesystem, so it is checked like it were.
         if not candidate.is_relative_to(self.root.resolve()):
             raise ValueError(f"not a media url: {media_url!r}")
+        if principal.get():
+            require_media_scope(media_url)
         return candidate
 
     def read(self, media_url: str) -> bytes:

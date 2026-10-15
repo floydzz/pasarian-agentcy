@@ -157,14 +157,14 @@ def image_from_data_url(data_url: str) -> tuple[bytes, str]:
     }
     if not separator or prefix not in allowed:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             "send a PNG, JPEG or WEBP product image",
         )
     try:
         image = base64.b64decode(encoded, validate=True)
     except (ValueError, binascii.Error):
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             "product image data is not valid base64",
         ) from None
     if len(image) > 20 * 1024 * 1024:
@@ -177,12 +177,12 @@ def image_from_data_url(data_url: str) -> tuple[bytes, str]:
             decoded.verify()
             if decoded.width < 300 or decoded.height < 300:
                 raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
                     "product images must be at least 300 pixels on each side",
                 )
     except UnidentifiedImageError:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             "product image bytes are invalid",
         ) from None
     return image, allowed[prefix]

@@ -10,7 +10,8 @@ from app.api.deps import get_store
 from app.api.schemas import BrandProfileRead, BrandProfileWrite
 from app.brand_profile import PROFILE_SOURCE, as_markdown
 from app.db import get_db
-from app.models import BrandProfile
+from app.models import BrandProfile, Workspace
+from app.workspace import workspace_id
 from app.rag.store import COMPANY_KB, KnowledgeStore
 
 router = APIRouter(prefix="/api", tags=["brand profile"])
@@ -30,6 +31,7 @@ def save_brand_profile(
     db: Session = Depends(get_db),
     store: KnowledgeStore = Depends(get_store),
 ) -> BrandProfileRead:
+    db.scalar(select(Workspace).where(Workspace.id == workspace_id()).with_for_update())
     profile = _profile(db)
     values = payload.model_dump()
     if profile is None:

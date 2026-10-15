@@ -301,20 +301,20 @@ def _image_from_data_url(data_url: str) -> tuple[bytes, str]:
         "data:image/jpeg;base64",
         "data:image/webp;base64",
     }:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "send a PNG, JPEG or WEBP data URL")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "send a PNG, JPEG or WEBP data URL")
     try:
         image = base64.b64decode(encoded, validate=True)
     except (ValueError, binascii.Error):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "image data is not valid base64") from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "image data is not valid base64") from None
     if len(image) > 20 * 1024 * 1024:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "reference images must be at most 20 MB")
     try:
         with Image.open(io.BytesIO(image)) as decoded:
             decoded.verify()
             if decoded.width < 300 or decoded.height < 300:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "reference images must be at least 300 pixels on each side")
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "reference images must be at least 300 pixels on each side")
     except UnidentifiedImageError:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "reference image bytes are invalid") from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "reference image bytes are invalid") from None
     suffix = {
         "data:image/png;base64": ".png",
         "data:image/jpeg;base64": ".jpg",
@@ -326,15 +326,15 @@ def _image_from_data_url(data_url: str) -> tuple[bytes, str]:
 def _mp4_from_data_url(data_url: str) -> bytes:
     prefix, separator, encoded = data_url.partition(",")
     if prefix != "data:video/mp4;base64" or not separator:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "send an MP4 data URL")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "send an MP4 data URL")
     try:
         video = base64.b64decode(encoded, validate=True)
     except (ValueError, binascii.Error):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "video data is not valid base64") from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "video data is not valid base64") from None
     if len(video) > 120 * 1024 * 1024:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "product captures must be at most 120 MB")
     if len(video) < 16 or video[4:8] != b"ftyp":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "product capture is not a valid MP4")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "product capture is not a valid MP4")
     return video
 
 
@@ -348,17 +348,17 @@ def _audio_from_data_url(data_url: str) -> tuple[bytes, str]:
     }
     if not separator or prefix not in suffixes:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             "send an MP3 or WAV instrumental track",
         )
     try:
         audio = base64.b64decode(encoded, validate=True)
     except (ValueError, binascii.Error):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "soundtrack data is not valid base64") from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "soundtrack data is not valid base64") from None
     if len(audio) > 50 * 1024 * 1024:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "soundtracks must be at most 50 MB")
     if len(audio) < 64:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "soundtrack bytes are invalid")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "soundtrack bytes are invalid")
     return audio, suffixes[prefix]
 
 

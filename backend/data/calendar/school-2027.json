@@ -1,0 +1,178 @@
+[
+  {
+    "source_key": "my-school-2027-A-0",
+    "title": "School term 1 break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2027-03-05",
+    "end_date": "2027-03-13",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2027-A-1",
+    "title": "School mid-year break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2027-05-21",
+    "end_date": "2027-06-05",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2027-A-2",
+    "title": "School term 2 break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2027-08-27",
+    "end_date": "2027-09-04",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2027-A-3",
+    "title": "School year-end break \u00b7 Group A",
+    "category": "school",
+    "start_date": "2027-12-03",
+    "end_date": "2027-12-31",
+    "states": [
+      "KDH",
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2027-B-0",
+    "title": "School term 1 break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2027-03-06",
+    "end_date": "2027-03-14",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2027-B-1",
+    "title": "School mid-year break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2027-05-22",
+    "end_date": "2027-06-06",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2027-B-2",
+    "title": "School term 2 break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2027-08-28",
+    "end_date": "2027-09-05",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-school-2027-B-3",
+    "title": "School year-end break \u00b7 Group B",
+    "category": "school",
+    "start_date": "2027-12-04",
+    "end_date": "2027-12-31",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.moe.gov.my/storage/files/shares/Takwim/Takwim%20Persekolahan/Kalendar%20Akademik%20Tahun%202027.pdf",
+    "source_revision": "KPM-academic-2027",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  }
+]

@@ -1,0 +1,984 @@
+[
+  {
+    "source_key": "my-2026-ddc24d2f854c",
+    "title": "Tahun Baharu",
+    "category": "holiday",
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-01",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-80735ba5c3dc",
+    "title": "Hari Keputeraan Yang di-Pertuan Besar Negeri Sembilan",
+    "category": "holiday",
+    "start_date": "2026-01-14",
+    "end_date": "2026-01-14",
+    "states": [
+      "NSN"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-fa35e3e36bd8",
+    "title": "Israk dan Mikraj",
+    "category": "holiday",
+    "start_date": "2026-01-17",
+    "end_date": "2026-01-17",
+    "states": [
+      "KDH",
+      "NSN",
+      "PLS",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-f3a5726b98ed",
+    "title": "Hari Thaipusam",
+    "category": "holiday",
+    "start_date": "2026-02-01",
+    "end_date": "2026-02-01",
+    "states": [
+      "KUL",
+      "PJY",
+      "JHR",
+      "NSN",
+      "PRK",
+      "PNG",
+      "SGR"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-00334c21e219",
+    "title": "Hari Wilayah Persekutuan",
+    "category": "holiday",
+    "start_date": "2026-02-01",
+    "end_date": "2026-02-01",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-6ce3a6a7e512",
+    "title": "Tahun Baharu Cina",
+    "category": "holiday",
+    "start_date": "2026-02-17",
+    "end_date": "2026-02-17",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-f9f3213909db",
+    "title": "Tahun Baharu Cina (Hari Kedua)",
+    "category": "holiday",
+    "start_date": "2026-02-18",
+    "end_date": "2026-02-18",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-e2157d75a74b",
+    "title": "Awal Ramadan",
+    "category": "holiday",
+    "start_date": "2026-02-19",
+    "end_date": "2026-02-19",
+    "states": [
+      "JHR",
+      "KDH"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "tentative",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-f7988a0800b9",
+    "title": "Hari Pengisytiharan Tarikh Kemerdekaan",
+    "category": "holiday",
+    "start_date": "2026-02-20",
+    "end_date": "2026-02-20",
+    "states": [
+      "MLK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-68939f15d76d",
+    "title": "Hari Ulang Tahun Pertabalan Sultan Terengganu",
+    "category": "holiday",
+    "start_date": "2026-03-04",
+    "end_date": "2026-03-04",
+    "states": [
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-99d80a5d49c0",
+    "title": "Hari Nuzul Al-Quran",
+    "category": "holiday",
+    "start_date": "2026-03-07",
+    "end_date": "2026-03-07",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "KTN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-d905fb6a4373",
+    "title": "Hari Raya Puasa",
+    "category": "holiday",
+    "start_date": "2026-03-21",
+    "end_date": "2026-03-21",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "tentative",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-6eb8fb8e5b4a",
+    "title": "Hari Raya Puasa (Hari Kedua)",
+    "category": "holiday",
+    "start_date": "2026-03-22",
+    "end_date": "2026-03-22",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "tentative",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-9df3c9a0fdd8",
+    "title": "Hari Keputeraan Sultan Johor",
+    "category": "holiday",
+    "start_date": "2026-03-23",
+    "end_date": "2026-03-23",
+    "states": [
+      "JHR"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-6c78a707a3c6",
+    "title": "Hari Raya Puasa (Hari Ketiga)",
+    "category": "holiday",
+    "start_date": "2026-03-23",
+    "end_date": "2026-03-23",
+    "states": [
+      "MLK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "tentative",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-ce33e86399f4",
+    "title": "Hari Jadi Yang di-Pertua Negeri Sabah",
+    "category": "holiday",
+    "start_date": "2026-03-30",
+    "end_date": "2026-03-30",
+    "states": [
+      "SBH"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-9dcc4db80ee5",
+    "title": "Good Friday",
+    "category": "holiday",
+    "start_date": "2026-04-03",
+    "end_date": "2026-04-03",
+    "states": [
+      "SBH",
+      "SWK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-a04c5ee6d120",
+    "title": "Hari Keputeraan Sultan Terengganu",
+    "category": "holiday",
+    "start_date": "2026-04-26",
+    "end_date": "2026-04-26",
+    "states": [
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-38115c3f427b",
+    "title": "Hari Pekerja",
+    "category": "holiday",
+    "start_date": "2026-05-01",
+    "end_date": "2026-05-01",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-e52c1ae71ce7",
+    "title": "Hari Ulang Tahun Keputeraan Raja Perlis",
+    "category": "holiday",
+    "start_date": "2026-05-17",
+    "end_date": "2026-05-17",
+    "states": [
+      "PLS"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-b392b5836da7",
+    "title": "Hari Hol Almarhum Sultan Ahmad Shah Al-Musta'in Billah ibni Almarhum Sultan Abu Bakar",
+    "category": "holiday",
+    "start_date": "2026-05-22",
+    "end_date": "2026-05-22",
+    "states": [
+      "PHG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-d8317c4e1bbd",
+    "title": "Hari Arafah",
+    "category": "holiday",
+    "start_date": "2026-05-26",
+    "end_date": "2026-05-26",
+    "states": [
+      "KTN",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-3fb8faea9cce",
+    "title": "Hari Raya Qurban",
+    "category": "holiday",
+    "start_date": "2026-05-27",
+    "end_date": "2026-05-27",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "tentative",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-0184afd289d9",
+    "title": "Hari Raya Qurban (Hari Kedua)",
+    "category": "holiday",
+    "start_date": "2026-05-28",
+    "end_date": "2026-05-28",
+    "states": [
+      "KDH",
+      "KTN",
+      "PLS",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "tentative",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-07777b52de70",
+    "title": "Pesta Kaamatan (Pesta Menuai)",
+    "category": "holiday",
+    "start_date": "2026-05-30",
+    "end_date": "2026-05-30",
+    "states": [
+      "LBN",
+      "SBH"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-8613868789ff",
+    "title": "Hari Wesak",
+    "category": "holiday",
+    "start_date": "2026-05-31",
+    "end_date": "2026-05-31",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-45391e6be2ee",
+    "title": "Pesta Kaamatan (Pesta Menuai)",
+    "category": "holiday",
+    "start_date": "2026-05-31",
+    "end_date": "2026-05-31",
+    "states": [
+      "LBN",
+      "SBH"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-6f917171b354",
+    "title": "Hari Keputeraan Rasmi Seri Paduka Baginda Yang di-Pertuan Agong",
+    "category": "holiday",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-01",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-55051919de76",
+    "title": "Perayaan Hari Gawai Dayak",
+    "category": "holiday",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-01",
+    "states": [
+      "SWK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-203282226fb6",
+    "title": "Perayaan Hari Gawai Dayak",
+    "category": "holiday",
+    "start_date": "2026-06-02",
+    "end_date": "2026-06-02",
+    "states": [
+      "SWK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-545412184668",
+    "title": "Awal Muharam (Maal Hijrah)",
+    "category": "holiday",
+    "start_date": "2026-06-17",
+    "end_date": "2026-06-17",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-3844652d99e7",
+    "title": "Hari Keputeraan Sultan Kedah",
+    "category": "holiday",
+    "start_date": "2026-06-21",
+    "end_date": "2026-06-21",
+    "states": [
+      "KDH"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-9ca84b5a1052",
+    "title": "Hari Ulang Tahun Perisytiharan Tapak Warisan Dunia",
+    "category": "holiday",
+    "start_date": "2026-07-07",
+    "end_date": "2026-07-07",
+    "states": [
+      "PNG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-215761580a83",
+    "title": "Hari Jadi Yang di-Pertua Negeri Pulau Pinang",
+    "category": "holiday",
+    "start_date": "2026-07-11",
+    "end_date": "2026-07-11",
+    "states": [
+      "PNG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-29c2bbd91c31",
+    "title": "Hari Hol Almarhum Sultan Iskandar",
+    "category": "holiday",
+    "start_date": "2026-07-21",
+    "end_date": "2026-07-21",
+    "states": [
+      "JHR"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-932d19b2bb91",
+    "title": "Hari Kemerdekaan Sarawak",
+    "category": "holiday",
+    "start_date": "2026-07-22",
+    "end_date": "2026-07-22",
+    "states": [
+      "SWK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-edda234f191f",
+    "title": "Hari Keputeraan Sultan Pahang",
+    "category": "holiday",
+    "start_date": "2026-07-31",
+    "end_date": "2026-07-31",
+    "states": [
+      "PHG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-c9d527c786ac",
+    "title": "Hari Jadi Yang di-Pertua Negeri Melaka",
+    "category": "holiday",
+    "start_date": "2026-08-24",
+    "end_date": "2026-08-24",
+    "states": [
+      "MLK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-fcb865b60075",
+    "title": "Hari Keputeraan Nabi Muhammad S.A.W. (Maulidur Rasul)",
+    "category": "holiday",
+    "start_date": "2026-08-25",
+    "end_date": "2026-08-25",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-a0921968c066",
+    "title": "Hari Kebangsaan",
+    "category": "holiday",
+    "start_date": "2026-08-31",
+    "end_date": "2026-08-31",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-9a695ddf402e",
+    "title": "Hari Malaysia",
+    "category": "holiday",
+    "start_date": "2026-09-16",
+    "end_date": "2026-09-16",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-c317a5f06064",
+    "title": "Hari Keputeraan Sultan Kelantan",
+    "category": "holiday",
+    "start_date": "2026-09-29",
+    "end_date": "2026-09-29",
+    "states": [
+      "KTN"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-ef22e022bc51",
+    "title": "Hari Keputeraan Sultan Kelantan",
+    "category": "holiday",
+    "start_date": "2026-09-30",
+    "end_date": "2026-09-30",
+    "states": [
+      "KTN"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-dd156e7dcaf6",
+    "title": "Hari Jadi Yang di-Pertua Negeri Sarawak",
+    "category": "holiday",
+    "start_date": "2026-10-10",
+    "end_date": "2026-10-10",
+    "states": [
+      "SWK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-8a583be74d96",
+    "title": "Hari Keputeraan Sultan Perak",
+    "category": "holiday",
+    "start_date": "2026-11-06",
+    "end_date": "2026-11-06",
+    "states": [
+      "PRK"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-51ba202ace2c",
+    "title": "Hari Deepavali",
+    "category": "holiday",
+    "start_date": "2026-11-08",
+    "end_date": "2026-11-08",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "tentative",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-5aaa566a1ecf",
+    "title": "Hari Keputeraan Sultan Selangor",
+    "category": "holiday",
+    "start_date": "2026-12-11",
+    "end_date": "2026-12-11",
+    "states": [
+      "SGR"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-38942b26c910",
+    "title": "Christmas Eve",
+    "category": "holiday",
+    "start_date": "2026-12-24",
+    "end_date": "2026-12-24",
+    "states": [
+      "SBH"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  },
+  {
+    "source_key": "my-2026-43e68790533b",
+    "title": "Hari Krismas",
+    "category": "holiday",
+    "start_date": "2026-12-25",
+    "end_date": "2026-12-25",
+    "states": [
+      "KUL",
+      "LBN",
+      "PJY",
+      "JHR",
+      "KDH",
+      "KTN",
+      "MLK",
+      "NSN",
+      "PHG",
+      "PRK",
+      "PLS",
+      "PNG",
+      "SBH",
+      "SWK",
+      "SGR",
+      "TRG"
+    ],
+    "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+    "source_revision": "BKPP-2026-published",
+    "verified_at": "2026-10-14",
+    "publication_status": "confirmed",
+    "observed_for": null
+  }
+]

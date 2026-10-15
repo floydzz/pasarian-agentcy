@@ -11,7 +11,7 @@ services:
     ports:
       # Published so the test suite and any local tooling can reach the same
       # server the container uses. 3308 because 3307 is taken on this machine.
-      - "3308:3306"
+      - "127.0.0.1:3308:3306"
     volumes:
       - agentcy_mysql_data:/var/lib/mysql
       # The backend suite uses a separate database so it can freely reset its
@@ -33,7 +33,14 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    environment:
+      chroma:
+        condition: service_healthy
+    environment: &app_environment
+      BOOTSTRAP_TOKEN_PATH: /data/state/bootstrap-token
+      SESSION_SECURE: ${SESSION_SECURE:-false}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
+      CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
       # Inside the network MySQL is on its own hostname and its real port — the
       # 3308 mapping above is for the host only.
       DATABASE_URL: mysql+pymysql://agentcy:agentcy_pw@mysql:3306/agentcy
@@ -81,10 +88,10 @@ services:
     ports:
       # Uvicorn listens on 8000 inside the container.  Only the host-facing
       # side changes, so the console is reached at http://localhost:8002.
-      - "8002:8000"
+      - "127.0.0.1:8002:8000"
     volumes:
       # The embedded corpora. Persisted so a restart is not a re-embedding.
-      - agentcy_chroma:/data/chroma
+      - agentcy_state:/data/state
       # Generated creatives. Persisted for the same reason the corpora are:
       # a restart must not throw away work that cost money to make.
       - agentcy_assets:/data/assets
@@ -93,13 +100,55 @@ services:
         - CMD
         - python
         - -c
-        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')
+        - import json, urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/ready'))['status'] == 'ready'
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 40s
+
+  chroma:
+    image: agentcy:latest
+    container_name: agentcy-chroma
+    restart: unless-stopped
+    entrypoint: ["chroma", "run", "--host", "0.0.0.0", "--port", "8000", "--path", "/data/chroma"]
+    command: []
+    volumes:
+      - agentcy_chroma:/data/chroma
+    healthcheck:
+      test: ["CMD", "python", "-c", "import chromadb; chromadb.HttpClient(host='127.0.0.1', port=8000).heartbeat()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  worker:
+    image: agentcy:latest
+    container_name: agentcy-worker
+    restart: unless-stopped
+    # API initializes the schema; the worker retries until that has completed.
+    depends_on:
+      app:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+    entrypoint: ["python", "-m", "app.worker"]
+    command: []
+    environment: *app_environment
+    volumes:
+      - agentcy_assets:/data/assets
+      - agentcy_state:/data/state
+    stop_grace_period: 10m
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.worker", "--health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
       start_period: 40s
 
 volumes:
   agentcy_mysql_data:
   agentcy_chroma:
   agentcy_assets:
+  agentcy_state:

@@ -72,3 +72,42 @@ class TestBrollAvailability:
             lambda: _settings(video_provider="dashscope", dashscope_api_key=""),
         )
         assert read_system().broll_available is False
+
+
+def test_readiness_is_registered_before_the_spa_fallback():
+    from app.main import app
+    readiness = next(index for index, route in enumerate(app.routes) if getattr(route, "path", None) == "/api/ready")
+    fallbacks = [index for index, route in enumerate(app.routes) if getattr(route, "path", None) == ""]
+    assert all(readiness < index for index in fallbacks)
+
+
+def test_unknown_api_does_not_return_the_frontend(client):
+    response = client.get('/api/this-endpoint-does-not-exist')
+    assert response.status_code == 404
+    assert response.json()['code'] == 'not_found'
+
+
+def test_console_revalidates_documents_and_does_not_serve_html_for_missing_chunks(tmp_path):
+    from fastapi import FastAPI
+    from app.main import ConsoleFiles
+    (tmp_path / 'index.html').write_text('<html>Current build</html>')
+    (tmp_path / 'assets').mkdir()
+    (tmp_path / 'assets' / 'Dashboard-current.js').write_text('export const dashboard = true')
+    console = FastAPI()
+    console.mount('/', ConsoleFiles(directory=tmp_path, html=True))
+    with TestClient(console) as client:
+        for path in ('/', '/index.html', '/campaigns/23/image'):
+            document = client.get(path)
+            assert document.status_code == 200
+            assert document.headers['cache-control'] == 'no-cache'
+            assert 'Current build' in document.text
+            cached = client.get(path, headers={'If-None-Match': document.headers['etag']})
+            assert cached.status_code == 304
+            assert cached.headers['cache-control'] == 'no-cache'
+        chunk = client.get('/assets/Dashboard-current.js')
+        assert chunk.status_code == 200
+        assert 'immutable' in chunk.headers['cache-control']
+        for path in ('/assets/Dashboard-old.js', '/assets/missing-font', '/missing.js'):
+            missing = client.get(path)
+            assert missing.status_code == 404
+            assert 'text/html' not in missing.headers.get('content-type', '')

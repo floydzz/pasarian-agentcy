@@ -46,8 +46,11 @@ STARTERS = (
 
 def _scraper() -> TrendScraper:
     settings = get_settings()
+    from app.workspace import workspace_id
+    cache = settings.bootstrap_file_path.parent / "workspaces" / str(workspace_id()) / "trends"
     return TrendScraper(
-        store=get_store(), api_key=settings.serpapi_key, geo=settings.trends_geo
+        store=get_store(), api_key=settings.serpapi_key, geo=settings.trends_geo,
+        corpus_dir=cache / "documents", snapshot_dir=cache / "snapshots",
     )
 
 

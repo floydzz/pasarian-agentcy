@@ -43,12 +43,12 @@ def video_brief_for(db: Session, campaign: Campaign) -> dict:
     product = _product_name(profile) or campaign.name
 
     return {
-        "name": f"{campaign.name} — video",
+        "name": _fit(f"{campaign.name} — video", 280),
         "profile": "product_marketing",
-        "brand_name": brand_name,
-        "product_name": product,
-        "target_audience": audience,
-        "cta": variant.cta if variant else "Find out more.",
+        "brand_name": _fit(brand_name, 200),
+        "product_name": _fit(product, 280),
+        "target_audience": _fit(audience, 700),
+        "cta": _fit(variant.cta if variant else "Find out more.", 280),
         "storyboard": _storyboard(campaign, concepts, variant, brand_name),
     }
 
@@ -122,7 +122,22 @@ def _storyboard(
     closing = {
         "eyebrow": "Next",
         "headline": variant.cta if variant else "Find out more.",
-        "body": brief or f"{brand_name} — {campaign.name}",
+        "body": (variant.body if variant else brief) or f"{brand_name} — {campaign.name}",
         "layout": "cta",
     }
-    return [opening, *middle, closing]
+    scenes = [opening, *middle, closing]
+    # Generated briefs and approved copy can be longer than a video frame.
+    # Fit only this editable draft; keep the original campaign/copy unchanged.
+    for scene in scenes:
+        for field, limit in (("eyebrow", 80), ("headline", 220), ("body", 700)):
+            scene[field] = _fit(scene[field], limit)
+    return scenes
+
+
+def _fit(value: str, limit: int) -> str:
+    value = value.strip() or "Review this scene."
+    if len(value) <= limit:
+        return value
+    clipped = value[:limit - 1]
+    boundary = clipped.rfind(" ")
+    return (clipped[:boundary] if boundary > limit // 2 else clipped).rstrip() + "…"

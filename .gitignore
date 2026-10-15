@@ -15,3 +15,12 @@ dist/
 .playwright-mcp/
 # Temporary PowerPoint build renders and validation output.
 .ppt-build/
+
+backend/data/.bootstrap-token
+backend/data/backups/
+frontend/test-results/
+frontend/playwright-report/
+
+# Workspace-specific trend snapshots are private runtime data.
+/data/workspaces/
+backend/data/workspaces/

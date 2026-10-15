@@ -24,3 +24,14 @@ backend/data/trends/cache
 # backend/data/ are the product's ground truth and must ship.
 /*.md
 .DS_Store
+
+# Private runtime state and local test artifacts must never enter an image.
+backend/data/backups
+backend/data/assets
+backend/data/.bootstrap-token
+frontend/test-results
+frontend/playwright-report
+
+# Workspace-specific trend snapshots are private runtime data.
+/data/workspaces/
+backend/data/workspaces/

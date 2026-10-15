@@ -48,7 +48,6 @@ def get_campaign_or_404(db: Session, campaign_id: int) -> Campaign:
     return campaign
 
 
-@lru_cache
 def get_store() -> KnowledgeStore:
     """One store per process — opening Chroma per request is wasteful.
 
@@ -56,10 +55,17 @@ def get_store() -> KnowledgeStore:
     is not hashable, and `get_settings()` is itself cached, so there is only
     ever one configuration to key on anyway.
     """
+    from app.workspace import workspace_id
+    return _workspace_store(workspace_id())
+
+
+@lru_cache(maxsize=64)
+def _workspace_store(identity: int):
     settings = get_settings()
     provider = "demo" if settings.scripted_demo else settings.embedding_provider
     return KnowledgeStore(
         path=settings.chroma_dir,
+        workspace_id=identity, host=settings.chroma_host, port=settings.chroma_port,
         embedder=get_embedder(
             provider,
             api_key=settings.demo_api_key if settings.scripted_demo else settings.active_embedding_key,
@@ -99,6 +105,8 @@ class Tuning:
     """
 
     def __init__(self, db: Session) -> None:
+        from app.performance import performance_context
+        self.performance = performance_context(db)
         self._rows = {
             row.agent: row for row in db.scalars(select(AgentSetting))
         }
@@ -123,6 +131,7 @@ def get_planner(tuned: Tuning = Depends(get_tuning)) -> PlanningAgent:
         store=get_store(),
         standing_note=tuned.note(tuning.PLANNER),
         concept_count=tuned.value(tuning.PLANNER, "concept_count"),
+        performance=tuned.performance,
         company_k=tuned.value(tuning.PLANNER, "company_k"),
         trend_k=tuned.value(tuning.PLANNER, "trend_k"),
     )
