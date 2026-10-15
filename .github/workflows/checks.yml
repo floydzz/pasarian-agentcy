@@ -1,0 +1,41 @@
+name: Application checks
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_only
+          MYSQL_DATABASE: agentcy_test
+          MYSQL_USER: agentcy
+          MYSQL_PASSWORD: test_only_password
+        ports: ['3308:3306']
+        options: --health-cmd="mysqladmin ping -h localhost -uroot -ptest_root_only" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: mysql+pymysql://agentcy:test_only_password@127.0.0.1:3308/agentcy_test
+      TEST_DATABASE_URL: mysql+pymysql://agentcy:test_only_password@127.0.0.1:3308/agentcy_test
+      LLM_PROVIDER: demo
+      EMBEDDING_PROVIDER: demo
+      MEDIA_PROVIDER: demo
+      VIDEO_PROVIDER: demo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: python -m venv .venv
+      - run: .venv/bin/pip install -e './backend[dev]'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - run: .venv/bin/python -m pytest backend/tests -q
+      - run: npm ci --prefix frontend
+      - run: npm run lint --prefix frontend
+      - run: npm run build --prefix frontend
+      - run: npx --prefix frontend playwright install --with-deps chromium
+      - run: npm run test:browser --prefix frontend

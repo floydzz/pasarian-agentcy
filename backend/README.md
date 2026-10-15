@@ -95,3 +95,21 @@ prompt: it renders each persisted marketing-video storyboard into an MP4 so
 captions and product UI stay exact. The Agentcy software walkthrough is a
 default preset, not a special code path. Docker includes FFmpeg; a native
 backend needs it on `PATH` to call `POST /api/videos/render`.
+
+## Calendar
+
+`app/marketing_calendar.py` owns queries, plan validation, deadline/readiness calculation and transactional campaign conversion. `app/agents/calendar_planner.py` uses the existing structured provider for a bounded proposal and one optional validation repair. `app/api/calendar.py` exposes the same operations to Chat and Calendar.
+
+`python scripts/init_db.py` bootstraps missing tables, reconciles legacy additive fields, applies migrations from `migrations/versions/`, then imports the reviewed calendar JSON. The migrations support existing pre-calendar campaigns/conversations and fresh installs. `python scripts/import_calendar.py` validates every record before applying changes; corrections use content revisions so affected plans require review. Official occasions are not writable through public calendar APIs.
+
+All-day values use SQL `DATE` and ISO date strings. The product's planning day is `Asia/Kuala_Lumpur`; audit timestamps retain the existing UTC contract. Calendar entry endpoints take inclusive start/end dates; the frontend alone converts end dates to FullCalendar's exclusive convention.
+
+Run the calendar, migration and independent-transaction concurrency checks with:
+
+```bash
+../.venv/bin/python -m pytest tests/test_calendar.py tests/test_calendar_migrations.py tests/test_calendar_concurrency.py -q
+```
+
+These checks use only `agentcy_test`. Migration tests construct a legacy schema and verify records/relationships survive repeated upgrades. Provider tests are offline. Existing campaign endpoints continue to own production status transitions and approvals.
+
+See [the workspace upgrade guide](../docs/workspace-upgrade.md) for authentication, tenant scope, job workers, migrations, recovery and the API queue contract. The generated contract is [OpenAPI](../docs/api/openapi.json).

@@ -207,3 +207,46 @@ touches the network:
 ```bash
 cd backend && ../.venv/bin/python -m pytest tests/ -q
 ```
+
+## Marketing calendar and simpler workspace
+
+The workspace now uses a light neutral palette with deep teal actions. Main navigation is **Chat**, **Calendar**, **Campaigns** and **Brand**. Agent settings, Trends, History, studio shortcuts and demos remain under **More**. Existing URLs keep working. The studios show the current task first; their agent graph is available under **Activity and details**.
+
+- **Chat** is a dedicated strategist page at `/chat`. Saved conversations can discuss an annual roadmap or an individual campaign. The contextual strategist uses the same component and saved conversations.
+- **Calendar** at `/calendar` has real month and year grids plus an agenda. Filter by Malaysian state and event type, add business events, maintain manual roadmaps or prepare an AI proposal.
+- **Plan with AI** supports a calendar year or rolling 90-day/12-month period. Proposals use the brand profile, verified occasions, budget/capacity preferences and existing plans. Saving a proposal creates editable calendar ideas; **Create campaign** starts an ordinary campaign draft with the existing human approval gates.
+- **Planning preferences** stores target states, goals, roadmap budget in MYR, campaign capacity, preparation lead time, blackout dates and reminder lead time. A state filter scopes a new calendar proposal without silently changing those preferences.
+- **Needs attention** shows due tasks, unready campaigns and changed occasion dates. Mark tasks complete or snooze a reminder. These are in-app reminders; no email, WhatsApp, social posting or unattended model calls are enabled.
+
+Public and school holiday datasets for **2026 and 2027** are checked in under `backend/data/calendar/`. They retain official BKPP/KPM source links, state applicability and publication qualifications. Dates marked subject to change remain labelled tentative. The app does not calculate replacement holidays from a blanket weekend rule. Coverage outside the imported years, special declarations and unimported observed replacements are explicitly limited; update the reviewed data when new official publications appear.
+
+Database initialization now applies versioned Alembic migrations and imports reviewed occasions. Existing campaign/chat records remain intact. For an existing Docker installation, back up the database and then run:
+
+```bash
+docker compose up --build -d
+```
+
+For native development, initialize the schema and calendar before starting the API:
+
+```bash
+.venv/bin/python backend/scripts/init_db.py
+.venv/bin/python backend/scripts/import_calendar.py
+```
+
+The second command is only necessary after editing a reviewed dataset; repeated imports are idempotent. No external requests occur during imports. Do not reset the database or restore the demo seed to upgrade. Application rollback retains additive calendar tables/data; destructive downgrades deliberately require a backup decision.
+
+An optional labelled calendar example is available after initialization:
+
+```bash
+LLM_PROVIDER=demo .venv/bin/python backend/scripts/seed_calendar_demo.py
+```
+
+It uses the saved brand and current planning constraints, creates no production campaign and makes no paid provider calls. It can be run again safely. After `./seed/restore.sh --reset`, use the same script inside the rebuilt app container with `docker compose exec app python scripts/seed_calendar_demo.py` if you want this additional roadmap.
+
+Calendar proposal runs retain source/input snapshots, validation events, model name, duration and errors. The provider interface does not expose token counts, so usage is recorded as unavailable rather than guessed. A malformed proposal gets at most one validation repair. Failed requests leave saved plans intact. Pending requests can be reopened; a request that remains running after a lost connection/process interruption is made retryable after 15 minutes. This first release does not include a durable background job queue.
+
+Local Docker ports bind to `127.0.0.1`. This remains a **single-workspace application**. Authentication and isolation across campaigns, conversations, knowledge collections, media and calendar records are prerequisites for shared multi-business hosting.
+
+Frontend production dependencies pass `npm audit --omit=dev`. The existing shadcn development generator currently has upstream glob-pattern advisories; compatible patches are applied without forcing a breaking generator downgrade.
+
+Workspace accounts, ownership, durable AI jobs, campaign results and operational checks are documented in [the workspace upgrade guide](docs/workspace-upgrade.md).
